@@ -1,0 +1,10 @@
+*.nix
+result
+
+*.cabal
+*.svg
+*.swp
+.liquid/
+Setup.hs
+dist-newstyle/
+dist/

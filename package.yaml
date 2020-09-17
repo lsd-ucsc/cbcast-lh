@@ -1,0 +1,26 @@
+name: cbcast-in-lh # required by nix's hpack detection
+
+dependencies:
+    - liquidhaskell
+    - liquid-base
+
+ghc-options:
+    - -fplugin=LiquidHaskell
+    - -Wall
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+
+library:
+    source-dirs: lib
+
+executables:
+    example:
+        main: Example.hs
+
+tests:
+    doctest:
+        main: Doctest.hs
+        dependencies:
+            - doctest
+            - QuickCheck
