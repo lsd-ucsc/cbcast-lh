@@ -1,8 +1,11 @@
 name: cbcast-in-lh # required by nix's hpack detection
 
 dependencies:
-    - liquidhaskell
+    - containers
     - liquid-base
+    - liquid-prelude
+    - liquidhaskell
+    - uuid
 
 ghc-options:
     - -fplugin=LiquidHaskell
