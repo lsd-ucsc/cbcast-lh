@@ -1,4 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-|
+Description: VectorClocks implemented with maps keyed on UUIDs.
+-}
 module Causal.VectorclockConcrete where
 
 --import Language.Haskell.Liquid.ProofCombinators (Proof, trivial)
@@ -13,10 +16,11 @@ import Data.UUID (UUID)
 
 -- $setup
 -- >>> import qualified Data.UUID as UUID
--- >>> let fives = UUID.fromWords 5 5 5 5
--- >>> let sixes = UUID.fromWords 6 6 6 6
--- >>> let sevens = UUID.fromWords 7 7 7 7
--- >>> let eights = UUID.fromWords 8 8 8 8
+-- >>> let cafe = UUID.fromWords 0xcafe 0xcafe 0xcafe 0xcafe
+-- >>> let beef = UUID.fromWords 0xbeef 0xbeef 0xbeef 0xbeef
+-- >>> :set -XStandaloneDeriving -XGeneralizedNewtypeDeriving
+-- >>> deriving instance Num Clock
+-- >>> let vc = Vectorclock . Map.fromList
 
 -- * Common
 
@@ -49,22 +53,56 @@ newtype Vectorclock = Vectorclock {vcRaw :: Map UUID Clock}
 vcNew :: Vectorclock |]
 vcNew = Vectorclock Map.empty
 -- |
--- >>> vcTick fives vcNew
--- 00000005-0000-0005-0000-000500000005:t1
--- >>> vcTick fives . Vectorclock $ Map.fromList [(eights, Clock 0), (fives, Clock 0)]
--- 00000005-0000-0005-0000-000500000005:t1
--- 00000008-0000-0008-0000-000800000008:t0
--- >>> vcTick fives . Vectorclock $ Map.fromList [(eights, Clock 3), (fives, Clock 4)]
--- 00000005-0000-0005-0000-000500000005:t5
--- 00000008-0000-0008-0000-000800000008:t3
+-- >>> vcTick cafe vcNew
+-- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
+-- >>> vcTick cafe $ vc [(beef, 0), (cafe, 0)]
+-- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
+-- 0000beef-0000-beef-0000-beef0000beef:t0
+-- >>> vcTick cafe $ vc [(beef, 3), (cafe, 4)]
+-- 0000cafe-0000-cafe-0000-cafe0000cafe:t5
+-- 0000beef-0000-beef-0000-beef0000beef:t3
 [lq|
 vcTick :: UUID -> Vectorclock -> Vectorclock |]
 vcTick pid (Vectorclock vc) = Vectorclock
     (Map.alter (pure . cInc . maybe cStart id) pid vc)
+-- |
+-- >>> let a = vc [(beef, 9)]
+-- >>> let b = vc [(beef, 3), (cafe, 4)]
+-- >>> vcCombine vcNew vcNew
+-- empty-vc
+-- >>> vcCombine a vcNew
+-- 0000beef-0000-beef-0000-beef0000beef:t9
+-- >>> vcCombine vcNew b
+-- 0000cafe-0000-cafe-0000-cafe0000cafe:t4
+-- 0000beef-0000-beef-0000-beef0000beef:t3
+-- >>> vcCombine a b
+-- 0000cafe-0000-cafe-0000-cafe0000cafe:t4
+-- 0000beef-0000-beef-0000-beef0000beef:t9
 [lq|
 vcCombine :: Vectorclock -> Vectorclock -> Vectorclock |]
 vcCombine (Vectorclock a) (Vectorclock b) = Vectorclock
     (Map.unionWith max a b)
+-- |
+-- >>> vcLessEqual vcNew vcNew
+-- True
+--
+-- >>> vcLessEqual (vc [(beef, 0), (cafe, 0)]) (vc [(beef, 0), (cafe, 0)])
+-- True
+-- >>> vcLessEqual (vc [(beef, 0), (cafe, 0)]) (vc [(beef, 1), (cafe, 1)])
+-- True
+-- >>> vcLessEqual (vc [(beef, 1), (cafe, 1)]) (vc [(beef, 1), (cafe, 1)])
+-- True
+-- >>> vcLessEqual (vc [(beef, 1), (cafe, 2)]) (vc [(beef, 1), (cafe, 1)])
+-- False
+--
+-- >>> vcLessEqual (vc [(beef, 9)]) (vc [(beef, 3), (cafe, 4)])
+-- False
+-- >>> vcLessEqual (vc [(beef, 3), (cafe, 4)]) (vc [(beef, 9)])
+-- False
+-- >>> vcLessEqual (vc [(beef, 1)]) (vc [(beef, 3), (cafe, 4)])
+-- True
+-- >>> vcLessEqual (vc [(beef, 3), (cafe, 0)]) (vc [(beef, 9)])
+-- True
 [lq|
 vcLessEqual :: Vectorclock -> Vectorclock -> Bool |]
 vcLessEqual (Vectorclock a) (Vectorclock b)
@@ -76,6 +114,9 @@ vcLessEqual (Vectorclock a) (Vectorclock b)
 [lq|
 vcLess :: Vectorclock -> Vectorclock -> Bool |]
 vcLess a b = vcLessEqual a b && a /= b
+-- |
+-- >>> vcIndependent vcNew vcNew
+-- True
 [lq|
 vcIndependent :: Vectorclock -> Vectorclock -> Bool |]
 vcIndependent a b = not (vcLess a b) && not (vcLess b a)
@@ -91,4 +132,4 @@ instance Show Vectorclock where
         | otherwise
             = intercalate "\n"
             . fmap (\(k, v) -> show k ++ ':' : show v)
-            $ Map.toAscList vc
+            $ Map.toDescList vc
