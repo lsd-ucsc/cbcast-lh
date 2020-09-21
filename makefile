@@ -22,7 +22,7 @@ clean: $(CABAL_FILE)
 	$(SETUP_CMD) clean
 	rm -v $(CABAL_FILE)
 
-%.cabal:
+%.cabal: package.yaml
 	hpack
 
 ## tools

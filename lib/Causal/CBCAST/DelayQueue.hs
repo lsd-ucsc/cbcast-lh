@@ -1,9 +1,13 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Causal.CBCAST.DelayQueue
 ( DelayQueue()
 , dqNew
 , dqEnqueue
 , dqDequeue
+, dqSize
 ) where
+
+import LiquidHaskell (lq)
 
 import Causal.CBCAST.Message (VT, Message(..))
 import Control.Arrow (first)
@@ -11,7 +15,10 @@ import Causal.VectorClockConcrete
 
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
-newtype DelayQueue r = DelayQueue [Message r]
+[lq|
+data DelayQueue [dqSize] r = DelayQueue [Message r] |]
+data DelayQueue          r = DelayQueue [Message r]
+-- FIXME: this is supposed to be a newtype, but that breaks the LH measure
 
 -- | Determine message deliverability relative to current vector time.
 --
@@ -35,6 +42,18 @@ deliverability t m
 -- | Make a new empty delay-queue.
 dqNew :: DelayQueue r
 dqNew = DelayQueue []
+
+-- | Return the number of messages in a delay queue
+[lq|
+dqSize :: DelayQueue r -> Int |]
+dqSize (DelayQueue xs) = len xs
+[lq| measure dqSize |]
+-- TODO: figure out how to use Prelude.length with LH
+[lq|
+len :: [a] -> Int |]
+len [] = 0
+len (_x:xs) = 1 + len xs
+[lq| measure len |]
 
 -- | Insert a message into the delay queue.
 --

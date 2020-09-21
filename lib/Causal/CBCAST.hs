@@ -43,9 +43,26 @@ module Causal.CBCAST where
 import LiquidHaskell (lq)
 
 import Causal.CBCAST.Message (PID, VT, Message(..))
-import Control.Arrow (first, second)
 import Causal.CBCAST.DelayQueue
 import Causal.VectorClockConcrete
+
+-- | Prepare a message for sending, possibly triggering the delivery of
+-- messages in the delay-queue. Callers are responsible for broadcasting the
+-- packaged message and then processing their results from any deliveries which
+-- may occurred.
+send :: Accept r res -> r -> Process r -> (Process r, Message r, [res])
+send uAccept r p = (p'', m, res)
+  where
+    (p', m) = cbcastSend r p
+    (p'', res) = deliveryLifecycle uAccept p'
+
+-- | Receive a message, possibly triggering the delivery of messages in the
+-- delay-queue. Callers are responsible for processing the results from any
+-- deliveries which may have occurred.
+receive :: Accept r res -> Message r -> Process r -> (Process r, [res])
+receive uAccept m p = fmap (maybe id (:) res) (deliveryLifecycle uAccept p')
+  where
+    (p', res) = cbcastReceive uAccept m p
 
 -- | Deliver messages until there are none ready.
 [lq|
@@ -53,7 +70,7 @@ deliveryLifecycle :: Accept r res -> Process r -> (Process r, [res]) |]
 deliveryLifecycle uAccept p = case dqDequeue (pVT p) (pDQ p) of
     Just (dq', m) ->
         let (p', res) = cbcastDeliver uAccept m p{pDQ=dq'}
-        in second (res:) (deliveryLifecycle uAccept p')
+        in fmap (res:) (deliveryLifecycle uAccept p')
     Nothing -> (p, [])
 
 -----------------
@@ -63,7 +80,9 @@ type DQ r = DelayQueue r
 data Process r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r}
 
 -- | User function. Accept a message with metadata and return some result which
--- orchestration hands back to the user code.
+-- orchestration hands back to the user code. Results from multiple deliveries
+-- will be returned in-order, and so it makes sense to return a monadic result
+-- and then use 'sequence' to process them in the correct order.
 type Accept r res = Message r -> res
 
 -- | Prepare to send a message. Return new process state and timestamped
@@ -71,15 +90,17 @@ type Accept r res = Message r -> res
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
+--
+-- Since this modifies the vector-clock and could change the deliverability of
+-- messages in the delay-queue, the delivery lifecycle must be run after this.
 cbcastSend :: r -> Process r -> (Process r, Message r)
-cbcastSend m p = (p{pVT=vt'}, Message{mSender=pNode p, mSent=vt', mRaw=m})
+cbcastSend r p = (p{pVT=vt'}, Message{mSender=pNode p, mSent=vt', mRaw=r})
   where
     vt' = vcTick (pNode p) (pVT p)
--- FIXME: Modifies the vector clock and could change message deliverability.
--- Need to do delivery lifecycle after this function.
 
--- | Receive a message. Delay its delivery on a queue. Return new process
--- state. The "until" part is handled by 'checkDeliverability'.
+-- | Receive a message. Delay its delivery on a queue or deliver it
+-- immediately. Return new process state. The "until" part is handled by
+-- 'deliveryLifecycle'.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -92,17 +113,19 @@ cbcastSend m p = (p{pVT=vt'}, Message{mSender=pNode p, mSent=vt', mRaw=m})
 --      queue is sorted by vector time, with concurrent messages ordered by
 --      time of receipt (however, the queue order will not be used until later
 --      in the paper)."
-cbcastReceive :: Accept r res -> Message r -> Process r -> (Process r, [res])
+--
+-- Since this modifies the vector-clock in one case and the delay-queue in the
+-- other, it could change the deliverability of messages in the delay-queue,
+-- the delivery lifecycle must be run after this.
+cbcastReceive :: Accept r res -> Message r -> Process r -> (Process r, Maybe res)
 cbcastReceive uAccept m p
     -- "Process p_j need not delay messages received from itself."
-    | mSender m == pNode p = second (:[]) (cbcastDeliver uAccept m p)
+    | mSender m == pNode p = fmap pure (cbcastDeliver uAccept m p)
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
-    | otherwise = (p{pDQ=dqEnqueue m (pDQ p)}, [])
--- FIXME: Delivering a self-sent message modifies the vector clock and
--- enqueueing a message in the delay queue could both change message
--- deliverability. Need to do delivery lifecycle after this.
+    | otherwise = (p{pDQ=dqEnqueue m (pDQ p)}, Nothing)
 
--- | Deliver a message. Return new process state and user delivery result.
+-- | Deliver a message by calling a user supplied function. Return new process
+-- state and user delivery result.
 --
 --      "(3) When a message m is delivered, VT(p_j) is updated in accordance
 --      with the vector time protocol from Section 4.3."
@@ -114,9 +137,10 @@ cbcastReceive uAccept m p
 --      following manner:
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
+--
+-- Since this modifies the vector-clock and could change the deliverability of
+-- messages in the delay-queue, the delivery lifecycle must be run after this.
 cbcastDeliver :: Accept r res -> Message r -> Process r -> (Process r, res)
 cbcastDeliver uAccept m p = (p{pVT=vt'}, uAccept m)
   where
     vt' = vcCombine (pVT p) (mSent m)
--- FIXME: Modifies the vector clock and could change message deliverability.
--- Need to do delivery lifecycle after this function.
