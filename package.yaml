@@ -6,6 +6,8 @@ dependencies:
     - liquid-prelude
     - liquidhaskell
     - uuid
+    - mtl # cbcast monadic
+    - exceptions # cbcast monadic
 
 ghc-options:
     - -fplugin=LiquidHaskell

@@ -4,6 +4,8 @@ let
   lh-source = (import <nixpkgs> {}).fetchFromGitHub {
     owner = "plredmond";
     repo = "liquidhaskell";
+    #rev = "ca9cbfbcf"; # nixify branch built from LH source Mon 21 Sep 2020 10:46:15 PM UTC -- CURRENTLY BROKEN
+    #sha256 = "1p2p79f3z9b5m1k8bl13l128w227kcn9ilvn5g9d8xjn6kgk75ib";
     rev = "34698bb69"; # nixify-hackage branch as of Sat 19 Sep 2020 02:00:21 AM UTC
     sha256 = "0igbk5v5bagr62bcgj1zcqm5nw8c4crhvvb84m8bxqbwwr5d3d59";
     fetchSubmodules = true;

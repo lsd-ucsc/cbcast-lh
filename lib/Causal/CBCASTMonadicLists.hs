@@ -1,8 +1,8 @@
-{-# LANGUAGE QuasiQuotes #-}
-{-|
-Description: Proof of a causal delivery property.
--}
-module Causal.CBCAST where
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+module Causal.CBCASTMonadicLists where
+
+-- This module uses a monadic but just returns lists of messages.
+-- ===========================================================================
 
 -- page 7/278:
 --
@@ -40,68 +40,90 @@ module Causal.CBCAST where
 --
 --          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')
 
-import LiquidHaskell (lq)
+--import Language.Haskell.Liquid.ProofCombinators (Proof, trivial)
+import Control.Arrow (first, second)
+import Data.Either (partitionEithers)
+
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Trans (MonadTrans)
+--import Control.Monad.Reader (MonadReader)
+--import Control.Monad.Writer (MonadWriter)
+--import Control.Monad.State (MonadState)
+import Control.Monad.Catch (MonadThrow, MonadCatch, MonadMask)
+
+import Control.Monad.RWS (RWST)
+import qualified Control.Monad.RWS as RWS
 
 import Causal.CBCAST.Message (PID, VT, Message(..))
 import Causal.CBCAST.DelayQueue
 import Causal.VectorClockConcrete
 
 -- | Prepare a message for sending, possibly triggering the delivery of
--- messages in the delay-queue. Callers are responsible for broadcasting the
--- packaged message and then processing their results from any deliveries which
--- may occurred.
-send :: Accept r res -> r -> Process r -> (Process r, Message r, [res])
-send uAccept r p = (p'', m, res)
-  where
-    (p', m) = cbcastSend r p
-    (p'', res) = deliveryLifecycle uAccept p'
+-- messages in the delay-queue.
+send :: Monad m => r -> CausalT r m ()
+send r = do
+    cbcastSend r
+    deliveryLifecycle
 
 -- | Receive a message, possibly triggering the delivery of messages in the
--- delay-queue. Callers are responsible for processing the results from any
--- deliveries which may have occurred.
-receive :: Accept r res -> Message r -> Process r -> (Process r, [res])
-receive uAccept m p = fmap (maybe id (:) res) (deliveryLifecycle uAccept p')
-  where
-    (p', res) = cbcastReceive uAccept m p
+-- delay-queue.
+receive :: Monad m => Message r -> CausalT r m ()
+receive m = do
+    cbcastReceive m
+    deliveryLifecycle
 
 -- | Deliver messages until there are none ready.
-[lq|
-deliveryLifecycle :: Accept r res -> Process r -> (Process r, [res]) |]
-deliveryLifecycle uAccept p = case dqDequeue (pVT p) (pDQ p) of
-    Just (dq', m) ->
-        let (p', res) = cbcastDeliver uAccept m p{pDQ=dq'}
-        in fmap (res:) (deliveryLifecycle uAccept p')
-    Nothing -> (p, [])
-[lq| lazy deliveryLifecycle |] -- FIXME; probably need to know that this terminates
+deliveryLifecycle :: Monad m => CausalT r m ()
+deliveryLifecycle = do
+    st <- CausalT RWS.get
+    case uncurry dqDequeue st of
+        Just (dq, m) -> do
+            CausalT $ RWS.modify' (second (const dq))
+            cbcastDeliver m
+            deliveryLifecycle
+        Nothing -> return ()
+{-@ lazy deliveryLifecycle @-} -- FIXME
 
 -----------------
 
+type Log r = [Either (Message r) (Message r)]
+newtype Inbox r = Inbox {inbox :: [Message r]}
+newtype Outbox r = Outbox {outbox :: [Message r]}
+
 type DQ r = DelayQueue r
+type ST r = (VT, DQ r)
 
-data Process r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r}
+newtype CausalT r m a = CausalT (RWST PID (Log r) (ST r) m a)
+    deriving
+    ( Functor, Applicative, Monad, MonadIO
+--  , MonadBase IO
+    , MonadTrans--, MonadReader r, MonadWriter w, MonadState s
+    , MonadThrow, MonadCatch, MonadMask
+--  , MonadTransControl, MonadBaseControl IO
+    )
 
--- | User function. Accept a message with metadata and return some result which
--- orchestration hands back to the user code. Results from multiple deliveries
--- will be returned in-order, and so it makes sense to return a monadic result
--- and then use 'sequence' to process them in the correct order.
-type Accept r res = Message r -> res
+execCausalT :: Monad m => CausalT r m () -> PID -> ST r -> m (ST r, Inbox r, Outbox r)
+execCausalT (CausalT action) pid st = do
+    (st', xs) <- RWS.execRWST action pid st
+    let (inb, outb) = partitionEithers xs
+    return (st', Inbox inb, Outbox outb)
 
--- | Prepare to send a message. Return new process state and timestamped
--- message.
+-- | Prepare to send a message.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
 -- Since this modifies the vector-clock and could change the deliverability of
 -- messages in the delay-queue, the delivery lifecycle must be run after this.
-cbcastSend :: r -> Process r -> (Process r, Message r)
-cbcastSend r p = (p{pVT=vt'}, Message{mSender=pNode p, mSent=vt', mRaw=r})
-  where
-    vt' = vcTick (pNode p) (pVT p)
+cbcastSend :: Monad m => r -> CausalT r m ()
+cbcastSend r = CausalT $ do
+    pid <- RWS.ask
+    RWS.modify' (first (pid `vcTick`))
+    vt <- RWS.gets fst
+    RWS.tell [Left Message{mSender=pid, mSent=vt, mRaw=r}]
 
 -- | Receive a message. Delay its delivery on a queue or deliver it
--- immediately. Return new process state. The "until" part is handled by
--- 'deliveryLifecycle'.
+-- immediately. The "until" part is handled by 'deliveryLifecycle'.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -118,15 +140,16 @@ cbcastSend r p = (p{pVT=vt'}, Message{mSender=pNode p, mSent=vt', mRaw=r})
 -- Since this modifies the vector-clock in one case and the delay-queue in the
 -- other, it could change the deliverability of messages in the delay-queue,
 -- the delivery lifecycle must be run after this.
-cbcastReceive :: Accept r res -> Message r -> Process r -> (Process r, Maybe res)
-cbcastReceive uAccept m p
+cbcastReceive :: Monad m => Message r -> CausalT r m ()
+cbcastReceive m = do
+    pid <- CausalT RWS.ask
+    if mSender m == pid
     -- "Process p_j need not delay messages received from itself."
-    | mSender m == pNode p = fmap pure (cbcastDeliver uAccept m p)
+    then cbcastDeliver m
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
-    | otherwise = (p{pDQ=dqEnqueue m (pDQ p)}, Nothing)
+    else CausalT $ RWS.modify' (second (dqEnqueue m))
 
--- | Deliver a message by calling a user supplied function. Return new process
--- state and user delivery result.
+-- | Deliver a message by calling a user supplied function.
 --
 --      "(3) When a message m is delivered, VT(p_j) is updated in accordance
 --      with the vector time protocol from Section 4.3."
@@ -141,7 +164,7 @@ cbcastReceive uAccept m p
 --
 -- Since this modifies the vector-clock and could change the deliverability of
 -- messages in the delay-queue, the delivery lifecycle must be run after this.
-cbcastDeliver :: Accept r res -> Message r -> Process r -> (Process r, res)
-cbcastDeliver uAccept m p = (p{pVT=vt'}, uAccept m)
-  where
-    vt' = vcCombine (pVT p) (mSent m)
+cbcastDeliver :: Monad m => Message r -> CausalT r m ()
+cbcastDeliver m = CausalT $ do
+    RWS.modify' (first (`vcCombine` mSent m))
+    RWS.tell [Right m]
