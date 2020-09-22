@@ -4,10 +4,23 @@ module Confusions where
 import LiquidHaskell (lq)
 import Data.Int
 
+-- (5)
+-- Wrong number of fields error on
+-- {-@
+-- data Pt = Pt Int Int @-}
+-- data Pt = Pt Int Int
+-- ?? a bug but fixed already
+
+-- (4)
+-- How do you define a measure for data based on the size of a list?
+-- EG. using the length defined in prelude which comes from data.foldable?
+-- https://liquidhaskell.slack.com/archives/C54QAL9RR/p1600669515051900
+
 -- (3)
 -- some confusion about how to abstract a refinement
 -- https://liquidhaskell.slack.com/archives/C54QAL9RR/p1600451110042700
 -- three different approaches
+-- there was also a bug
 
 -- (2)
 -- don't use newtype with refined data types; it's not really supported
