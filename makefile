@@ -3,7 +3,7 @@
 # this file build using setup commands (not nix-build)
 
 CONFIG_FILE = dist/setup-config
-CABAL_FILE = cbcast-in-lh.cabal
+CABAL_FILE = cbcast-lh.cabal
 SETUP_CMD = runhaskell -hide-package=base Setup.hs
 
 .PHONY: test build clean repl

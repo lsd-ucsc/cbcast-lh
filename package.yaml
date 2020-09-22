@@ -1,4 +1,4 @@
-name: cbcast-in-lh # required by nix's hpack detection
+name: cbcast-lh # required by nix's hpack detection
 
 dependencies:
     - containers
