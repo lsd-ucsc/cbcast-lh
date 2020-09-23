@@ -4,6 +4,10 @@ module Confusions where
 import LiquidHaskell (lq)
 import Data.Int
 
+-- (6) bugs around scoping
+-- importing measures defined by quasiquoter https://github.com/ucsd-progsys/liquidhaskell/issues/1764
+-- using an alias which uses an inlined function https://github.com/ucsd-progsys/liquidhaskell/issues/1761
+
 -- (5)
 -- Wrong number of fields error on
 -- {-@
