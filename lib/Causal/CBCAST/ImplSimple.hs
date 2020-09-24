@@ -1,13 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
-module Causal.CBCASTMonadicListsObject where
-
--- This module uses a monadic and exposes stateful operations
--- ===========================================================================
+module Causal.CBCAST.ImplSimple where
 
 -- page 7/278:
 --
---      "The execution of a process is a partiall ordered sequence of _events_,
+--      "The execution of a process is a partial ordered sequence of _events_,
 --      each corresponding to the execution of an indivisible action. An
 --      acyclic event order, denoted ->^p, reflects the dependence of events
 --      occuring at process p upon one another."
@@ -43,60 +38,42 @@ module Causal.CBCASTMonadicListsObject where
 
 --import Language.Haskell.Liquid.ProofCombinators (Proof, trivial)
 
-import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Trans (MonadTrans)
-import Control.Monad.Reader (MonadReader)
-import Control.Monad.Writer (MonadWriter)
---import Control.Monad.State (MonadState)
-import Control.Monad.Catch (MonadThrow, MonadCatch, MonadMask)
-
-import Control.Monad.State (StateT)
-import qualified Control.Monad.State as State
-
 import Causal.CBCAST.Message (PID, VT, Message(..))
 import Causal.CBCAST.DelayQueue
 import Causal.VectorClockConcrete
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in-order, eg, with 'mapM_').
-drainBroadcasts :: Monad m => CausalT r m [Message r]
-drainBroadcasts = CausalT $ do
-    xs <- State.gets pOutbox
-    State.modify' $ \p -> p{pOutbox=fNew}
-    return (fList xs)
+drainBroadcasts :: Process r -> (Process r, [Message r])
+drainBroadcasts p =
+    ( p{pOutbox=fNew}
+    , fList (pOutbox p)
+    )
 
 -- | Remove and return all delivered messages so the application can process
 -- them (in-order, eg, with 'fmap').
-drainDeliveries :: Monad m => CausalT r m [Message r]
-drainDeliveries = CausalT $ do
-    xs <- State.gets pInbox
-    State.modify' $ \p -> p{pInbox=fNew}
-    return (fList xs)
+drainDeliveries :: Process r -> (Process r, [Message r])
+drainDeliveries p =
+    ( p{pInbox=fNew}
+    , fList (pInbox p)
+    )
 
 -- | Prepare a message for sending, possibly triggering the delivery of
--- messages in the delay-queue.
-send :: Monad m => r -> CausalT r m ()
-send r = CausalT $ do
-    cbcastSend r
-    deliveryLifecycle
+-- messages in the delay queue.
+send :: r -> Process r -> Process r
+send r p = deliveryLifecycle (cbcastSend r p)
 
 -- | Receive a message, possibly triggering the delivery of messages in the
--- delay-queue.
-receive :: Monad m => Message r -> CausalT r m ()
-receive m = CausalT $ do
-    cbcastReceive m
-    deliveryLifecycle
+-- delay queue.
+receive :: Message r -> Process r -> Process r
+receive m p = deliveryLifecycle (cbcastReceive m p)
 
 -- | Deliver messages until there are none ready.
-deliveryLifecycle :: Monad m => Internal r m ()
-deliveryLifecycle = do
-    dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
-        Just (dq, m) -> do
-            State.modify' $ \p -> p{pDQ=dq}
-            cbcastDeliver m
-            deliveryLifecycle
-        Nothing -> return ()
-{-@ lazy deliveryLifecycle @-} -- FIXME
+deliveryLifecycle :: Process r -> Process r
+deliveryLifecycle p = case dqDequeue (pVT p) (pDQ p) of
+    Just (dq, m) -> deliveryLifecycle (cbcastDeliver m p{pDQ=dq})
+    Nothing -> p
+{-@ lazy deliveryLifecycle @-} -- FIXME; probably need to know that this terminates
 
 -----------------
 
@@ -113,6 +90,9 @@ fPush (FIFO xs) x = FIFO (x:xs)
 fList :: FIFO a -> [a]
 fList (FIFO xs) = reverse xs
 
+-- | CBCAST process state with ID, logical clock, and delay queue. The inbox
+and outbox store messages which are delivered or ready to broadcast,
+respectively.
 data Process r = Process
     { pNode :: PID
     , pVT :: VT
@@ -130,34 +110,22 @@ pNew pid = Process
     , pOutbox = fNew
     }
 
-type Internal r m a = StateT (Process r) m a
-newtype CausalT r m a = CausalT (Internal r m a)
-    deriving
-    ( Functor, Applicative, Monad, MonadIO
---  , MonadBase IO
-    , MonadTrans, MonadReader r, MonadWriter w--, MonadState s
-    , MonadThrow, MonadCatch, MonadMask
---  , MonadTransControl, MonadBaseControl IO
-    )
-
-execCausalT :: Monad m => Process r -> CausalT r m () -> m (Process r)
-execCausalT p (CausalT action) = State.execStateT action p
-
--- | Prepare to send a message.
+-- | Prepare to send a message. Return new process state.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
--- Since this modifies the vector-clock and could change the deliverability of
--- messages in the delay-queue, the 'deliveryLifecycle' must be run after this.
-cbcastSend :: Monad m => r -> Internal r m ()
-cbcastSend r = do
-    State.modify' $ \p -> p{pVT=vcTick (pNode p) (pVT p)}
-    m <- Message <$> State.gets pNode <*> State.gets pVT <*> return r
-    State.modify' $ \p -> p{pOutbox=fPush (pOutbox p) m}
+-- Since this modifies the vector clock and could change the deliverability of
+-- messages in the delay queue, the 'deliveryLifecycle' must be run after this.
+cbcastSend :: r -> Process r -> Process r
+cbcastSend r p = let vt = vcTick (pNode p) (pVT p) in p
+    { pVT = vt
+    , pOutbox = fPush (pOutbox p) Message{mSender=pNode p, mSent=vt, mRaw=r}
+    }
 
 -- | Receive a message. Delay its delivery on a queue or deliver it
--- immediately. The "until" part is handled by 'deliveryLifecycle'.
+-- immediately. Return new process state. The "until" part is handled by
+-- 'deliveryLifecycle'.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -171,19 +139,17 @@ cbcastSend r = do
 --      time of receipt (however, the queue order will not be used until later
 --      in the paper)."
 --
--- Since this modifies the vector-clock in one case and the delay-queue in the
--- other, it could change the deliverability of messages in the delay-queue,
+-- Since this modifies the vector clock in one case and the delay queue in the
+-- other, it could change the deliverability of messages in the delay queue,
 -- the 'deliveryLifecycle' must be run after this.
-cbcastReceive :: Monad m => Message r -> Internal r m ()
-cbcastReceive m = do
-    pid <- State.gets pNode
-    if mSender m == pid
+cbcastReceive :: Message r -> Process r -> Process r
+cbcastReceive m p
     -- "Process p_j need not delay messages received from itself."
-    then cbcastDeliver m
+    | mSender m == pNode p = cbcastDeliver m p
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
-    else State.modify' $ \p -> p{pDQ=dqEnqueue m (pDQ p)}
+    | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
--- | Deliver a message.
+-- | Deliver a message. Return new process state.
 --
 --      "(3) When a message m is delivered, VT(p_j) is updated in accordance
 --      with the vector time protocol from Section 4.3."
@@ -196,9 +162,10 @@ cbcastReceive m = do
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
--- Since this modifies the vector-clock and could change the deliverability of
--- messages in the delay-queue, 'deliveryLifecycle' must be run after this.
-cbcastDeliver :: Monad m => Message r -> Internal r m ()
-cbcastDeliver m = do
-    State.modify' $ \p -> p{pVT=vcCombine (pVT p) (mSent m)}
-    State.modify' $ \p -> p{pInbox=fPush (pInbox p) m} -- FIXME: could be one modify' with one record-update
+-- Since this modifies the vector clock and could change the deliverability of
+-- messages in the delay queue, 'deliveryLifecycle' must be run after this.
+cbcastDeliver :: Message r -> Process r -> Process r
+cbcastDeliver m p = p
+    { pVT = vcCombine (pVT p) (mSent m)
+    , pInbox = fPush (pInbox p) m
+    }
