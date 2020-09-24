@@ -1,4 +1,10 @@
-module Causal.CBCAST.ImplSimple where
+module Causal.CBCAST.ImplSimple
+( pNew
+, send
+, receive
+, drainBroadcasts
+, drainDeliveries
+) where
 
 -- page 7/278:
 --
@@ -36,48 +42,10 @@ module Causal.CBCAST.ImplSimple where
 --
 --          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')
 
---import Language.Haskell.Liquid.ProofCombinators (Proof, trivial)
-
-import Causal.CBCAST.Message (PID, VT, Message(..))
 import Causal.CBCAST.DelayQueue
+import Causal.CBCAST.Message
+import Causal.CBCAST.Process
 import Causal.VectorClockConcrete
-
--- * Internal data structures
-
--- | Trivial fifo. Appended to it with 'fPush'. Dump it out with 'fList' and
--- map over the result in fifo order. Replace it after dumping with 'fNew'.
--- >>> fList $ fPush (fPush (fPush fNew 'a') 'b') 'c'
--- "abc"
--- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
--- "abc"
-newtype FIFO a = FIFO [a]
-fNew :: FIFO a
-fNew = FIFO []
-fPush :: FIFO a -> a -> FIFO a
-fPush (FIFO xs) x = FIFO (x:xs)
-fList :: FIFO a -> [a]
-fList (FIFO xs) = reverse xs
-
--- | CBCAST process state with ID, logical clock, and delay queue. The inbox
--- stores messages which are delivered, and the outbox stores messages which
--- are ready to broadcast.
-data Process r = Process
-    { pNode :: PID
-    , pVT :: VT
-    , pDQ :: DelayQueue r
-    , pInbox :: FIFO (Message r)
-    , pOutbox :: FIFO (Message r)
-    }
-
--- | New empty process using the given process ID.
-pNew :: PID -> Process r
-pNew pid = Process
-    { pNode = pid
-    , pVT = vcNew
-    , pDQ = dqNew
-    , pInbox = fNew
-    , pOutbox = fNew
-    }
 
 -- * Internal operations
 

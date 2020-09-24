@@ -9,8 +9,9 @@ module Causal.CBCAST.DelayQueue
 
 import LiquidHaskell (lq)
 
-import Causal.CBCAST.Message (VT, Message(..))
 import Control.Arrow (first)
+
+import Causal.CBCAST.Message
 import Causal.VectorClockConcrete
 
 data Deliverability = Early | Ready | Late deriving (Eq, Show)

@@ -1,6 +1,14 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
-module Causal.CBCAST.ImplMonadic where
+module Causal.CBCAST.ImplMonadic
+( pNew
+, send
+, receive
+, drainBroadcasts
+, drainDeliveries
+, CausalT()
+, execCausalT
+) where
 
 -- page 7/278:
 --
@@ -49,46 +57,10 @@ import Control.Monad.Catch (MonadThrow, MonadCatch, MonadMask)
 import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
 
-import Causal.CBCAST.Message (PID, VT, Message(..))
 import Causal.CBCAST.DelayQueue
+import Causal.CBCAST.Message
+import Causal.CBCAST.Process
 import Causal.VectorClockConcrete
-
--- * Internal data structures
-
--- | Trivial fifo. Appended to it with 'fPush'. Dump it out with 'fList' and
--- map over the result in fifo order. Replace it after dumping with 'fNew'.
--- >>> fList $ fPush (fPush (fPush fNew 'a') 'b') 'c'
--- "abc"
--- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
--- "abc"
-newtype FIFO a = FIFO [a]
-fNew :: FIFO a
-fNew = FIFO []
-fPush :: FIFO a -> a -> FIFO a
-fPush (FIFO xs) x = FIFO (x:xs)
-fList :: FIFO a -> [a]
-fList (FIFO xs) = reverse xs
-
--- | CBCAST process state with ID, logical clock, and delay queue. The inbox
--- stores messages which are delivered, and the outbox stores messages which
--- are ready to broadcast.
-data Process r = Process
-    { pNode :: PID
-    , pVT :: VT
-    , pDQ :: DelayQueue r
-    , pInbox :: FIFO (Message r)
-    , pOutbox :: FIFO (Message r)
-    }
-
--- | New empty process using the given process ID.
-pNew :: PID -> Process r
-pNew pid = Process
-    { pNode = pid
-    , pVT = vcNew
-    , pDQ = dqNew
-    , pInbox = fNew
-    , pOutbox = fNew
-    }
 
 -- | Monad transformer maintaining internal state.
 type Internal r m a = StateT (Process r) m a
