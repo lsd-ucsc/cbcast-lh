@@ -42,42 +42,10 @@ import Causal.CBCAST.Message (PID, VT, Message(..))
 import Causal.CBCAST.DelayQueue
 import Causal.VectorClockConcrete
 
--- | Remove and return all sent messages so the application can broadcast them
--- (in-order, eg, with 'mapM_').
-drainBroadcasts :: Process r -> (Process r, [Message r])
-drainBroadcasts p =
-    ( p{pOutbox=fNew}
-    , fList (pOutbox p)
-    )
+-- * Internal data structures
 
--- | Remove and return all delivered messages so the application can process
--- them (in-order, eg, with 'fmap').
-drainDeliveries :: Process r -> (Process r, [Message r])
-drainDeliveries p =
-    ( p{pInbox=fNew}
-    , fList (pInbox p)
-    )
-
--- | Prepare a message for sending, possibly triggering the delivery of
--- messages in the delay queue.
-send :: r -> Process r -> Process r
-send r p = deliveryLifecycle (cbcastSend r p)
-
--- | Receive a message, possibly triggering the delivery of messages in the
--- delay queue.
-receive :: Message r -> Process r -> Process r
-receive m p = deliveryLifecycle (cbcastReceive m p)
-
--- | Deliver messages until there are none ready.
-deliveryLifecycle :: Process r -> Process r
-deliveryLifecycle p = case dqDequeue (pVT p) (pDQ p) of
-    Just (dq, m) -> deliveryLifecycle (cbcastDeliver m p{pDQ=dq})
-    Nothing -> p
-{-@ lazy deliveryLifecycle @-} -- FIXME; probably need to know that this terminates
-
------------------
-
--- | Cheap fifo for wholemeal dumps & in-order mapping.
+-- | Trivial fifo. Appended to it with 'fPush'. Dump it out with 'fList' and
+-- map over the result in fifo order. Replace it after dumping with 'fNew'.
 -- >>> fList $ fPush (fPush (fPush fNew 'a') 'b') 'c'
 -- "abc"
 -- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
@@ -91,8 +59,8 @@ fList :: FIFO a -> [a]
 fList (FIFO xs) = reverse xs
 
 -- | CBCAST process state with ID, logical clock, and delay queue. The inbox
-and outbox store messages which are delivered or ready to broadcast,
-respectively.
+-- stores messages which are delivered, and the outbox stores messages which
+-- are ready to broadcast.
 data Process r = Process
     { pNode :: PID
     , pVT :: VT
@@ -101,6 +69,7 @@ data Process r = Process
     , pOutbox :: FIFO (Message r)
     }
 
+-- | New empty process using the given process ID.
 pNew :: PID -> Process r
 pNew pid = Process
     { pNode = pid
@@ -110,22 +79,25 @@ pNew pid = Process
     , pOutbox = fNew
     }
 
+-- * Internal operations
+
 -- | Prepare to send a message. Return new process state.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
--- Since this modifies the vector clock and could change the deliverability of
--- messages in the delay queue, the 'deliveryLifecycle' must be run after this.
+-- Since this modifies the vector clock, it could change the deliverability of
+-- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- after this.
 cbcastSend :: r -> Process r -> Process r
 cbcastSend r p = let vt = vcTick (pNode p) (pVT p) in p
     { pVT = vt
     , pOutbox = fPush (pOutbox p) Message{mSender=pNode p, mSent=vt, mRaw=r}
     }
 
--- | Receive a message. Delay its delivery on a queue or deliver it
--- immediately. Return new process state. The "until" part is handled by
--- 'deliveryLifecycle'.
+-- | Receive a message. Delay its delivery or deliver it immediately. The
+-- "until" part is handled by 'cbcastDeliverReceived'. Return new process
+-- state.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -140,14 +112,21 @@ cbcastSend r p = let vt = vcTick (pNode p) (pVT p) in p
 --      in the paper)."
 --
 -- Since this modifies the vector clock in one case and the delay queue in the
--- other, it could change the deliverability of messages in the delay queue,
--- the 'deliveryLifecycle' must be run after this.
+-- other, it could change the deliverability of messages in the delay queue.
+-- Therefore 'cbcastDeliverReceived' must be run after this.
 cbcastReceive :: Message r -> Process r -> Process r
 cbcastReceive m p
     -- "Process p_j need not delay messages received from itself."
     | mSender m == pNode p = cbcastDeliver m p
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
+
+-- | Deliver messages until there are none ready.
+cbcastDeliverReceived :: Process r -> Process r
+cbcastDeliverReceived p = case dqDequeue (pVT p) (pDQ p) of
+    Just (dq, m) -> cbcastDeliverReceived (cbcastDeliver m p{pDQ=dq})
+    Nothing -> p
+{-@ lazy cbcastDeliverReceived @-} -- FIXME; probably need to know that this terminates
 
 -- | Deliver a message. Return new process state.
 --
@@ -162,10 +141,39 @@ cbcastReceive m p
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
--- Since this modifies the vector clock and could change the deliverability of
--- messages in the delay queue, 'deliveryLifecycle' must be run after this.
+-- Since this modifies the vector clock, it could change the deliverability of
+-- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- after this.
 cbcastDeliver :: Message r -> Process r -> Process r
 cbcastDeliver m p = p
     { pVT = vcCombine (pVT p) (mSent m)
     , pInbox = fPush (pInbox p) m
     }
+
+-- * External API
+
+-- | Prepare a message for sending, possibly triggering the delivery of
+-- messages in the delay queue.
+send :: r -> Process r -> Process r
+send r = cbcastDeliverReceived . cbcastSend r
+
+-- | Receive a message, possibly triggering the delivery of messages in the
+-- delay queue.
+receive :: Message r -> Process r -> Process r
+receive m = cbcastDeliverReceived . cbcastReceive m
+
+-- | Remove and return all sent messages so the application can broadcast them
+-- (in sent-order, eg, with 'mapM_').
+drainBroadcasts :: Process r -> (Process r, [Message r])
+drainBroadcasts p =
+    ( p{pOutbox=fNew}
+    , fList (pOutbox p)
+    )
+
+-- | Remove and return all delivered messages so the application can process
+-- them (in delivered-order, eg, with 'fmap').
+drainDeliveries :: Process r -> (Process r, [Message r])
+drainDeliveries p =
+    ( p{pInbox=fNew}
+    , fList (pInbox p)
+    )

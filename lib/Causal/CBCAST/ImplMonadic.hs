@@ -53,50 +53,10 @@ import Causal.CBCAST.Message (PID, VT, Message(..))
 import Causal.CBCAST.DelayQueue
 import Causal.VectorClockConcrete
 
--- | Remove and return all sent messages so the application can broadcast them
--- (in-order, eg, with 'mapM_').
-drainBroadcasts :: Monad m => CausalT r m [Message r]
-drainBroadcasts = CausalT $ do
-    xs <- State.gets pOutbox
-    State.modify' $ \p -> p{pOutbox=fNew}
-    return (fList xs)
+-- * Internal data structures
 
--- | Remove and return all delivered messages so the application can process
--- them (in-order, eg, with 'fmap').
-drainDeliveries :: Monad m => CausalT r m [Message r]
-drainDeliveries = CausalT $ do
-    xs <- State.gets pInbox
-    State.modify' $ \p -> p{pInbox=fNew}
-    return (fList xs)
-
--- | Prepare a message for sending, possibly triggering the delivery of
--- messages in the delay queue.
-send :: Monad m => r -> CausalT r m ()
-send r = CausalT $ do
-    cbcastSend r
-    deliveryLifecycle
-
--- | Receive a message, possibly triggering the delivery of messages in the
--- delay queue.
-receive :: Monad m => Message r -> CausalT r m ()
-receive m = CausalT $ do
-    cbcastReceive m
-    deliveryLifecycle
-
--- | Deliver messages until there are none ready.
-deliveryLifecycle :: Monad m => Internal r m ()
-deliveryLifecycle = do
-    dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
-        Just (dq, m) -> do
-            State.modify' $ \p -> p{pDQ=dq}
-            cbcastDeliver m
-            deliveryLifecycle
-        Nothing -> return ()
-{-@ lazy deliveryLifecycle @-} -- FIXME
-
------------------
-
--- | Cheap fifo for wholemeal dumps & in-order mapping.
+-- | Trivial fifo. Appended to it with 'fPush'. Dump it out with 'fList' and
+-- map over the result in fifo order. Replace it after dumping with 'fNew'.
 -- >>> fList $ fPush (fPush (fPush fNew 'a') 'b') 'c'
 -- "abc"
 -- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
@@ -110,8 +70,8 @@ fList :: FIFO a -> [a]
 fList (FIFO xs) = reverse xs
 
 -- | CBCAST process state with ID, logical clock, and delay queue. The inbox
-and outbox store messages which are delivered or ready to broadcast,
-respectively.
+-- stores messages which are delivered, and the outbox stores messages which
+-- are ready to broadcast.
 data Process r = Process
     { pNode :: PID
     , pVT :: VT
@@ -120,6 +80,7 @@ data Process r = Process
     , pOutbox :: FIFO (Message r)
     }
 
+-- | New empty process using the given process ID.
 pNew :: PID -> Process r
 pNew pid = Process
     { pNode = pid
@@ -129,34 +90,27 @@ pNew pid = Process
     , pOutbox = fNew
     }
 
+-- | Monad transformer maintaining internal state.
 type Internal r m a = StateT (Process r) m a
-newtype CausalT r m a = CausalT (Internal r m a)
-    deriving
-    ( Functor, Applicative, Monad, MonadIO
---  , MonadBase IO
-    , MonadTrans, MonadReader r, MonadWriter w--, MonadState s
-    , MonadThrow, MonadCatch, MonadMask
---  , MonadTransControl, MonadBaseControl IO
-    )
 
-execCausalT :: Monad m => Process r -> CausalT r m () -> m (Process r)
-execCausalT p (CausalT action) = State.execStateT action p
+-- * Internal operations
 
 -- | Prepare to send a message.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
--- Since this modifies the vector clock and could change the deliverability of
--- messages in the delay queue, the 'deliveryLifecycle' must be run after this.
+-- Since this modifies the vector clock, it could change the deliverability of
+-- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- after this.
 cbcastSend :: Monad m => r -> Internal r m ()
 cbcastSend r = do
     State.modify' $ \p -> p{pVT=vcTick (pNode p) (pVT p)}
     m <- Message <$> State.gets pNode <*> State.gets pVT <*> return r
     State.modify' $ \p -> p{pOutbox=fPush (pOutbox p) m}
 
--- | Receive a message. Delay its delivery on a queue or deliver it
--- immediately. The "until" part is handled by 'deliveryLifecycle'.
+-- | Receive a message. Delay its delivery or deliver it immediately. The
+-- "until" part is handled by 'cbcastDeliverReceived'.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -171,8 +125,8 @@ cbcastSend r = do
 --      in the paper)."
 --
 -- Since this modifies the vector clock in one case and the delay queue in the
--- other, it could change the deliverability of messages in the delay queue,
--- the 'deliveryLifecycle' must be run after this.
+-- other, it could change the deliverability of messages in the delay queue.
+-- Therefore 'cbcastDeliverReceived' must be run after this.
 cbcastReceive :: Monad m => Message r -> Internal r m ()
 cbcastReceive m = do
     pid <- State.gets pNode
@@ -181,6 +135,16 @@ cbcastReceive m = do
     then cbcastDeliver m
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     else State.modify' $ \p -> p{pDQ=dqEnqueue m (pDQ p)}
+
+-- | Deliver messages until there are none ready.
+cbcastDeliverReceived :: Monad m => Internal r m ()
+cbcastDeliverReceived = dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
+    Just (dq, m) -> do
+        State.modify' $ \p -> p{pDQ=dq}
+        cbcastDeliver m
+        cbcastDeliverReceived
+    Nothing -> return ()
+{-@ lazy cbcastDeliverReceived @-} -- FIXME; probably need to know that this terminates
 
 -- | Deliver a message.
 --
@@ -195,9 +159,57 @@ cbcastReceive m = do
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
--- Since this modifies the vector clock and could change the deliverability of
--- messages in the delay queue, 'deliveryLifecycle' must be run after this.
+-- Since this modifies the vector clock, it could change the deliverability of
+-- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- after this.
 cbcastDeliver :: Monad m => Message r -> Internal r m ()
-cbcastDeliver m = do
-    State.modify' $ \p -> p{pVT=vcCombine (pVT p) (mSent m)}
-    State.modify' $ \p -> p{pInbox=fPush (pInbox p) m} -- FIXME: could be one modify' with one record-update
+cbcastDeliver m = State.modify' $ \p -> p
+    { pVT = vcCombine (pVT p) (mSent m)
+    , pInbox = fPush (pInbox p) m
+    }
+
+-- * External API
+
+-- | Causal delivery monad transformer wrapper encapsulating internal state.
+newtype CausalT r m a = CausalT (Internal r m a)
+    deriving
+    ( Functor, Applicative, Monad, MonadIO
+--  , MonadBase IO
+    , MonadTrans, MonadReader r, MonadWriter w--, MonadState s
+    , MonadThrow, MonadCatch, MonadMask
+--  , MonadTransControl, MonadBaseControl IO
+    )
+
+-- | Execute an action and maintain appropriate causal delivery state.
+execCausalT :: Monad m => Process r -> CausalT r m () -> m (Process r)
+execCausalT p (CausalT action) = State.execStateT action p
+
+-- | Prepare a message for sending, possibly triggering the delivery of
+-- messages in the delay queue.
+send :: Monad m => r -> CausalT r m ()
+send r = CausalT $ do
+    cbcastSend r
+    cbcastDeliverReceived
+
+-- | Receive a message, possibly triggering the delivery of messages in the
+-- delay queue.
+receive :: Monad m => Message r -> CausalT r m ()
+receive m = CausalT $ do
+    cbcastReceive m
+    cbcastDeliverReceived
+
+-- | Remove and return all sent messages so the application can broadcast them
+-- (in sent-order, eg, with 'mapM_').
+drainBroadcasts :: Monad m => CausalT r m [Message r]
+drainBroadcasts = CausalT $ do
+    xs <- State.gets pOutbox
+    State.modify' $ \p -> p{pOutbox=fNew}
+    return (fList xs)
+
+-- | Remove and return all delivered messages so the application can process
+-- them (in delivered-order, eg, with 'fmap').
+drainDeliveries :: Monad m => CausalT r m [Message r]
+drainDeliveries = CausalT $ do
+    xs <- State.gets pInbox
+    State.modify' $ \p -> p{pInbox=fNew}
+    return (fList xs)
