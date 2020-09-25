@@ -1,4 +1,6 @@
-module Causal.CBCAST.ImplSimple
+
+
+module Causal.CBCAST.Impl
 ( pNew
 , send
 , receive

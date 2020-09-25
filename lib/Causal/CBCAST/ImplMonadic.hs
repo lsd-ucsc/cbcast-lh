@@ -46,8 +46,6 @@ module Causal.CBCAST.ImplMonadic
 --
 --          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')
 
---import Language.Haskell.Liquid.ProofCombinators (Proof, trivial)
-
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans (MonadTrans)
 import Control.Monad.Reader (MonadReader)
