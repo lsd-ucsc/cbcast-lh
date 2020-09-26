@@ -49,7 +49,9 @@ import Causal.CBCAST.Message
 import Causal.CBCAST.Process
 import Causal.VectorClockConcrete
 
--- * Internal operations
+-- * Implementation
+
+-- ** Internal operations
 
 -- | Prepare to send a message. Return new process state.
 --
@@ -96,7 +98,6 @@ cbcastDeliverReceived :: Process r -> Process r
 cbcastDeliverReceived p = case dqDequeue (pVT p) (pDQ p) of
     Just (dq, m) -> cbcastDeliverReceived (cbcastDeliver m p{pDQ=dq})
     Nothing -> p
-{-@ lazy cbcastDeliverReceived @-} -- FIXME; probably need to know that this terminates
 
 -- | Deliver a message. Return new process state.
 --
@@ -120,7 +121,7 @@ cbcastDeliver m p = p
     , pInbox = fPush (pInbox p) m
     }
 
--- * External API
+-- ** External API
 
 -- | Prepare a message for sending, possibly triggering the delivery of
 -- messages in the delay queue.
@@ -147,3 +148,7 @@ drainDeliveries p =
     ( p{pInbox=fNew}
     , fList (pInbox p)
     )
+
+-- * Verification
+
+{-@ cbcastDeliverReceived :: x:Process r -> Process r / [pdqSize x] @-}

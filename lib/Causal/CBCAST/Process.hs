@@ -1,8 +1,13 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Causal.CBCAST.Process where
+
+import Verification (listLength)
 
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Message
 import Causal.VectorClockConcrete
+
+-- * Implementation
 
 type DQ r = DelayQueue r
 
@@ -12,7 +17,7 @@ type DQ r = DelayQueue r
 -- "abc"
 -- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
 -- "abc"
-newtype FIFO a = FIFO [a]
+data FIFO a = FIFO [a] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
 fNew :: FIFO a
 fNew = FIFO []
 fPush :: FIFO a -> a -> FIFO a
@@ -40,3 +45,12 @@ pNew pid = Process
     , pInbox = fNew
     , pOutbox = fNew
     }
+
+-- * Verification
+
+-- | Alternate measure for the 'DelayQueue' of a 'Process'
+{-@ measure pdqSize @-}
+{-@
+pdqSize :: Process r -> Nat @-}
+pdqSize :: Process r -> Int
+pdqSize Process{pDQ} = dqSize pDQ

@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Causal.CBCAST.DelayQueue
 ( DelayQueue()
 , dqNew
@@ -7,19 +6,15 @@ module Causal.CBCAST.DelayQueue
 , dqSize
 ) where
 
-import LiquidHaskell (lq)
-
 import Control.Arrow (first)
+import Verification (listLength)
 
 import Causal.CBCAST.Message
 import Causal.VectorClockConcrete
 
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
-[lq|
-data DelayQueue [dqSize] r = DelayQueue [Message r] |]
-data DelayQueue          r = DelayQueue [Message r]
--- FIXME: this is supposed to be a newtype, but that breaks the LH measure
+data DelayQueue r = DelayQueue [Message r] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
 
 -- | Determine message deliverability relative to current vector time.
 --
@@ -43,18 +38,6 @@ deliverability t m
 -- | Make a new empty delay-queue.
 dqNew :: DelayQueue r
 dqNew = DelayQueue []
-
--- | Return the number of messages in a delay queue
-[lq|
-dqSize :: DelayQueue r -> Int |]
-dqSize (DelayQueue xs) = len xs
-[lq| measure dqSize |]
--- TODO: figure out how to use Prelude.length with LH
-[lq|
-len :: [a] -> Int |]
-len [] = 0
-len (_x:xs) = 1 + len xs
-[lq| measure len |]
 
 -- | Insert a message into the delay queue.
 --
@@ -96,3 +79,12 @@ extractFirstBy :: (a -> Bool) -> [a] -> Maybe ([a], a)
 extractFirstBy predicate xs = case break predicate xs of
     (before, x:after) -> Just (before ++ after, x)
     _ -> Nothing
+
+-- * Verification
+
+{-@ data DelayQueue [dqSize] @-}
+{-@ measure dqSize @-}
+{-@
+dqSize :: DelayQueue r -> Nat @-}
+dqSize :: DelayQueue r -> Int
+dqSize (DelayQueue xs) = listLength xs
