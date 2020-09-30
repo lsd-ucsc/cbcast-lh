@@ -11,6 +11,10 @@ dependencies:
 
 ghc-options:
     - -fplugin=LiquidHaskell
+    - -fplugin-opt=LiquidHaskell:--exact-data # fix an error where a function that matched a `[]` pattern had "Unbound symbol is$GHC.Types[]"
+    - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
+    - -fplugin-opt=LiquidHaskell:--ple # PLE is off by default?
+    - -fplugin-opt=LiquidHaskell:--no-adt # required for partial constructors
     - -Wall
     - -threaded
     - -rtsopts
