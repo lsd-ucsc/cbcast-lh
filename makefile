@@ -20,8 +20,8 @@ $(CONFIG_FILE): $(CABAL_FILE)
 
 clean: $(CABAL_FILE)
 	$(SETUP_CMD) clean
-	find . -name '.liquid' -exec rm -rfv '{}' \;
 	rm -v $(CABAL_FILE)
+	-find . -name '.liquid' -exec rm -rfv '{}' \;
 
 %.cabal: package.yaml
 	hpack
