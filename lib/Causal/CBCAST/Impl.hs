@@ -151,4 +151,12 @@ drainDeliveries p =
 
 -- * Verification
 
-{-@ cbcastDeliverReceived :: x:Process r -> Process r / [pdqSize x] @-}
+{-@
+cbcastDeliverReceived :: p:_ -> {p':_ |
+        True
+    } / [pdqSize p] @-}
+
+{-@
+cbcastDeliver :: m:_ -> p:_ -> {p':_ |
+        (pdqSize p == pdqSize p')
+    } @-}

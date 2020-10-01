@@ -6,8 +6,7 @@ module Causal.CBCAST.DelayQueue
 , dqSize
 ) where
 
-import Control.Arrow (first)
-import Verification (listLength)
+import Verification
 
 import Causal.CBCAST.Message
 import Causal.VectorClockConcrete
@@ -70,7 +69,7 @@ dqEnqueueImpl m (x:xs)
 -- Abstracting the VC implementation means we cannot actually check this
 -- exactly as written. See 'deliverability' to see how it's checked.
 dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue t (DelayQueue xs) = fmap (first DelayQueue) (dqDequeueImpl t xs)
+dqDequeue t (DelayQueue xs) = fmapMaybe (first DelayQueue) (dqDequeueImpl t xs)
 
 dqDequeueImpl :: VT -> [Message r] -> Maybe ([Message r], Message r)
 dqDequeueImpl t xs = extractFirstBy (\m -> deliverability t m == Ready) xs
@@ -88,3 +87,13 @@ extractFirstBy predicate xs = case break predicate xs of
 dqSize :: DelayQueue r -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
+
+{-@
+dqDequeueImpl :: vt:_ -> ms:_ -> {res:_ |
+        (isJust res => len ms - 1 == len (fst (fromJust res)))
+    } @-}
+
+{-@
+extractFirstBy :: _ -> xs:_ -> {res:_ |
+        (isJust res => len xs - 1 == len (fst (fromJust res)))
+    } @-}

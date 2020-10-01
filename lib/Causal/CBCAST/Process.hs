@@ -48,6 +48,20 @@ pNew pid = Process
 
 -- * Verification
 
+{-@ data FIFO [fSize] @-}
+{-@ measure fSize @-}
+{-@
+fSize :: FIFO a -> Nat @-}
+fSize :: FIFO a -> Int
+fSize (FIFO xs) = listLength xs
+
+{-@ data Process [pSize] @-}
+{-@ measure pSize @-}
+{-@
+pSize :: Process r -> Nat @-}
+pSize :: Process r -> Int
+pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
+
 -- | Alternate measure for the 'DelayQueue' of a 'Process'
 {-@ measure pdqSize @-}
 {-@
