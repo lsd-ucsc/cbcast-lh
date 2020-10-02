@@ -5,6 +5,30 @@ import LiquidHaskell (lq)
 import Data.Int
 
 --------------------------------------------------
+-- Actually it turns out I still don't understand the meaning of these
+-- things??:
+--      inline
+--          Copy the definition of the function to the SMT logic?
+--      measure
+--          Copy the refinements in the type to the constructors of the data
+--          type?
+--      reflect
+--          Make an uninterpreted function and copy the definition of the
+--          function into the SMT logic in a predicate which is in the
+--          refinement type for the uninterpreted function.
+
+--------------------------------------------------
+-- (9) a data structure doesn't have refinements that allow it to behave like a
+-- data structure, unless you do some incantations that imply that LH should
+-- add them
+--
+-- Containers.hs
+
+--------------------------------------------------
+-- (8) lots of arbitrary requirements for use of an extrinsic property
+-- https://liquidhaskell.slack.com/archives/C54QAL9RR/p1601419325043700?thread_ts=1601416686.041700&cid=C54QAL9RR
+
+--------------------------------------------------
 -- (7) trivial recursive function which confuses the measure
 
 -- | Measure for a list

@@ -1,36 +1,115 @@
 module DT where
 
--- HOW TO PROVE TERMINATION OF fooLen, WHOS BEHAVIOR DEPENDS ON THE
--- RESULT OF ANOTHER FUNCTION?
+import Language.Haskell.Liquid.ProofCombinators (Proof, trivial, (===), (***), QED(..))-- , (?))
 
-data FooT a = FooC {unfoo::[a]}
-{-@ measure unfoo @-}
+import Verification (listLength)
 
--- | Unconditionally remove first element and return a bool
--- indicating whether the input (and therefore output) is empty.
+-- WHAT ABOUT DROPWHILE IMPLEMENTED WITH BREAK?
+
+sillyDropWhile :: (a -> Bool) -> [a] -> [a]
+sillyDropWhile f xs = snd (break (not . f) xs)
+-- {-@ inline sillyDropWhile @-} -- Doesn't work because snd is unbound
+
+sillyDropWhile' :: (a -> Bool) -> [a] -> [a]
+sillyDropWhile' f xs = let (_, result) = break (not . f) xs in result
+-- {-@ reflect sillyDropWhile' @-} -- Doesn't work because break is unbound
+
+-------------------------------------------------------------
+
+app :: [a] -> [a] -> [a]
+app [] bs = bs
+app as [] = as
+app (a:as) bs = a : app as bs
+{-@ reflect app @-}
+
+rev :: [a] -> [a]
+rev [] = []
+rev (a:as) = rev as `app` [a]
+{-@ reflect rev @-}
+
+{-@ assume distrP :: xs:_ -> ys:_ -> { rev (app xs ys)
+                                    == app (rev xs) (rev ys) } @-}
+distrP :: [a] -> [a] -> Proof
+distrP _ _ = trivial
+
+{-@ ple involP @-}
 {-@
-fooPop
-    :: x:_
-    -> { y:_ |
-        0 == len x &&
-            (len x == len (fst y) &&      snd y ) ||
-            (len x >  len (fst y) && not (snd y))
-    }
-@-}
-fooPop :: [a] -> ([a], Bool)
-fooPop [] = ([], True)
-fooPop (_x:xs) = (xs, False)
+involP :: xs:_ -> {xs == rev (rev xs)} @-}
+involP :: [a] -> Proof
+involP []
+    = rev (rev [])
+    === rev []
+    === []
+    *** QED
+involP (x:xs)
+    = rev (rev (x:xs))
+    === rev (rev xs `app` [x])
+--      ? distrP rev x
+    *** Admit
+
+-------------------------------------------------------------
+
+-- HOW TO PROVE TERMINATION OF FUNCTION WHOS BEHAVIOR DEPENDS ON THE RESULT OF
+-- ANOTHER FUNCTION?
+
+pop :: [a] -> ([a], Bool)
+pop (_x:xs) = (xs, False)
+pop [] = ([], True)
+-- {-@ pop :: xs:_ -> {res :_ |      snd res  && len (fst res) == 0 || len (fst res) == len xs - 1 } @-}
+-- {-@ pop :: xs:_ -> {res :_ | not (snd res) =>                       len (fst res) <  len xs     } @-}
+
+countPops :: [a] -> Int
+countPops xs =
+    let (ys, isEmpty) = pop xs in
+    if isEmpty then 0 else 1 + countPops
+--      ys
+        (const ys (pop_ResultIsSmallerProp xs))
+
+{-@ reflect pop @-}
+{-@ pop_ResultIsSmallerProp :: xs:_ ->
+     { not (snd (pop xs)) =>
+        len xs - 1 == len (fst (pop xs))
+     } @-}
+pop_ResultIsSmallerProp :: [a] -> Proof
+pop_ResultIsSmallerProp [] = ()
+pop_ResultIsSmallerProp (_:_) = ()
+
+-- OK BUT DO IT AGAIN FOR A TYPE WHICH IS WRAPPED
 
 {-@
-fooLen :: x:FooT a -> Nat / [len (unfoo x)] @-}
-fooLen :: FooT a -> Int
-fooLen b =
-    let (rest, isEmpty) = fooPop (unfoo b)
-    in
-    if isEmpty
-    then 0
-    else 1 + fooLen b{unfoo=rest}
---  else 1 + fooLen (FooC rest)
+data FooT [fooSize] @-}
+data FooT a = FooC [a]
+
+{-@
+fooSize :: FooT a -> Nat @-}
+fooSize :: FooT a -> Int
+fooSize (FooC xs) = listLength xs
+{-@ measure fooSize @-}
+
+-- | Pop but for the FooT wrapper type
+fooPop :: FooT a -> (FooT a, Bool)
+fooPop (FooC xs) = (\(a, b) -> (FooC a, b)) (pop xs)
+
+-- {-@ reflect fooPop @-}
+-- {-@ fooPop_PropResultIsSmaller :: x:_ -> {
+--     not (snd (fooPop x)) =>
+--         fooSize x - 1 == fooSize (fst (fooPop x))
+-- } @-}
+-- fooPop_PropResultIsSmaller :: FooT a -> Proof
+-- fooPop_PropResultIsSmaller (FooC _) = ()
+
+-- countFooPops :: FooT a -> Int
+-- countFooPops foo =
+--     let (foo', isEmpty) = fooPop foo in
+--     if isEmpty then 0
+--     else 1 + countFooPops foo'
+-- 
+-- {-@ fooPop :: x:_ -> {res :_ |
+--     snd res &&
+--         fooSize (fst res) == 0 ||
+--         fooSize (fst res) == fooSize x - 1
+-- } @-}
+-- 
 
 -------------------------------------------------------------
 
@@ -42,7 +121,7 @@ data WrapperType a = WrapperCons {unwrap :: [a]}
 -- | Implement some behavior which is an internal detail.
 behavior :: [a] -> Maybe [a]
 {-@ behavior :: x:_ -> {y:_ |
-    isJust y => len x > len (fromJust y)
+     isJust y => len x > len (fromJust y)
                          } @-}
 behavior [] = Nothing
 behavior (_x:xs) = Just xs
@@ -51,7 +130,7 @@ behavior (_x:xs) = Just xs
 -- clients.
 encapsulation :: WrapperType a -> Maybe (WrapperType a)
 {-@ encapsulation :: x:_ -> {y:_ |
-    isJust y => len (unwrap x) > len (unwrap (fromJust y))
+     isJust y => len (unwrap x) > len (unwrap (fromJust y))
                      } @-}
 encapsulation (WrapperCons xs) =
 --  fmap WrapperCons (behavior xs) -- Rejected by LH, probably Functor typeclass
