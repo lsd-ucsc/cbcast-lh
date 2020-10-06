@@ -24,3 +24,4 @@ fooSize (FooC xs) = listLen xs
 _a :: _ -> {b:_ | b == True } @-}
 _a :: FooT -> Bool
 _a f = fooSize f == listLen (field f)
+{-@ ignore _a @-}
