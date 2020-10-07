@@ -53,6 +53,7 @@ import Causal.VectorClockConcrete
 
 -- ** Internal operations
 
+
 -- | Prepare to send a message. Return new process state.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
@@ -150,3 +151,5 @@ drainDeliveries p =
     )
 
 -- * Verification
+
+{-@ lazy cbcastDeliverReceived @-}

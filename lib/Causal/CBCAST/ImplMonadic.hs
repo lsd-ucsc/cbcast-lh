@@ -60,10 +60,12 @@ import Causal.CBCAST.Message
 import Causal.CBCAST.Process
 import Causal.VectorClockConcrete
 
+-- * Implementation
+
+-- ** Internal operations
+
 -- | Monad transformer maintaining internal state.
 type Internal r m a = StateT (Process r) m a
-
--- * Internal operations
 
 -- | Prepare to send a message.
 --
@@ -137,7 +139,7 @@ cbcastDeliver m = State.modify' $ \p -> p
     , pInbox = fPush (pInbox p) m
     }
 
--- * External API
+-- ** External API
 
 -- | Causal delivery monad transformer wrapper encapsulating internal state.
 newtype CausalT r m a = CausalT (Internal r m a)
@@ -182,3 +184,7 @@ drainDeliveries = CausalT $ do
     xs <- State.gets pInbox
     State.modify' $ \p -> p{pInbox=fNew}
     return (fList xs)
+
+-- * Verification
+
+{-@ lazy cbcastDeliverReceived @-}
