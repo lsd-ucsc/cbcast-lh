@@ -81,19 +81,5 @@ extractFirstBy predicate xs = case break predicate xs of
 
 -- * Verification
 
-{-@ data DelayQueue [dqSize] @-}
-{-@ measure dqSize @-}
-{-@
-dqSize :: DelayQueue r -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
-
-{-@
-dqDequeueImpl :: vt:_ -> ms:_ -> {res:_ |
-        (isJust res => len ms - 1 == len (fst (fromJust res)))
-    } @-}
-
-{-@
-extractFirstBy :: _ -> xs:_ -> {res:_ |
-        (isJust res => len xs - 1 == len (fst (fromJust res)))
-    } @-}

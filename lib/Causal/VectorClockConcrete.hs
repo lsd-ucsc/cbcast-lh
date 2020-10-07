@@ -13,14 +13,14 @@ module Causal.VectorClockConcrete
 , vcRaw
 ) where
 
-import LiquidHaskell (lq)
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Lazy as Merge
 
 import Data.List (intercalate)
 import Data.UUID (UUID)
+
+import LiquidHaskell (lq)
 
 -- $setup
 -- >>> import qualified Data.UUID as UUID
@@ -36,24 +36,19 @@ import Data.UUID (UUID)
 newtype Clock = Clock (cRaw :: {i:Integer | 0 <= i}) |]
 newtype Clock = Clock Integer
     deriving (Eq, Ord)
-[lq|
-cStart :: Clock |]
+cStart :: Clock
 cStart = Clock 0
-[lq|
-cInc :: Clock -> Clock |]
+cInc :: Clock -> Clock
 cInc (Clock c) = Clock (c + 1)
 
 -- * Vector clocks
 
-[lq|
-newtype VectorClock = VectorClock {vcRaw :: Map UUID Clock} |]
-newtype VectorClock = VectorClock {vcRaw :: Map UUID Clock}
+newtype VectorClock = VectorClock {vcRaw :: Map.Map UUID Clock}
     deriving Eq
 -- |
 -- >>> vcNew
 -- empty-vc
-[lq|
-vcNew :: VectorClock |]
+vcNew :: VectorClock
 vcNew = VectorClock Map.empty
 -- |
 -- >>> vcTick cafe vcNew
@@ -64,8 +59,7 @@ vcNew = VectorClock Map.empty
 -- >>> vcTick cafe $ vc [(beef, 3), (cafe, 4)]
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t5
 -- 0000beef-0000-beef-0000-beef0000beef:t3
-[lq|
-vcTick :: UUID -> VectorClock -> VectorClock |]
+vcTick :: UUID -> VectorClock -> VectorClock
 vcTick pid (VectorClock vc) = VectorClock
     (Map.alter (pure . cInc . maybe cStart id) pid vc)
 -- |
@@ -81,8 +75,7 @@ vcTick pid (VectorClock vc) = VectorClock
 -- >>> vcCombine a b
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t4
 -- 0000beef-0000-beef-0000-beef0000beef:t9
-[lq|
-vcCombine :: VectorClock -> VectorClock -> VectorClock |]
+vcCombine :: VectorClock -> VectorClock -> VectorClock
 vcCombine (VectorClock a) (VectorClock b) = VectorClock
     (Map.unionWith max a b)
 -- |
@@ -106,22 +99,20 @@ vcCombine (VectorClock a) (VectorClock b) = VectorClock
 -- True
 -- >>> vcLessEqual (vc [(beef, 3), (cafe, 0)]) (vc [(beef, 9)])
 -- True
-[lq|
-vcLessEqual :: VectorClock -> VectorClock -> Bool |]
+vcLessEqual :: VectorClock -> VectorClock -> Bool
 vcLessEqual (VectorClock a) (VectorClock b)
     = and . Map.elems $ Merge.merge
         (Merge.mapMissing $ const (<= cStart))
       {-(Merge.mapMissing $ const (cStart <=))-} Merge.dropMissing
         (Merge.zipWithMatched $ const (<=))
         a b
-[lq|
-vcLess :: VectorClock -> VectorClock -> Bool |]
+-- |
+vcLess :: VectorClock -> VectorClock -> Bool
 vcLess a b = vcLessEqual a b && a /= b
 -- |
 -- >>> vcIndependent vcNew vcNew
 -- True
-[lq|
-vcIndependent :: VectorClock -> VectorClock -> Bool |]
+vcIndependent :: VectorClock -> VectorClock -> Bool
 vcIndependent a b = not (vcLess a b) && not (vcLess b a)
 
 -- * Show instances for tests

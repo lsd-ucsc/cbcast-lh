@@ -150,13 +150,3 @@ drainDeliveries p =
     )
 
 -- * Verification
-
-{-@
-cbcastDeliverReceived :: p:_ -> {p':_ |
-        True
-    } / [pdqSize p] @-}
-
-{-@
-cbcastDeliver :: m:_ -> p:_ -> {p':_ |
-        (pdqSize p == pdqSize p')
-    } @-}

@@ -1,9 +1,9 @@
 module Causal.CBCAST.Message where
 
-import qualified Data.UUID as U
+import Data.UUID (UUID)
 import Causal.VectorClockConcrete (VectorClock)
 
-type PID = U.UUID
+type PID = UUID
 type VT = VectorClock
 
 data Message raw = Message { mSender :: PID, mSent :: VT, mRaw :: raw }

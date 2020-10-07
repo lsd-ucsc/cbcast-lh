@@ -114,7 +114,6 @@ cbcastDeliverReceived = dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \cas
         cbcastDeliver m
         cbcastDeliverReceived
     Nothing -> return ()
-{-@ lazy cbcastDeliverReceived @-} -- FIXME; probably need to know that this terminates
 
 -- | Deliver a message.
 --
