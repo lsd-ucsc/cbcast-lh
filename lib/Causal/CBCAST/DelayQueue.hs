@@ -3,6 +3,7 @@ module Causal.CBCAST.DelayQueue
 , dqNew
 , dqEnqueue
 , dqDequeue
+, dqDrain
 , dqSize
 ) where
 
@@ -14,6 +15,7 @@ import Causal.VectorClockConcrete
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
 data DelayQueue r = DelayQueue [Message r] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
+{-@ data DelayQueue [dqSize] @-}
 
 -- | Determine message deliverability relative to current vector time.
 --
@@ -68,6 +70,10 @@ dqEnqueueImpl m (x:xs)
 --
 -- Abstracting the VC implementation means we cannot actually check this
 -- exactly as written. See 'deliverability' to see how it's checked.
+{-@
+assume dqDequeue :: _ -> dq:_ -> {res:_ |
+    (isJust res => dqSize dq - 1 == dqSize (fst (fromJust res)))
+    } @-}
 dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
 dqDequeue t (DelayQueue xs) = fmapMaybe (first DelayQueue) (dqDequeueImpl t xs)
 
@@ -79,7 +85,17 @@ extractFirstBy predicate xs = case break predicate xs of
     (before, x:after) -> Just (before ++ after, x)
     _ -> Nothing
 
+dqDrain :: VT -> DelayQueue r -> Maybe (DelayQueue r, [Message r])
+dqDrain t originalDQ = case dqDequeue t originalDQ of
+    Nothing -> Nothing -- nothing can be dequeued
+    Just (dequeuedDQ, x) -> case dqDrain t dequeuedDQ of
+        Nothing -> Just (dequeuedDQ, [x]) -- after x, nothing more could be dequeued
+        Just (finalDQ, xs) -> Just (finalDQ, x:xs) -- after x, xs were dequeued
+
 -- * Verification
 
+{-@
+dqSize :: _ -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
+{-@ measure dqSize @-}
