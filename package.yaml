@@ -1,26 +1,23 @@
 name: cbcast-lh # required by nix's hpack detection
 
 dependencies:
-    - containers
     - liquid-base
+    - liquid-containers
     - liquid-prelude
     - liquidhaskell
     - uuid
-    - mtl # cbcast monadic
     - exceptions # cbcast monadic
+    - mtl # cbcast monadic
 
 ghc-options:
     - -fplugin=LiquidHaskell
     - -fplugin-opt=LiquidHaskell:--exact-data # fix an error where a function that matched a `[]` pattern had "Unbound symbol is$GHC.Types[]"
-    - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
-    - -fplugin-opt=LiquidHaskell:--ple # PLE is off by default?
-    - -fplugin-opt=LiquidHaskell:--no-adt # required for partial constructors
-    - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
     - -fplugin-opt=LiquidHaskell:--exact-data-cons # make reflect able to handle functions with custom data structures
+    - -fplugin-opt=LiquidHaskell:--no-adt # required for partial constructors
+    - -fplugin-opt=LiquidHaskell:--ple # PLE is off by default?
+    - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
+    - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
     - -Wall
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
 
 library:
     source-dirs: lib
@@ -28,6 +25,7 @@ library:
 executables:
     example:
         main: Example.hs
+        ghc-options: -threaded -rtsopts -with-rtsopts=-N
 
 tests:
     doctest:

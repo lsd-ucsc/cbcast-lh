@@ -1,7 +1,7 @@
 {-|
 Description: Vector clocks implemented with maps keyed on UUIDs.
 -}
-{-# OPTIONS_GHC "-Wno-unused-imports" #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Causal.VectorClockConcrete
 ( VectorClock()
 , vcNew
@@ -10,7 +10,6 @@ module Causal.VectorClockConcrete
 , vcLessEqual
 , vcLess
 , vcIndependent
-, vcRaw
 ) where
 
 import qualified Data.Map as Map
@@ -40,7 +39,9 @@ cInc (Clock c) = Clock (c + 1)
 
 -- * Vector clocks
 
-newtype VectorClock = VectorClock {vcRaw :: Map.Map UUID Clock}
+[lq|
+newtype VectorClock = VectorClock (Map.Map UUID Clock) |]
+newtype VectorClock = VectorClock (Map.Map UUID Clock)
     deriving Eq
 -- |
 -- >>> vcNew
