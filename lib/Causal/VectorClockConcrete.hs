@@ -1,7 +1,7 @@
-{-# LANGUAGE QuasiQuotes #-}
 {-|
 Description: Vector clocks implemented with maps keyed on UUIDs.
 -}
+{-# OPTIONS_GHC "-Wno-unused-imports" #-}
 module Causal.VectorClockConcrete
 ( VectorClock()
 , vcNew
@@ -12,7 +12,6 @@ module Causal.VectorClockConcrete
 , vcIndependent
 , vcRaw
 ) where
-
 
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Lazy as Merge
@@ -32,8 +31,6 @@ import LiquidHaskell (lq)
 
 -- * Clocks
 
-[lq|
-newtype Clock = Clock (cRaw :: {i:Integer | 0 <= i}) |]
 newtype Clock = Clock Integer
     deriving (Eq, Ord)
 cStart :: Clock
