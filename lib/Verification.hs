@@ -15,11 +15,6 @@ first f (a, z) = (f a, z)
 second :: (y -> z) -> (a, y) -> (a, z)
 second f (a, y) = (a, f y)
 
-{-@
-fmapMaybe :: f:_ -> m:_ -> {m':_ |
-    (isJust m <=> isJust m') &&
-    (isJust m => f (fromJust m) == fromJust m')
-    } @-}
 fmapMaybe :: (a -> b) -> Maybe a -> Maybe b
 fmapMaybe _ Nothing = Nothing
 fmapMaybe f (Just a) = Just (f a)

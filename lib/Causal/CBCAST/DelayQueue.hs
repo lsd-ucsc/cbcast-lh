@@ -71,24 +71,22 @@ dqEnqueueImpl m (x:xs)
 -- Abstracting the VC implementation means we cannot actually check this
 -- exactly as written. See 'deliverability' to see how it's checked.
 {-@
-dqDequeue :: _ -> dq:_ -> {res:_ |
-    (isJust res => dqSize dq - 1 == dqSize (fst (fromJust res)))
-    } @-}
+dqDequeue :: _ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
 dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue t (DelayQueue xs) =
-    case extractFirstBy (\m -> deliverability t m == Ready) xs of
-        Nothing -> Nothing
-        Just (xs', m) -> Just (DelayQueue xs', m)
+dqDequeue t (DelayQueue xs)
+    = fmapMaybe (first DelayQueue)
+    $ extractFirstBy (\m -> deliverability t m == Ready) xs
 
 {-@
-extractFirstBy :: _ -> xs:_ -> {res:_ |
-    (isJust res => listLength xs - 1 == listLength (fst (fromJust res)))
-    } @-}
+extractFirstBy :: _ -> xs:_ -> Maybe ({ys:_ | listLength xs - 1 == listLength ys}, _) @-}
 extractFirstBy :: (a -> Bool) -> [a] -> Maybe ([a], a)
 extractFirstBy predicate xs = case break predicate xs of
     (before, x:after) -> Just (before ++ after, x)
     _ -> Nothing
 
+-- | Extract all messages from the queue which are deliverable according to the
+-- vector time. The new queue is returned with the list of extracted messages
+-- in-order for delivery.
 dqDrain :: VT -> DelayQueue r -> Maybe (DelayQueue r, [Message r])
 dqDrain t originalDQ = case dqDequeue t originalDQ of
     Nothing -> Nothing -- nothing can be dequeued
