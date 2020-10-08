@@ -2,12 +2,12 @@ module Verification where
 
 -- | Reify the @len@ measure defined in the @liquid-base@ specification into
 -- code and back into specifications.
-{-@ measure listLength @-}
 {-@
-listLength :: x:[a] -> {y:Nat | len x == y} @-}
+listLength :: xs:_ -> {n:Nat | n == len xs } @-}
 listLength :: [a] -> Int
 listLength [] = 0
 listLength (_x:xs) = 1 + listLength xs
+{-@ measure listLength @-}
 
 first :: (a -> b) -> (a, z) -> (b, z)
 first f (a, z) = (f a, z)
