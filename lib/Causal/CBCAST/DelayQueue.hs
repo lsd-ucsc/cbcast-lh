@@ -71,15 +71,19 @@ dqEnqueueImpl m (x:xs)
 -- Abstracting the VC implementation means we cannot actually check this
 -- exactly as written. See 'deliverability' to see how it's checked.
 {-@
-assume dqDequeue :: _ -> dq:_ -> {res:_ |
+dqDequeue :: _ -> dq:_ -> {res:_ |
     (isJust res => dqSize dq - 1 == dqSize (fst (fromJust res)))
     } @-}
 dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue t (DelayQueue xs) = fmapMaybe (first DelayQueue) (dqDequeueImpl t xs)
+dqDequeue t (DelayQueue xs) =
+    case extractFirstBy (\m -> deliverability t m == Ready) xs of
+        Nothing -> Nothing
+        Just (xs', m) -> Just (DelayQueue xs', m)
 
-dqDequeueImpl :: VT -> [Message r] -> Maybe ([Message r], Message r)
-dqDequeueImpl t xs = extractFirstBy (\m -> deliverability t m == Ready) xs
-
+{-@
+extractFirstBy :: _ -> xs:_ -> {res:_ |
+    (isJust res => listLength xs - 1 == listLength (fst (fromJust res)))
+    } @-}
 extractFirstBy :: (a -> Bool) -> [a] -> Maybe ([a], a)
 extractFirstBy predicate xs = case break predicate xs of
     (before, x:after) -> Just (before ++ after, x)
