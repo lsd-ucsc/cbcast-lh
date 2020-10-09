@@ -95,26 +95,15 @@ cbcastReceive m p
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
 -- | Deliver messages until there are none ready.
+--
+-- This algorithm delivers full groups of deliverable messages before checking
+-- deliverability again. While this can't make anything undeliverable or break
+-- causal order of deliveries, it does produce a slightly different delivery
+-- order than an algorithm which checks deliverability after every delivery.
 cbcastDeliverReceived :: Process r -> Process r
-cbcastDeliverReceived p = uncurry (flip cdrDeliver) (cdrDrain p)
-
--- | Extract deliverable messages from the delay queue. Return new process
--- state and (possibly zero) deliverable messages.
-cdrDrain :: Process r -> (Process r, [Message r])
-cdrDrain p = let (dq, ms) = dqDrain (pVT p) (pDQ p) in (p{pDQ=dq}, ms)
-
--- | Deliver each message, and any that become deliverable along the way. Pause
--- after each delivery updates the vector clock to drain deliverable messages
--- from the delay queue. Return new process state.
-cdrDeliver :: [Message r] -> Process r -> Process r
-cdrDeliver [] p = p
-cdrDeliver ms p =
-    let (p', todo) = foldl cdrEach (p, fNew) ms
-    in cdrDeliver (concat (fList todo)) p'
-
--- | Deliver a message. Drain and accumulate deliverable messages.
-cdrEach :: (Process r, FIFO [Message r]) -> Message r -> (Process r, FIFO [Message r])
-cdrEach (p, todo) m = second (fPush todo) (cdrDrain (cbcastDeliver m p))
+cbcastDeliverReceived p = case dqDrain (pVT p) (pDQ p) of
+    (dq, []) -> p
+    (dq, ms) -> cbcastDeliverReceived (foldl (flip cbcastDeliver) p{pDQ=dq} ms)
 
 -- | Deliver a message. Return new process state.
 --
