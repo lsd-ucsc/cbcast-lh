@@ -86,13 +86,12 @@ extractFirstBy predicate xs = case break predicate xs of
 
 -- | Extract all messages from the queue which are deliverable according to the
 -- vector time. The new queue is returned with the list of extracted messages
--- in-order for delivery.
-dqDrain :: VT -> DelayQueue r -> Maybe (DelayQueue r, [Message r])
-dqDrain t originalDQ = case dqDequeue t originalDQ of
-    Nothing -> Nothing -- nothing can be dequeued
-    Just (dequeuedDQ, x) -> case dqDrain t dequeuedDQ of
-        Nothing -> Just (dequeuedDQ, [x]) -- after x, nothing more could be dequeued
-        Just (finalDQ, xs) -> Just (finalDQ, x:xs) -- after x, xs were dequeued
+-- in-order for delivery. If no messages are drained, the original queue is
+-- return with an empty list.
+dqDrain :: VT -> DelayQueue r -> (DelayQueue r, [Message r])
+dqDrain t dq = case dqDequeue t dq of
+    Just (dq', x) -> second (x:) (dqDrain t dq')
+    Nothing -> (dq, [])
 
 -- * Verification
 
