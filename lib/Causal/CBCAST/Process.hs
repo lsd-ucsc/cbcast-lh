@@ -28,13 +28,10 @@ fList (FIFO xs) = reverse xs
 -- | CBCAST process state with ID, logical clock, and delay queue. The inbox
 -- stores messages which are delivered, and the outbox stores messages which
 -- are ready to broadcast.
-data Process r = Process
-    { pNode :: PID
-    , pVT :: VT
-    , pDQ :: DQ r
-    , pInbox :: FIFO (Message r)
-    , pOutbox :: FIFO (Message r)
-    }
+{-@
+data Process [pSize]
+             r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
+data Process r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
 
 -- | New empty process using the given process ID.
 pNew :: PID -> Process r
@@ -50,10 +47,15 @@ pNew pid = Process
 
 fSize :: FIFO a -> Int
 fSize (FIFO xs) = listLength xs
+{-@ measure fSize @-}
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
+{-@ measure pSize @-}
 
 -- | Alternate measure for the 'DelayQueue' of a 'Process'
+{-@
+pdqSize :: _ -> Nat @-}
 pdqSize :: Process r -> Int
 pdqSize Process{pDQ} = dqSize pDQ
+{-@ measure pdqSize @-}

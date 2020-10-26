@@ -3,7 +3,6 @@ module Causal.CBCAST.DelayQueue
 , dqNew
 , dqEnqueue
 , dqDequeue
-, dqDrain
 , dqSize
 ) where
 
@@ -15,7 +14,6 @@ import Causal.VectorClockConcrete
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
 data DelayQueue r = DelayQueue [Message r] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
-{-@ data DelayQueue [dqSize] @-}
 
 -- | Determine message deliverability relative to current vector time.
 --
@@ -70,28 +68,15 @@ dqEnqueueImpl m (x:xs)
 --
 -- Abstracting the VC implementation means we cannot actually check this
 -- exactly as written. See 'deliverability' to see how it's checked.
-{-@
-dqDequeue :: _ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
 dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
 dqDequeue t (DelayQueue xs)
     = fmapMaybe (first DelayQueue)
     $ extractFirstBy (\m -> deliverability t m == Ready) xs
 
-{-@
-extractFirstBy :: _ -> xs:_ -> Maybe ({ys:_ | listLength xs - 1 == listLength ys}, _) @-}
 extractFirstBy :: (a -> Bool) -> [a] -> Maybe ([a], a)
 extractFirstBy predicate xs = case break predicate xs of
     (before, x:after) -> Just (before ++ after, x)
     _ -> Nothing
-
--- | Extract all messages from the queue which are deliverable according to the
--- vector time. The new queue is returned with the list of extracted messages
--- in-order for delivery. If no messages are drained, the original queue is
--- return with an empty list.
-dqDrain :: VT -> DelayQueue r -> (DelayQueue r, [Message r])
-dqDrain t dq = case dqDequeue t dq of
-    Just (dq', x) -> second (x:) (dqDrain t dq')
-    Nothing -> (dq, [])
 
 -- * Verification
 
@@ -100,3 +85,8 @@ dqSize :: _ -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
 {-@ measure dqSize @-}
+
+{-@ data DelayQueue [dqSize] @-}
+
+{-@ dqDequeue :: _ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
+{-@ extractFirstBy :: _ -> xs:_ -> Maybe ({ys:_ | listLength xs - 1 == listLength ys}, _) @-}

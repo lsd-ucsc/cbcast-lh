@@ -1,14 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
-module Causal.CBCAST.ImplMonadic
-( pNew
-, send
-, receive
-, drainBroadcasts
-, drainDeliveries
-, CausalT()
-, execCausalT
-) where
+module Causal.CBCAST.ImplMonadic where
 
 -- page 7/278:
 --
@@ -73,16 +65,16 @@ type Internal r m a = StateT (Process r) m a
 --      m."
 --
 -- Since this modifies the vector clock, it could change the deliverability of
--- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
 -- after this.
-cbcastSend :: Monad m => r -> Internal r m ()
-cbcastSend r = do
+internalSend :: Monad m => r -> Internal r m ()
+internalSend r = do
     State.modify' $ \p -> p{pVT=vcTick (pNode p) (pVT p)}
     m <- Message <$> State.gets pNode <*> State.gets pVT <*> return r
     State.modify' $ \p -> p{pOutbox=fPush (pOutbox p) m}
 
 -- | Receive a message. Delay its delivery or deliver it immediately. The
--- "until" part is handled by 'cbcastDeliverReceived'.
+-- "until" part is handled by 'internalDeliverReceived'.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -98,24 +90,30 @@ cbcastSend r = do
 --
 -- Since this modifies the vector clock in one case and the delay queue in the
 -- other, it could change the deliverability of messages in the delay queue.
--- Therefore 'cbcastDeliverReceived' must be run after this.
-cbcastReceive :: Monad m => Message r -> Internal r m ()
-cbcastReceive m = do
+-- Therefore 'internalDeliverReceived' must be run after this.
+internalReceive :: Monad m => Message r -> Internal r m ()
+internalReceive m = do
     pid <- State.gets pNode
     if mSender m == pid
     -- "Process p_j need not delay messages received from itself."
-    then cbcastDeliver m
+    then internalDeliver m
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     else State.modify' $ \p -> p{pDQ=dqEnqueue m (pDQ p)}
 
 -- | Deliver messages until there are none ready.
-cbcastDeliverReceived :: Monad m => Internal r m ()
-cbcastDeliverReceived = dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
-    Just (dq, m) -> do
-        State.modify' $ \p -> p{pDQ=dq}
-        cbcastDeliver m
-        cbcastDeliverReceived
-    Nothing -> return ()
+--
+-- This algorithm delivers full groups of deliverable messages before checking
+-- deliverability again. While this can't make anything undeliverable or break
+-- causal order of deliveries, it does produce a slightly different delivery
+-- order than an algorithm which checks deliverability after every delivery.
+internalDeliverReceived :: Monad m => Internal r m ()
+internalDeliverReceived =
+    dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
+        Just (dq, m) -> do
+            State.modify' $ \p -> p{pDQ=dq}
+            internalDeliver m
+            internalDeliverReceived
+        Nothing -> return ()
 
 -- | Deliver a message.
 --
@@ -131,10 +129,10 @@ cbcastDeliverReceived = dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \cas
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
 -- Since this modifies the vector clock, it could change the deliverability of
--- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
 -- after this.
-cbcastDeliver :: Monad m => Message r -> Internal r m ()
-cbcastDeliver m = State.modify' $ \p -> p
+internalDeliver :: Monad m => Message r -> Internal r m ()
+internalDeliver m = State.modify' $ \p -> p
     { pVT = vcCombine (pVT p) (mSent m)
     , pInbox = fPush (pInbox p) m
     }
@@ -159,15 +157,15 @@ execCausalT p (CausalT action) = State.execStateT action p
 -- messages in the delay queue.
 send :: Monad m => r -> CausalT r m ()
 send r = CausalT $ do
-    cbcastSend r
-    cbcastDeliverReceived
+    internalSend r
+    internalDeliverReceived
 
 -- | Receive a message, possibly triggering the delivery of messages in the
 -- delay queue.
 receive :: Monad m => Message r -> CausalT r m ()
 receive m = CausalT $ do
-    cbcastReceive m
-    cbcastDeliverReceived
+    internalReceive m
+    internalDeliverReceived
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_').
@@ -187,4 +185,4 @@ drainDeliveries = CausalT $ do
 
 -- * Verification
 
-{-@ lazy cbcastDeliverReceived @-}
+{-@ lazy internalDeliverReceived @-} -- FIXME: given the type of internalDeliverReceived, it's not clear how to specify the decreasing parameter

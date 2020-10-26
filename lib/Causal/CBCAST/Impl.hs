@@ -1,12 +1,6 @@
 
 
-module Causal.CBCAST.Impl
-( pNew
-, send
-, receive
-, drainBroadcasts
-, drainDeliveries
-) where
+module Causal.CBCAST.Impl where
 
 -- page 7/278:
 --
@@ -60,16 +54,16 @@ import Causal.VectorClockConcrete
 --      m."
 --
 -- Since this modifies the vector clock, it could change the deliverability of
--- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
 -- after this.
-cbcastSend :: r -> Process r -> Process r
-cbcastSend r p = let vt = vcTick (pNode p) (pVT p) in p
+internalSend :: r -> Process r -> Process r
+internalSend r p = let vt = vcTick (pNode p) (pVT p) in p
     { pVT = vt
     , pOutbox = fPush (pOutbox p) Message{mSender=pNode p, mSent=vt, mRaw=r}
     }
 
 -- | Receive a message. Delay its delivery or deliver it immediately. The
--- "until" part is handled by 'cbcastDeliverReceived'. Return new process
+-- "until" part is handled by 'internalDeliverReceived'. Return new process
 -- state.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
@@ -86,11 +80,11 @@ cbcastSend r p = let vt = vcTick (pNode p) (pVT p) in p
 --
 -- Since this modifies the vector clock in one case and the delay queue in the
 -- other, it could change the deliverability of messages in the delay queue.
--- Therefore 'cbcastDeliverReceived' must be run after this.
-cbcastReceive :: Message r -> Process r -> Process r
-cbcastReceive m p
+-- Therefore 'internalDeliverReceived' must be run after this.
+internalReceive :: Message r -> Process r -> Process r
+internalReceive m p
     -- "Process p_j need not delay messages received from itself."
-    | mSender m == pNode p = cbcastDeliver m p
+    | mSender m == pNode p = internalDeliver m p
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
@@ -100,10 +94,11 @@ cbcastReceive m p
 -- deliverability again. While this can't make anything undeliverable or break
 -- causal order of deliveries, it does produce a slightly different delivery
 -- order than an algorithm which checks deliverability after every delivery.
-cbcastDeliverReceived :: Process r -> Process r
-cbcastDeliverReceived p = case dqDrain (pVT p) (pDQ p) of
-    (dq, []) -> p
-    (dq, ms) -> cbcastDeliverReceived (foldl (flip cbcastDeliver) p{pDQ=dq} ms)
+internalDeliverReceived :: Process r -> Process r
+internalDeliverReceived p =
+    case dqDequeue (pVT p) (pDQ p) of
+        Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
+        Nothing -> p
 
 -- | Deliver a message. Return new process state.
 --
@@ -119,10 +114,10 @@ cbcastDeliverReceived p = case dqDrain (pVT p) (pDQ p) of
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
 -- Since this modifies the vector clock, it could change the deliverability of
--- messages in the delay queue. Therefore 'cbcastDeliverReceived' must be run
+-- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
 -- after this.
-cbcastDeliver :: Message r -> Process r -> Process r
-cbcastDeliver m p = p
+internalDeliver :: Message r -> Process r -> Process r
+internalDeliver m p = p
     { pVT = vcCombine (pVT p) (mSent m)
     , pInbox = fPush (pInbox p) m
     }
@@ -132,12 +127,12 @@ cbcastDeliver m p = p
 -- | Prepare a message for sending, possibly triggering the delivery of
 -- messages in the delay queue.
 send :: r -> Process r -> Process r
-send r = cbcastDeliverReceived . cbcastSend r
+send r = internalDeliverReceived . internalSend r
 
 -- | Receive a message, possibly triggering the delivery of messages in the
 -- delay queue.
 receive :: Message r -> Process r -> Process r
-receive m = cbcastDeliverReceived . cbcastReceive m
+receive m = internalDeliverReceived . internalReceive m
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_').
@@ -157,4 +152,6 @@ drainDeliveries p =
 
 -- * Verification
 
-{-@ lazy cbcastDeliverReceived @-}
+{-@ internalDeliver :: _ -> p:_ -> {p':_ | pdqSize p == pdqSize p' } @-}
+
+{-@ internalDeliverReceived :: p:_ -> _ / [pdqSize p] @-}

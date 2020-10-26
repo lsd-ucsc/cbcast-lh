@@ -24,7 +24,13 @@ let
   # define the derivation and the environment
   drv = nixpkgs.haskell.lib.overrideCabal
     (haskellPackages.callCabal2nix "cbcast-in-lh" (nixpkgs.nix-gitignore.gitignoreSource [] ./.) {})
-    (old: { doCheck = true; doHaddock = true; buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ]; });
+    (
+      old: {
+        doCheck = true;
+        doHaddock = false; # FIXME: LH seems to break generating haddocks
+        buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ];
+      }
+    );
   env = (drv.envFunc { withHoogle = true; }).overrideAttrs
     (old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.ghcid ]; });
 in

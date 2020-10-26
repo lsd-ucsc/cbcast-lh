@@ -2,6 +2,7 @@
 Description: Vector clocks implemented with maps keyed on UUIDs.
 -}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE PackageImports #-}
 module Causal.VectorClockConcrete
 ( VectorClock()
 , vcNew
@@ -12,8 +13,8 @@ module Causal.VectorClockConcrete
 , vcIndependent
 ) where
 
-import qualified Data.Map as Map
-import qualified Data.Map.Merge.Lazy as Merge
+import qualified "liquid-containers" Data.Map as Map -- FIXME: package import necessary for disambiguation during nix-build
+import qualified "liquid-containers" Data.Map.Merge.Lazy as Merge
 
 import Data.List (intercalate)
 import Data.UUID (UUID)
@@ -40,7 +41,7 @@ cInc (Clock c) = Clock (c + 1)
 -- * Vector clocks
 
 [lq|
-newtype VectorClock = VectorClock (Map.Map UUID Clock) |]
+newtype VectorClock = VectorClock (Map.Map UUID Clock) |] -- FIXME workaround for https://github.com/ucsd-progsys/liquidhaskell/issues/1773
 newtype VectorClock = VectorClock (Map.Map UUID Clock)
     deriving Eq
 -- |
