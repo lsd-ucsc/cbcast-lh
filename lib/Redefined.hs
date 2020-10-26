@@ -1,4 +1,8 @@
-module Verification where
+module Redefined where
+
+{-
+ - These are definitions redefined from elsewhere for use with LiquidHaskell
+ -}
 
 -- | Reify the @len@ measure defined in the @liquid-base@ specification into
 -- code and back into specifications.

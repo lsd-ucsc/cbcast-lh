@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Causal.CBCAST.Process where
 
-import Verification (listLength)
+import Redefined (listLength)
 
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Message

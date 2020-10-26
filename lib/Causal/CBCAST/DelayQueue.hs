@@ -6,7 +6,7 @@ module Causal.CBCAST.DelayQueue
 , dqSize
 ) where
 
-import Verification
+import Redefined
 
 import Causal.CBCAST.Message
 import Causal.VectorClockConcrete
