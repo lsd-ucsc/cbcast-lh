@@ -1,0 +1,45 @@
+digraph G {
+    node [shape=box];
+
+    subgraph cluster_0 {
+        style=dotted;
+        process [label="Process r"];
+    }
+    subgraph cluster_1 {
+        style=filled;
+        color="#dddddd";
+        label = "Application";
+        raw [label="r\n\n∙ Raw message type\l∙ Application defined\l"];
+        deliveries [label="[Message r]\n\n∙ In delivery order\l∙ To be applied to app\l∙ mRaw :: Message r → r\l∙ Vector-time and sender PID also"];
+        a;
+    }
+    subgraph cluster_2 {
+        style=filled;
+        color="#dddddd";
+        label = "Transport";
+        wrapped [label="Message r\n\n∙ Deserialized from network\l"];
+        broadcasts [label="[Message r]\n\n∙ In sent order\l∙ To be broadcast to network\l"];
+        t;
+    }
+
+    raw -> process [label="send :: r → Process r\r→ Process r\r∙ Wrap `r` for broadcast\l∙ Update local vector-time\l", color=blue, penwidth=2];
+    process -> deliveries [label="drainDeliveries :: Process r\r→ (Process r\r, [Message r])\r∙ Messages from delay-queue", color=orange, penwidth=2];
+
+    wrapped -> process [label="receive :: Message r → Process r\r→ Process r\r∙ Add message to delay-queue\l∙ Possibly trigger delivery\l", color=orange, penwidth=2];
+    process -> broadcasts [label="drainBroadcasts :: Process r\r→ (Process r\r, [Message r])\r", color=blue, penwidth=2];
+
+    a[style=dotted];
+    t[style=dotted];
+    start [style=dotted];
+    end   [penwidth=0,
+label="
+The CBCAST implementation has four functions for manipulating state.\lState is represented by type `Process r` parameterized over the raw message type `r`.\l
+They can be divided into functions concerned with sending messages (blue arrows)\land functions concerned with receiving messages (orange arrows).\l
+Orthogonally, they can be divided into functions called in application logic\land functions called in transport logic.\l
+"
+    ];
+    start -> process -> end [style=dotted];
+    start -> raw     -> a -> deliveries -> end [style=dotted];
+    start -> wrapped -> t -> broadcasts -> end [style=dotted];
+
+}

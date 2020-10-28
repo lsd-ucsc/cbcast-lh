@@ -27,7 +27,7 @@ let
     (
       old: {
         doCheck = true;
-        doHaddock = false; # FIXME: LH seems to break generating haddocks
+        doHaddock = false; # FIXME: bug in LH, https://github.com/ucsd-progsys/liquidhaskell/issues/1727
         buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ];
       }
     );

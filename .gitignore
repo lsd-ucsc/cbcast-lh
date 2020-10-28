@@ -8,3 +8,5 @@ result
 Setup.hs
 dist-newstyle/
 dist/
+*.svg
+*.gif
