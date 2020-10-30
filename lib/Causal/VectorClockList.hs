@@ -9,6 +9,7 @@ import Data.UUID (UUID)
 import Language.Haskell.Liquid.ProofCombinators (impossible)
 
 -- $setup
+-- >>> import qualified Data.List as List
 -- >>> import qualified Data.UUID as UUID
 -- >>> import qualified Test.QuickCheck as QC
 -- >>> instance QC.Arbitrary UUID where arbitrary = UUID.fromWords <$> QC.arbitrary <*> QC.arbitrary <*> QC.arbitrary <*> QC.arbitrary
@@ -16,7 +17,8 @@ import Language.Haskell.Liquid.ProofCombinators (impossible)
 -- >>> instance QC.Arbitrary VectorClock where arbitrary = VectorClock <$> QC.arbitrary
 -- >>> let cafe = UUID.fromWords 0xcafe 0xcafe 0xcafe 0xcafe
 -- >>> let beef = UUID.fromWords 0xbeef 0xbeef 0xbeef 0xbeef
--- >>> let vc = VectorClock . foldr (uncurry VC) Nil
+-- >>> let face = UUID.fromWords 0xface 0xface 0xface 0xface
+-- >>> let vc = VectorClock . foldr (uncurry VC) Nil . List.sort
 
 
 -- * Vector clocks
@@ -54,16 +56,24 @@ data VectorClock = VectorClock (VCPoly UUID)
 vcNew :: VectorClock
 vcNew = VectorClock Nil
 -- |
+--
 -- >>> vcTick cafe vcNew
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
 -- >>> vcTick cafe $ vc [(cafe, 0), (beef, 0)]
--- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
 -- 0000beef-0000-beef-0000-beef0000beef:t0
+-- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
 -- >>> vcTick cafe $ vc [(beef, 3), (cafe, 4)]
 -- 0000beef-0000-beef-0000-beef0000beef:t3
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t5
 --
+-- Prop showing that the result is the same regardless of the order of ticks.
+--
 -- prop> vcTick a (vcTick b vcNew) == vcTick b (vcTick a vcNew)
+--
+-- Props showing how the presence of a pid relates to vc size after a tick.
+--
+-- prop> vcSize (vcTick pid v) == vcSize (vcTick pid (vcTick pid v))
+-- prop> not (vcHasPid v pid) ==> vcSize v + 1 == vcSize (vcTick pid v)
 vcTick :: UUID -> VectorClock -> VectorClock
 vcTick pid (VectorClock vc) = VectorClock (vcTickImpl pid vc)
 vcTickImpl :: Ord p => p -> VCPoly p -> VCPoly p
@@ -129,3 +139,25 @@ vcpSize :: VCPoly p -> Int
 vcpSize Nil = 0
 vcpSize VC{vcRest} = 1 + vcpSize vcRest
 {-@ measure vcpSize @-}
+
+-- |
+--
+-- >>> vcHasPid (vc $ zip [cafe, beef] [0,0]) cafe
+-- True
+-- >>> vcHasPid (vc $ zip [cafe, beef] [0,0]) beef
+-- True
+-- >>> vcHasPid (vc $ zip [cafe, beef] [0,0]) face
+-- False
+--
+-- prop> not $ vcHasPid (VectorClock Nil) pid
+-- prop>       vcHasPid (VectorClock $ VC pid 0 Nil) pid
+vcHasPid :: VectorClock -> UUID -> Bool
+vcHasPid (VectorClock vc) pid = vcpHasPid vc pid
+-- {-@ inline vcHasPid @-}
+
+vcpHasPid :: Eq p => VCPoly p -> p -> Bool
+vcpHasPid Nil _ = False
+vcpHasPid VC{vcPid, vcRest} pid
+    | vcPid == pid = True
+    | otherwise = vcpHasPid vcRest pid
+-- {-@ reflect vcpHasPid @-}
