@@ -3,7 +3,7 @@ module Causal.CBCAST.Impl where
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Message
 import Causal.CBCAST.Process
-import Causal.VectorClockConcrete
+import Causal.VectorClockSledge
 
 -- * Implementation
 

@@ -9,7 +9,7 @@ module Causal.CBCAST.DelayQueue
 import Redefined
 
 import Causal.CBCAST.Message
-import Causal.VectorClockConcrete
+import Causal.VectorClockSledge
 
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 

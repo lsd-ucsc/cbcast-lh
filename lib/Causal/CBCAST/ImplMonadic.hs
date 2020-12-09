@@ -14,7 +14,7 @@ import qualified Control.Monad.State as State
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Message
 import Causal.CBCAST.Process
-import Causal.VectorClockConcrete
+import Causal.VectorClockSledge
 
 -- * Implementation
 

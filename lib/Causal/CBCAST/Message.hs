@@ -1,7 +1,7 @@
 module Causal.CBCAST.Message where
 
 import Data.UUID (UUID)
-import Causal.VectorClockConcrete (VectorClock)
+import Causal.VectorClockSledge
 
 type PID = UUID
 type VT = VectorClock
