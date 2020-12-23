@@ -17,6 +17,7 @@ ghc-options:
     - -fplugin-opt=LiquidHaskell:--ple # PLE is off by default?
     - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
     - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
+    - -fplugin-opt=LiquidHaskell:--prune-unsorted
     - -Wall
 
 library:
