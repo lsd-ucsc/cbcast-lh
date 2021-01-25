@@ -27,3 +27,4 @@ insertAhead new = \case
     Cons cur rest
         | new `lessEq` cur -> Cons new $ Cons cur rest
         | otherwise        -> Cons cur $ insertAhead new rest
+{-@ ignore insertAhead @-}

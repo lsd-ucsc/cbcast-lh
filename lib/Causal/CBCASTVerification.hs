@@ -1,0 +1,87 @@
+{-# LANGUAGE NamedFieldPuns #-}
+module Causal.CBCASTVerification where
+
+import Causal.CBCAST.Message
+import Causal.CBCAST.Process
+import Causal.VectorClockSledge
+import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..))
+
+-- page 7/278:
+--
+--      "The execution of a process is a partial ordered sequence of _events_,
+--      each corresponding to the execution of an indivisible action. An
+--      acyclic event order, denoted ->^p, reflects the dependence of events
+--      occuring at process p upon one another."
+--
+--      "As Lamport [17], we define the potential causality relation for the
+--      system, ->, as the transitive closure of the relation defined as
+--      follows:
+--
+--      (1) if there-exists p: e ->^p e' then e -> e'
+--      (2) for-all m: send(m) -> rcv(m)"
+--
+--      "For messages m and m', the notation m -> m' will be used as a
+--      shorthand for send(m) -> send(m')."
+
+-- page 11/282:
+--
+--      "Observe first that m_1 -> m_2, hence VT(m_1) < VT(m_2) (basic property
+--      of vector times)."
+
+causallyBefore :: Message r -> Message r -> Bool
+causallyBefore a b = mSent a `vcLess` mSent b
+{-@ inline causallyBefore @-}
+
+-- page 8/279:
+--
+--      "Two types of delivery ordering will be of interest here. We define the
+--      causal delivery ordering for multicast messages m and m' as follows:
+--
+--          m -> m' => for-all p element-of dests(m) intersect dests(m'):
+--                      deliver(m) ->^p deliver(m')
+--
+--      CBCAST provides only the causal delivery ordering."
+
+-- page 10/281:
+--
+--      "Suppose that a set of processes P communicate using only broadcasts to
+--      the full set of processes in the system; that is,
+--      for-all m: dests(m) = P."
+--
+--      "We now develop a _delivery protocol_ by which each process p receives
+--      messages sent to it, delays them if necessary, and then delivers them
+--      in an order consistent with causality:
+--
+--          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')"
+
+
+deliveredBefore :: Process r -> Message r -> Message r -> Bool
+deliveredBefore p a b = False
+{-@ inline deliveredBefore @-}
+
+{-@
+prop
+    :: a:Message r
+    -> b:Message r
+    -> p:Process r
+    -> { causallyBefore a b => deliveredBefore p a b }
+@-}
+prop :: Message r -> Message r -> Process r -> Proof
+prop m@Message{} m'@Message{} p@Process{}
+    =   ()
+    *** Admit
+
+-- simulate
+--     ::  a:Message r
+--     -> {b:Message r | mSent a `vcLess` mSent b } -- might want to show isomorphism between HB later
+--     -> {xs:[Message r] |
+-- 			elem a xs &&   -- a is in the list of messages to receive
+--             elem b xs &&   -- b is in the list of messages to receive
+--             xs == nub xs } -- there are no duplicate messages
+--     -> {p:Process r |
+-- 			... } -- messages in xs aren't in the delay-queue, delivered message list, or broadcasted message list
+--     -> {ys:[Message r] |
+--             ( elem a ys && elem b ys ) -- a and b are in the delivered message list
+--             => appearsEarlier a b ys } -- a comes before b in the delivered message list
+-- receives each of xs into p
+-- observe the delivered 

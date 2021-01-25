@@ -6,16 +6,16 @@ module Causal.Scratch where
 -- datatype which expresses the ordering constraint straightforwardly on the
 -- keys
 
-data Assoc k v
+data AssocDT k v
     = ANil
-    | ACons k v (Assoc k v)
+    | ACons k v (AssocDT k v)
 {-@
-data Assoc k v where
-      ANil  :: Assoc k v
-    | ACons :: key:k -> val:v -> Assoc {keys:k | key < keys} _ -> Assoc k v
+data AssocDT k v where
+      ANil  :: AssocDT k v
+    | ACons :: key:k -> val:v -> AssocDT {keys:k | key < keys} _ -> AssocDT k v
 @-}
 
-insertOrCombine :: (Ord k) => (v -> v -> v) -> k -> v -> Assoc k v -> Assoc k v
+insertOrCombine :: (Ord k) => (v -> v -> v) -> k -> v -> AssocDT k v -> AssocDT k v
 insertOrCombine combine newK newV assoc = case assoc of
     ANil               -> ACons newK newV ANil
     ACons curK curV rest
@@ -47,10 +47,7 @@ data Things
 {-@
 data Things where
       TNil :: Things
-    | TCons
-        ::   x:Thing
-        -> {xs:Things | tPrecedes x xs}
-        -> Things
+    | TCons ::   x:Thing -> {xs:Things | tPrecedes x xs} -> Things
 @-}
 
 tPrecedes :: Thing -> Things -> Bool
@@ -58,13 +55,13 @@ tPrecedes _  TNil       = True
 tPrecedes a (TCons b _) = tKey a < tKey b
 {-@ inline tPrecedes @-}
 
-tInsertBefore :: Thing -> Things -> Things
-tInsertBefore new = \case
-    TNil                                  -> TCons  new               TNil
-    TCons cur rest | tKey new <  tKey cur -> TCons  new             $ TCons cur rest
-                   | tKey new == tKey cur -> TCons (tMerge new cur) $ rest
-                   | otherwise            -> tInsertBefore cur $ tInsertBefore new rest
-{-@ reflect tInsertBefore @-}
+-- tInsertBefore :: Thing -> Things -> Things
+-- tInsertBefore new = \case
+--     TNil                                  -> TCons  new               TNil
+--     TCons cur rest | tKey new <  tKey cur -> TCons  new             $ TCons cur rest
+--                    | tKey new == tKey cur -> TCons (tMerge new cur) $ rest
+--                    | otherwise            -> tInsertBefore cur $ tInsertBefore new rest
+-- {-@ reflect tInsertBefore @-}
 
 
 
@@ -81,10 +78,7 @@ data Zaps
 {-@
 data Zaps [zSize] where
       ZNil :: Zaps
-    | ZCons
-        ::   x:Zap
-        -> {xs:Zaps | zPrecedes x xs}
-        -> Zaps
+    | ZCons ::   x:Zap -> {xs:Zaps | zPrecedes x xs} -> Zaps
 @-}
 
 {-@
@@ -183,14 +177,59 @@ data Quuxes k <p :: k -> k -> Bool>
 --         | newK == curK -> (curK,newV`combine`curV):rest
 --         | otherwise -> ins combine cur $ ins combine new rest
 
+type Item k v = (k,v)
+type Assoc k v = [Item k v]
+{-@ type SortedAssoc k v = [Item k v]<{\a b -> fst a <= fst b}> @-}
+{-@ type SortedAssocLB k v LB = SortedAssoc {key:k | LB <= key} v @-}
+
+{-@ egSA :: SortedAssoc Int String @-}
+egSA :: Assoc Int String
+egSA = [(3,"foo"), (5,"bar")]
+
+-- {-@ egConv :: SortedAssocLB Int String 3 @-}
+-- egConv :: Assoc Int String
+-- egConv = egSA
+
+{-@
+aFirstKeyOr :: SortedAssoc k v -> k -> k @-}
+aFirstKeyOr :: Assoc k v -> k -> k
+aFirstKeyOr assoc def = case assoc of
+    (k,_):_ -> k
+    [] -> def
+{-@ inline aFirstKeyOr @-}
+
+-- {-@
+-- aHead :: {xs:SortedAssoc k v | xs /= []} -> k @-}
+-- aHead :: Assoc k v -> k
+-- aHead = \case
+--     (k,_):_ -> k
+-- {-@ inline aHead @-}
 
 
 
----- type Item k v = (k,v)
----- type Assoc k v = [Item k v]
----- {-@ type SortedAssoc   k v    = [   Item k v              ]<{\a b -> fst a < fst b}> @-}
----- {-@ type SortedAssocLB k v LB = [{t:Item k v | LB < fst t}]<{\a b -> fst a < fst b}> @-}
-----
+-- 
+-- {-@
+-- aBoundedBy :: lb:k -> SortedAssoc {key:k | lb <= key} v -> SortedAssocLB k v lb @-}
+-- aBoundedBy :: k -> Assoc k v -> Assoc k v
+-- aBoundedBy _ xs = xs
+-- {-@ inline aBoundedBy @-}
+
+--{-@
+--foo :: SortedAssocLB Int String 2 @-}
+--foo :: Assoc Int String
+--foo = aBoundedBy 3 []
+
+-- aIsBound :: k -> Assoc k v -> Bool
+-- aIsBound lb = \case
+--     (k,_):_ -> k
+--     [] -> True
+
+-- 
+-- {-@
+-- aBounded :: xs:SortedAssoc k v -> lb:k -> SortedAssocLB k v (aFirstKeyOr xs lb) @-}
+-- aBounded ::          Assoc k v ->    k ->       Assoc   k v
+-- aBounded xs _ = xs
+
 ---- -- {-@
 ---- -- uncons :: SortedAssoc k v -> Maybe (t:Item k v, SortedAssocLB k v (fst t)) @-}
 ---- -- uncons :: Assoc k v -> Maybe (Item k v, Assoc k v)

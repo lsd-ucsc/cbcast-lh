@@ -18,10 +18,7 @@ data DelayQueue r
 {-@
 data DelayQueue [dqSize] r where
       Nil :: DelayQueue r
-    | DQ
-        :: m:Message r
-        -> {rest:DelayQueue r | mLEQdq m rest}
-        -> DelayQueue r
+    | DQ :: m:Message r -> {rest:DelayQueue r | mLEQdq m rest} -> DelayQueue r
 @-}
 
 

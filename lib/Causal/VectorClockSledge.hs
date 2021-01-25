@@ -34,11 +34,7 @@ data VCPoly pid
 {-@
 data VCPoly [vcpSize] _ where
       Nil :: _
-    | VC
-        :: pid:_
-        -> RealClock
-        -> VCPoly {restPid:_ | pid < restPid}
-        -> _
+    | VC :: pid:_ -> RealClock -> VCPoly {restPid:_ | pid < restPid} -> _
 @-}
 -- FIXME: bug in LH? The fields on this data structure do not have measures
 

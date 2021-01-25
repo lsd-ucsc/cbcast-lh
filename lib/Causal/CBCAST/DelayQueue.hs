@@ -14,6 +14,7 @@ import Causal.VectorClockSledge
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
 data DelayQueue r = DelayQueue [Message r] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
+{-@ data DelayQueue [dqSize] @-}
 
 -- | Determine message deliverability relative to current vector time.
 --
@@ -33,6 +34,7 @@ deliverability t m
     | mSent m `vcLessEqual` vcTick (mSender m) t = Ready
     -- The value at more than one index is GT in t.
     | otherwise = Early
+{-@ inline deliverability @-}
 
 -- | Make a new empty delay-queue.
 dqNew :: DelayQueue r
@@ -85,8 +87,6 @@ dqSize :: _ -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
 {-@ measure dqSize @-}
-
-{-@ data DelayQueue [dqSize] @-}
 
 {-@ dqDequeue :: _ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
 {-@ extractFirstBy :: _ -> xs:_ -> Maybe ({ys:_ | listLength xs - 1 == listLength ys}, _) @-}
