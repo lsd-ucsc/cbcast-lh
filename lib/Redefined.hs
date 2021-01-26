@@ -19,36 +19,6 @@ listLength [] = 0
 listLength (_x:xs) = 1 + listLength xs
 {-@ measure listLength @-}
 
--- | Classless implementation of Arrow(first).
---
--- No idea why, but this property fails.
---
--- !prop> first f t == tupleFirst f t
-tupleFirst :: (a -> b) -> (a, z) -> (b, z)
-tupleFirst f (a, z) = (f a, z)
-{-@ inline tupleFirst @-}
-
--- | Classless implementation of Arrow(second).
---
--- No idea why, but this property fails.
---
--- !prop> second f t == tupleSecond f t
-tupleSecond :: (y -> z) -> (a, y) -> (a, z)
-tupleSecond f (a, y) = (a, f y)
-{-@ inline tupleSecond @-}
-
--- | Redefinition of 'Maybe' but for which we will lift functions into
--- specifications. Uses Rust's naming here just to make it very obviously a
--- distinct type, but this is isomorphic to 'Maybe'.
-data Option t = None | Some t
-
--- | Reflected implementation of 'fmap' over 'Maybe'.
---
--- TODO: prop test to assert the isomorphism
-optionMap :: (t -> u) -> Option t -> Option u
-optionMap _ None = None
-optionMap f (Some s) = Some (f s)
-{-@ inline optionMap @-}
 
 -- | Implementation of 'fmap' over 'Maybe' lifted to specifications.
 maybeMap :: (a -> b) -> Maybe a -> Maybe b
