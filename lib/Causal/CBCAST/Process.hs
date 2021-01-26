@@ -1,15 +1,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Causal.CBCAST.Process where
 
-import Redefined (listLength)
+import Redefined
 
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Message
 import Causal.VectorClockSledge
 
--- * Implementation
-
 type DQ r = DelayQueue r
+
+
+-- * FIFO
 
 -- | Trivial fifo. Appended to it with 'fPush'. Dump it out with 'fList' and
 -- map over the result in fifo order. Replace it after dumping with 'fNew'.
@@ -17,13 +18,29 @@ type DQ r = DelayQueue r
 -- "abc"
 -- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
 -- "abc"
+{-@
+data FIFO [fSize]
+          a = FIFO [a] @-}
 data FIFO a = FIFO [a] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
+
+fSize :: FIFO a -> Int
+fSize (FIFO xs) = listLength xs
+{-@ measure fSize @-}
+
 fNew :: FIFO a
 fNew = FIFO []
+{-@ inline fNew @-}
+
 fPush :: FIFO a -> a -> FIFO a
 fPush (FIFO xs) x = FIFO (x:xs)
+{-@ inline fPush @-}
+
 fList :: FIFO a -> [a]
-fList (FIFO xs) = reverse xs
+fList (FIFO xs) = listReverse xs
+{-@ inline fList @-}
+
+
+-- * Process
 
 -- | CBCAST process state with ID, logical clock, and delay queue. The inbox
 -- stores messages which are delivered, and the outbox stores messages which
@@ -32,22 +49,6 @@ fList (FIFO xs) = reverse xs
 data Process [pSize]
              r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
 data Process r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
-
--- | New empty process using the given process ID.
-pNew :: PID -> Process r
-pNew pid = Process
-    { pNode = pid
-    , pVT = vcNew
-    , pDQ = dqNew
-    , pInbox = fNew
-    , pOutbox = fNew
-    }
-
--- * Verification
-
-fSize :: FIFO a -> Int
-fSize (FIFO xs) = listLength xs
-{-@ measure fSize @-}
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
@@ -59,3 +60,14 @@ pdqSize :: _ -> Nat @-}
 pdqSize :: Process r -> Int
 pdqSize Process{pDQ} = dqSize pDQ
 {-@ measure pdqSize @-}
+
+-- | New empty process using the given process ID.
+pNew :: PID -> Process r
+pNew pid = Process
+    { pNode = pid
+    , pVT = vcNew
+    , pDQ = dqNew
+    , pInbox = fNew
+    , pOutbox = fNew
+    }
+{-@ inline pNew @-}
