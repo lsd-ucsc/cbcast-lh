@@ -20,6 +20,7 @@ listLength (_x:xs) = 1 + listLength xs
 {-@ measure listLength @-}
 
 
+-- | Implementation of 'fmap' over 'Maybe' lifted to specifications.
 maybeMap :: (a -> b) -> Maybe a -> Maybe b
 maybeMap _ Nothing= Nothing
 maybeMap f (Just a) = Just (f a)

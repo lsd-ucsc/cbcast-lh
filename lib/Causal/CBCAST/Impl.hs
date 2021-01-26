@@ -80,32 +80,36 @@ internalDeliver m p = p
     }
 {-@ inline internalDeliver @-}
 
----- -- | Deliver messages until there are none ready.
----- --
----- -- This algorithm delivers full groups of deliverable messages before checking
----- -- deliverability again. While this can't make anything undeliverable or break
----- -- causal order of deliveries, it does produce a slightly different delivery
----- -- order than an algorithm which checks deliverability after every delivery.
----- {-@
----- internalDeliverReceived :: p:_ -> _ / [pdqSize p] @-}
----- internalDeliverReceived :: Process r -> Process r
----- internalDeliverReceived p =
-----     case dqDequeue (pVT p) (pDQ p) of
-----         Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
-----         Nothing -> p
+-- | Deliver messages until there are none ready.
+--
+-- This algorithm delivers full groups of deliverable messages before checking
+-- deliverability again. While this can't make anything undeliverable or break
+-- causal order of deliveries, it does produce a slightly different delivery
+-- order than an algorithm which checks deliverability after every delivery.
+{-@
+internalDeliverReceived :: p:_ -> _ / [pdqSize p] @-}
+internalDeliverReceived :: Process r -> Process r
+internalDeliverReceived p =
+    case dqDequeue (pVT p) (pDQ p) of
+        Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
+        Nothing -> p
+{-@ reflect internalDeliverReceived @-}
+{-@ lazy internalDeliverReceived @-} -- FIXME this prevents a crash
 
 
 -- ** External API
 
----- -- | Prepare a message for sending, possibly triggering the delivery of
----- -- messages in the delay queue.
----- send :: r -> Process r -> Process r
----- send r = internalDeliverReceived . internalSend r
----- 
----- -- | Receive a message, possibly triggering the delivery of messages in the
----- -- delay queue.
----- receive :: Message r -> Process r -> Process r
----- receive m = internalDeliverReceived . internalReceive m
+-- | Prepare a message for sending, possibly triggering the delivery of
+-- messages in the delay queue.
+send :: r -> Process r -> Process r
+send r p = internalDeliverReceived $ internalSend r p
+{-@ reflect send @-} -- FIXME using this instead of inline prevents a crash
+
+-- | Receive a message, possibly triggering the delivery of messages in the
+-- delay queue.
+receive :: Message r -> Process r -> Process r
+receive m p = internalDeliverReceived $ internalReceive m p
+{-@ reflect receive @-} -- FIXME using this instead of inline prevents a crash
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_').
