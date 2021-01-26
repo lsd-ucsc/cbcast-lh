@@ -6,6 +6,7 @@ module Redefined where
 -- $setup
 -- >>> :set -XFlexibleInstances
 -- >>> instance Show (a -> b) where show _ = "(a -> b)"
+-- >>> import Data.List
 
 -- | Reify the @len@ measure defined in the @liquid-base@ specification into
 -- code and back into specifications.
@@ -69,3 +70,20 @@ listReverseImpl :: [a] -> [a] -> [a]
 listReverseImpl []     done = done
 listReverseImpl (x:xs) done = listReverseImpl xs (x:done)
 {-@ reflect listReverseImpl @-}
+
+-- | Similar to @base:Data.List.elemIndex@ or
+-- @containers:Data.Sequence.elemeIndexL@, "elemIndexL finds the leftmost index
+-- of the specified element, if it is present, and otherwise Nothing," but is
+-- implemented more simply.
+--
+-- prop> elemIndex a xs == listElemIndex a xs
+listElemIndex :: Eq a => a -> [a] -> Maybe Int
+listElemIndex a xs = listElemIndexImpl a xs 0
+{-@ inline listElemIndex @-}
+
+listElemIndexImpl :: Eq a => a -> [a] -> Int -> Maybe Int
+listElemIndexImpl _ [] _ = Nothing
+listElemIndexImpl a (x:xs) idx
+    | a == x = Just idx
+    | otherwise = listElemIndexImpl a xs (idx + 1)
+{-@ reflect listElemIndexImpl @-}

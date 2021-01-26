@@ -1,10 +1,4 @@
-module Causal.CBCAST.DelayQueue
-{-( DelayQueue()
-, dqNew
-, dqEnqueue
-, dqDequeue
-, dqSize
-)-} where
+module Causal.CBCAST.DelayQueue where
 
 import Redefined
 
@@ -56,7 +50,7 @@ dqNew :: DelayQueue r
 dqNew = DelayQueue []
 {-@ inline dqNew @-}
 
--- | Insert a message into the delay queue.
+-- | Insert a message into the delay-queue.
 --
 --      "This queue is sorted by vector time, with concurrent messages ordered
 --      by time of receipt (however, the queue order will not be used until

@@ -9,3 +9,4 @@ type VT = VectorClock
 {-@
 data Message raw = Message { mSender :: PID, mSent :: VT, mRaw :: raw } @-}
 data Message raw = Message { mSender :: PID, mSent :: VT, mRaw :: raw }
+    deriving Eq
