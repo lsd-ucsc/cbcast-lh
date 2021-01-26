@@ -39,11 +39,11 @@ deliverability :: VT -> Message r -> Deliverability
 deliverability t m
     -- The value at every index is LE than in t. Message should have already
     -- been delivered.
-    | vcLessEqual (mSent m) t = Late
+    | mSent m `vcLessEqual` t = Late
     -- The value at one or more indexes is GT in t. If we increment only the
     -- sender index and find true, then only that one was GT in t and it was
     -- exactly (+1) the value in t.
-    | vcLessEqual (mSent m) $ vcTick (mSender m) t = Ready
+    | mSent m `vcLessEqual` vcTick (mSender m) t = Ready
     -- The value at more than one index is GT in t.
     | otherwise = Early
 {-@ reflect deliverability @-}
@@ -91,11 +91,13 @@ dqEnqueueImpl m (x:xs)
 {-@ dqDequeue :: _ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
 dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
 dqDequeue t (DelayQueue xs)
-    = fmapMaybe (first DelayQueue)
+    = maybeMap (\(dq, m) -> (DelayQueue dq, m))
     $ extractFirstBy (\m -> deliverability t m == Ready) xs
+{-@ reflect dqDequeue @-}
 
 {-@ extractFirstBy :: _ -> xs:_ -> Maybe ({ys:_ | listLength xs - 1 == listLength ys}, _) @-}
 extractFirstBy :: (a -> Bool) -> [a] -> Maybe ([a], a)
-extractFirstBy predicate xs = case break predicate xs of
-    (before, x:after) -> Just (before ++ after, x)
+extractFirstBy predicate xs = case listBreak predicate xs of
+    (before, x:after) -> Just (before `listAppend` after, x)
     _ -> Nothing
+{-@ inline extractFirstBy @-}

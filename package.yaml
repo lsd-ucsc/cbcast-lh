@@ -18,6 +18,7 @@ ghc-options:
     - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
     - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
     - -fplugin-opt=LiquidHaskell:--prune-unsorted
+    - -fplugin-opt=LiquidHaskell:--counter-examples
     - -Wall
 
 library:
