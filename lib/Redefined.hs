@@ -52,3 +52,20 @@ listAppend :: [a] -> [a] -> [a]
 listAppend []     ys = ys
 listAppend (x:xs) ys = x : xs `listAppend` ys
 {-@ reflect listAppend @-}
+
+-- | Implementation of 'reverse' lifted to specifications. Copied from
+-- 'Prelude'.
+--
+-- prop> reverse xs == listReverse xs
+{-@
+listReverse :: xs:_ -> {ys:_ | listLength xs == listLength ys} @-}
+listReverse :: [a] -> [a]
+listReverse orig = listReverseImpl orig []
+{-@ inline listReverse @-}
+
+{-@
+listReverseImpl :: xs:_ -> ys:_ -> {zs:_ | listLength xs + listLength ys == listLength zs} @-}
+listReverseImpl :: [a] -> [a] -> [a]
+listReverseImpl []     done = done
+listReverseImpl (x:xs) done = listReverseImpl xs (x:done)
+{-@ reflect listReverseImpl @-}

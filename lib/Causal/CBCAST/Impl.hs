@@ -5,12 +5,14 @@ import Causal.CBCAST.Message
 import Causal.CBCAST.Process
 import Causal.VectorClockSledge
 
+
 -- * Implementation
+
 
 -- ** Internal operations
 
-
--- | Prepare to send a message. Return new process state.
+-- | Prepare to send a message (from this process to be broadcast on the
+-- network).  Return new process state.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
@@ -23,10 +25,11 @@ internalSend r p = let vt = vcTick (pNode p) (pVT p) in p
     { pVT = vt
     , pOutbox = fPush (pOutbox p) Message{mSender=pNode p, mSent=vt, mRaw=r}
     }
+{-@ inline internalSend @-}
 
--- | Receive a message. Delay its delivery or deliver it immediately. The
--- "until" part is handled by 'internalDeliverReceived'. Return new process
--- state.
+-- | Receive a message (from the network to this process). Delay its delivery
+-- or deliver it immediately. The "until" part is handled by
+-- 'internalDeliverReceived'. Return new process state.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -49,20 +52,10 @@ internalReceive m p
     | mSender m == pNode p = internalDeliver m p
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
+{-@ inline internalReceive @-}
 
--- | Deliver messages until there are none ready.
---
--- This algorithm delivers full groups of deliverable messages before checking
--- deliverability again. While this can't make anything undeliverable or break
--- causal order of deliveries, it does produce a slightly different delivery
--- order than an algorithm which checks deliverability after every delivery.
-internalDeliverReceived :: Process r -> Process r
-internalDeliverReceived p =
-    case dqDequeue (pVT p) (pDQ p) of
-        Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
-        Nothing -> p
-
--- | Deliver a message. Return new process state.
+-- | Deliver a message (from this process to the application). Return new
+-- process state.
 --
 --      "(3) When a message m is delivered, VT(p_j) is updated in accordance
 --      with the vector time protocol from Section 4.3."
@@ -78,23 +71,41 @@ internalDeliverReceived p =
 -- Since this modifies the vector clock, it could change the deliverability of
 -- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
 -- after this.
+{-@
+internalDeliver :: _ -> p:_ -> {p':_ | pdqSize p == pdqSize p' } @-}
 internalDeliver :: Message r -> Process r -> Process r
 internalDeliver m p = p
     { pVT = vcCombine (pVT p) (mSent m)
     , pInbox = fPush (pInbox p) m
     }
+{-@ inline internalDeliver @-}
+
+---- -- | Deliver messages until there are none ready.
+---- --
+---- -- This algorithm delivers full groups of deliverable messages before checking
+---- -- deliverability again. While this can't make anything undeliverable or break
+---- -- causal order of deliveries, it does produce a slightly different delivery
+---- -- order than an algorithm which checks deliverability after every delivery.
+---- {-@
+---- internalDeliverReceived :: p:_ -> _ / [pdqSize p] @-}
+---- internalDeliverReceived :: Process r -> Process r
+---- internalDeliverReceived p =
+----     case dqDequeue (pVT p) (pDQ p) of
+----         Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
+----         Nothing -> p
+
 
 -- ** External API
 
--- | Prepare a message for sending, possibly triggering the delivery of
--- messages in the delay queue.
-send :: r -> Process r -> Process r
-send r = internalDeliverReceived . internalSend r
-
--- | Receive a message, possibly triggering the delivery of messages in the
--- delay queue.
-receive :: Message r -> Process r -> Process r
-receive m = internalDeliverReceived . internalReceive m
+---- -- | Prepare a message for sending, possibly triggering the delivery of
+---- -- messages in the delay queue.
+---- send :: r -> Process r -> Process r
+---- send r = internalDeliverReceived . internalSend r
+---- 
+---- -- | Receive a message, possibly triggering the delivery of messages in the
+---- -- delay queue.
+---- receive :: Message r -> Process r -> Process r
+---- receive m = internalDeliverReceived . internalReceive m
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_').
@@ -103,6 +114,7 @@ drainBroadcasts p =
     ( p{pOutbox=fNew}
     , fList (pOutbox p)
     )
+{-@ inline drainBroadcasts @-}
 
 -- | Remove and return all delivered messages so the application can process
 -- them (in delivered-order, eg, with 'fmap').
@@ -111,9 +123,4 @@ drainDeliveries p =
     ( p{pInbox=fNew}
     , fList (pInbox p)
     )
-
--- * Verification
-
-{-@ internalDeliver :: _ -> p:_ -> {p':_ | pdqSize p == pdqSize p' } @-}
-
-{-@ internalDeliverReceived :: p:_ -> _ / [pdqSize p] @-}
+{-@ inline drainDeliveries @-}
