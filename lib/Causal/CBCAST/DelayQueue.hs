@@ -10,8 +10,9 @@ import Causal.VectorClockSledge
 
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
--- {-@ data DelayQueue [dqSize] @-}
-data DelayQueue r = DelayQueue [Message r] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
+{-@ data DelayQueue [dqSize] @-}
+data DelayQueue r = DelayQueue [Message r]
+-- FIXME (NEWTYPE_RESTRICTION)
 
 
 -- * Logical predicates

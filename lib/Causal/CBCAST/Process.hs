@@ -21,7 +21,8 @@ type DQ r = DelayQueue r
 {-@
 data FIFO [fSize]
           a = FIFO [a] @-}
-data FIFO a = FIFO [a] -- FIXME: this is supposed to be a newtype, but that breaks the LH measure
+data FIFO a = FIFO [a]
+-- FIXME (NEWTYPE_RESTRICTION)
 
 fSize :: FIFO a -> Int
 fSize (FIFO xs) = listLength xs

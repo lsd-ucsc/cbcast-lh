@@ -52,7 +52,7 @@ causallyBefore a b = mSent a `vcLess` mSent b
 --      CBCAST provides only the causal delivery ordering."
 
 deliveredBefore :: Process r -> Message r -> Message r -> Bool
-deliveredBefore _p _a _b = False -- TODO
+deliveredBefore _p _a _b = False -- TODO: not implemented because we're focusing on the dq proof first
 {-@ inline deliveredBefore @-}
 
 
