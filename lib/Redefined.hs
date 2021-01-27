@@ -38,7 +38,7 @@ maybeMap f (Just a) = Just (f a)
 --
 -- prop> break p xs == listBreak p xs
 {-@
-listBreak :: p:_ -> xs:_ -> ([{x:a | not (p x)}], [a])<{\a b -> listLength xs == listLength a + listLength b}> @-}
+listBreak :: p:_ -> xs:_ -> ([{y:a | not (p y)}], {zs:_ | zs /= [] => p (head zs)})<{\ys zs -> listLength xs == listLength ys + listLength zs}> @-}
 listBreak :: (a -> Bool) -> [a] -> ([a], [a])
 listBreak _ [] = ([], [])
 listBreak exclude (x:xs)

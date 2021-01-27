@@ -94,7 +94,6 @@ internalDeliverReceived p =
         Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
         Nothing -> p
 {-@ reflect internalDeliverReceived @-}
-{-@ lazy internalDeliverReceived @-} -- FIXME this prevents a crash
 
 
 -- ** External API
@@ -103,13 +102,13 @@ internalDeliverReceived p =
 -- messages in the delay queue.
 send :: r -> Process r -> Process r
 send r p = internalDeliverReceived $ internalSend r p
-{-@ reflect send @-} -- FIXME using this instead of inline prevents a crash
+{-@ inline send @-}
 
 -- | Receive a message, possibly triggering the delivery of messages in the
 -- delay queue.
 receive :: Message r -> Process r -> Process r
 receive m p = internalDeliverReceived $ internalReceive m p
-{-@ reflect receive @-} -- FIXME using this instead of inline prevents a crash
+{-@ inline receive @-}
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_').

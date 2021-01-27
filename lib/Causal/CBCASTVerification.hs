@@ -88,13 +88,19 @@ propProcess Message{} Message{} Process{}
 
 -- ** Logical predicates
 
+-- | This is the "condensed" form of CBCAST where you get rid of all the
+-- process nonsense and just extract all the deliverable messages (in delivery
+-- order) from the delay queue.
+--
+-- It's currently not 100% correct because it only does one pass.
+{-@
+dequeueAll :: _ -> dq:_ -> _ / [dqSize dq] @-}
 dequeueAll :: VectorClock -> DelayQueue r -> [Message r]
 dequeueAll t dq =
     case dqDequeue t dq of
         Just (dq', m) -> let t' = t `vcCombine` mSent m in m : dequeueAll t' dq'
         Nothing -> []
 {-@ reflect dequeueAll @-}
-{-@ lazy dequeueAll @-} -- FIXME this prevents a crash
 
 dequeueBefore :: Eq r => VectorClock -> DelayQueue r -> Message r -> Message r -> Bool
 dequeueBefore t dq a b = case (listElemIndex a ms, listElemIndex b ms) of
@@ -102,7 +108,7 @@ dequeueBefore t dq a b = case (listElemIndex a ms, listElemIndex b ms) of
     _ -> True -- Vacuous truth. Since it is not the case that both messages were delivered, they were (technically) delivered in the correct order.
   where
     ms = dequeueAll t dq
-{-@ reflect dequeueBefore @-} -- FIXME using this instead of inline prevents a crash
+{-@ inline dequeueBefore @-}
 
 
 -- ** Proof
@@ -114,22 +120,16 @@ dequeueBefore t dq a b = case (listElemIndex a ms, listElemIndex b ms) of
 --      ∀ m1 m2 vt dq. loop over dq, if both m1 and m2 come out, they come out
 --      in that order.
 
-{- FIXME, this signature causes a crash:
-**** LIQUID: ERROR Fixpoint.Types.dummyLoc:1:1-1:1: Error
-  elaborate makeKnowledge failed on:
-      (Causal.CBCAST.DelayQueue.deliverability ds_d3uS m##a2ut == Causal.CBCAST.DelayQueue.Ready) == ((if Causal.VectorClockSledge.vcLessEqual (Causal.CBCAST.Message.mSent m##a2ut) ds_d3uS then Causal.CBCAST.DelayQueue.Late else (if Causal.VectorClockSledge.vcLessEqual (Causal.CBCAST.Message.mSent m##a2ut) (Causal.VectorClockSledge.vcTick (Causal.CBCAST.Message.mSender m##a2ut) ds_d3uS) then Causal.CBCAST.DelayQueue.Ready else Causal.CBCAST.DelayQueue.Early)) == Causal.CBCAST.DelayQueue.Ready)
-  with error
-      Unbound symbol m##a2ut --- perhaps you meant: m##a2MT ?
--}
--- {-@
--- propDelayQueue
---     :: a:Message r
---     -> b:Message r
---     -> t:VectorClock
---     -> dq:DelayQueue r
---     -> { causallyBefore a b => dequeueBefore t dq a b }
--- @-}
+{-@
+propDelayQueue
+    :: a:Message r
+    -> b:Message r
+    -> t:VectorClock
+    -> dq:DelayQueue r
+    -> { causallyBefore a b => dequeueBefore t dq a b }
+@-}
 propDelayQueue :: Message r -> Message r -> VectorClock -> DelayQueue r -> Proof
 propDelayQueue Message{} Message{} VectorClock{} DelayQueue{}
     =   ()
     *** Admit
+-- {-@ ple propDelayQueue @-}
