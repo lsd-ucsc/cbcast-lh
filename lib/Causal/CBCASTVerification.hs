@@ -91,8 +91,6 @@ propProcess Message{} Message{} Process{}
 -- | This is the "condensed" form of CBCAST where you get rid of all the
 -- process nonsense and just extract all the deliverable messages (in delivery
 -- order) from the delay queue.
---
--- It's currently not 100% correct because it only does one pass.
 {-@
 dequeueAll :: _ -> dq:_ -> _ / [dqSize dq] @-}
 dequeueAll :: VectorClock -> DelayQueue r -> [Message r]
