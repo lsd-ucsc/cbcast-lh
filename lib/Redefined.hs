@@ -89,3 +89,11 @@ listElemIndexImpl a (x:xs) idx
     | a == x = Just idx
     | otherwise = listElemIndexImpl a xs (idx + 1)
 {-@ reflect listElemIndexImpl @-}
+
+-- | Implementation of 'elem' lifted to specifications. Copied from 'Prelude'.
+--
+-- prop> elem a xs == listElem a xs
+listElem :: Eq a => a -> [a] -> Bool
+listElem _ []     = False
+listElem x (y:ys) = x==y || listElem x ys
+{-@ reflect listElem @-}
