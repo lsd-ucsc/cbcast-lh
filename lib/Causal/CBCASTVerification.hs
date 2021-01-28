@@ -115,21 +115,21 @@ messageIsDeliverable :: Eq r => VectorClock -> DelayQueue r -> Message r -> Bool
 messageIsDeliverable t dq m = listElem m (allDeliverableMessages t dq)
 {-@ inline messageIsDeliverable @-}
 
--- lindsey: the messages are received
--- lindsey: it's either been received and delivered, or it's sitting in the delay queue
---
--- add a precondition that the messages are delivered?
---
+{-@
+deliverableBefore
+    ::   t:_
+    ->   dq:_
+    -> { a:_ | messageIsDeliverable t dq a }
+    -> { b:_ | messageIsDeliverable t dq b }
+    -> _
+@-}
 deliverableBefore :: Eq r => VectorClock -> DelayQueue r -> Message r -> Message r -> Bool
-deliverableBefore t dq a b = case (listElemIndex a deliverableMessages, listElemIndex b deliverableMessages) of
-    (Just ai, Just bi) -> ai < bi
---  (Just ai, Nothing) -> -- a was delivered, but b was not
---  (Nothing, Just bi) -> -- b was delivered, but a was not
---  (Nothing, Nothing) -> True
-    _ -> True -- Vacuous truth. Since it is not the case that both messages were delivered, they were (technically) delivered in the correct order.
+deliverableBefore t dq a b = aMessageIndex < bMessageIndex
   where
     deliverableMessages = allDeliverableMessages t dq
-{-@ inline deliverableBefore @-}
+    Just aMessageIndex = listElemIndex a deliverableMessages
+    Just bMessageIndex = listElemIndex b deliverableMessages
+---- {-@ inline deliverableBefore @-}
 
 
 -- ** Proof
@@ -148,27 +148,27 @@ prop_DeliverableImpliesReceived _ (DelayQueue xs) m
     =   listElem m xs
     *** Proof.Admit
 
--- | Instead of proving the property for the 'Process' type which requires
--- dealing with the inbox and outbox, provide a more targeted property against
--- a process represented by a vector-time and delay-queue.
---
---      ∀ m1 m2 vt dq. loop over dq, if both m1 and m2 come out, they come out
---      in that order.
-{-@
-prop2
-    ::   a:Message r
-    -> { b:Message r | causallyBefore a b }
-    ->   t:VectorClock
-    -> { dq:DelayQueue r | messageIsDeliverable t dq a && messageIsDeliverable t dq b }
-    -> { _:Proof | deliverableBefore t dq a b }
-@-}
-prop2 :: Message r -> Message r -> VectorClock -> DelayQueue r -> Proof
-prop2 Message{} Message{} VectorClock{} DelayQueue{}
-    -- niki: if PLE doesn't work, follow the strucure of the postcondition..
-    -- niki: start with the case and proof
-    -- niki: for recursive functions, you'll need to call their proofs recursively
-    --
-    -- lindsey: (??) add to precondition that the messages are delivered
-    =   ()
-    *** Proof.Admit
-{-@ ple prop2 @-}
+---- -- | Instead of proving the property for the 'Process' type which requires
+---- -- dealing with the inbox and outbox, provide a more targeted property against
+---- -- a process represented by a vector-time and delay-queue.
+---- --
+---- --      ∀ m1 m2 vt dq. loop over dq, if both m1 and m2 come out, they come out
+---- --      in that order.
+---- {-@
+---- prop2
+----     ::   a:Message r
+----     -> { b:Message r | causallyBefore a b }
+----     ->   t:VectorClock
+----     -> { dq:DelayQueue r | messageIsDeliverable t dq a && messageIsDeliverable t dq b }
+----     -> { _:Proof | deliverableBefore t dq a b }
+---- @-}
+---- prop2 :: Message r -> Message r -> VectorClock -> DelayQueue r -> Proof
+---- prop2 Message{} Message{} VectorClock{} DelayQueue{}
+----     -- niki: if PLE doesn't work, follow the strucure of the postcondition..
+----     -- niki: start with the case and proof
+----     -- niki: for recursive functions, you'll need to call their proofs recursively
+----     --
+----     -- lindsey: (??) add to precondition that the messages are delivered
+----     =   ()
+----     *** Proof.Admit
+---- {-@ ple prop2 @-}

@@ -79,10 +79,14 @@ listReverseImpl (x:xs) done = listReverseImpl xs (x:done)
 -- implemented more simply.
 --
 -- prop> elemIndex a xs == listElemIndex a xs
+{-@
+listElemIndex :: x:_ -> xs:_ -> {m:_ | listElem x xs => isJust m} @-}
 listElemIndex :: Eq a => a -> [a] -> Maybe Int
 listElemIndex a xs = listElemIndexImpl a xs 0
 {-@ inline listElemIndex @-}
 
+{-@
+listElemIndexImpl :: x:_ -> xs:_ -> _ -> {m:_ | listElem x xs => isJust m} @-}
 listElemIndexImpl :: Eq a => a -> [a] -> Int -> Maybe Int
 listElemIndexImpl _ [] _ = Nothing
 listElemIndexImpl a (x:xs) idx
