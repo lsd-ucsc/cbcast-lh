@@ -7,7 +7,8 @@ import Causal.CBCAST.Process
 import Causal.CBCAST.DelayQueue
 import Causal.VectorClockSledge
 
-import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..))
+import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***))
+import qualified Language.Haskell.Liquid.ProofCombinators as Proof
 
 
 -- * Property for Process
@@ -71,16 +72,16 @@ deliveredBefore _p _a _b = False -- TODO: not implemented because we're focusing
 --          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')"
 
 {-@
-propProcess
-    :: a:Message r
-    -> b:Message r
-    -> p:Process r
-    -> { causallyBefore a b => deliveredBefore p a b }
+prop1
+    ::   a:Message r
+    -> { b:Message r | causallyBefore a b }
+    ->   p:Process r
+    -> { _:Proof | deliveredBefore p a b }
 @-}
-propProcess :: Message r -> Message r -> Process r -> Proof
-propProcess Message{} Message{} Process{}
+prop1 :: Message r -> Message r -> Process r -> Proof
+prop1 Message{} Message{} Process{}
     =   ()
-    *** Admit
+    *** Proof.Admit
 
 
 -- * Property for DelayQueue
@@ -88,46 +89,86 @@ propProcess Message{} Message{} Process{}
 
 -- ** Logical predicates
 
--- | This is the "condensed" form of CBCAST where you get rid of all the
--- process nonsense and just extract all the deliverable messages (in delivery
--- order) from the delay queue.
+-- | Return the list of all deliverable messages (in delivery order) for a
+-- process represented by the vector-time and delay-queue.
+--
+-- This is like "CBCAST lite" because no sending or receiving occurs, and so we
+-- can regard the list of all deliverable messages as a constant property of
+-- the process represented by the vector-time and delay-queue.
 {-@
-dequeueAll :: _ -> dq:_ -> _ / [dqSize dq] @-}
-dequeueAll :: VectorClock -> DelayQueue r -> [Message r]
-dequeueAll t dq =
+allDeliverableMessages :: _ -> dq:_ -> _ / [dqSize dq] @-}
+allDeliverableMessages :: VectorClock -> DelayQueue r -> [Message r]
+allDeliverableMessages t dq =
     case dqDequeue t dq of
-        Just (dq', m) -> let t' = t `vcCombine` mSent m in m : dequeueAll t' dq'
+        Just (dq', m) -> let t' = t `vcCombine` mSent m in m : allDeliverableMessages t' dq'
         Nothing -> []
-{-@ reflect dequeueAll @-}
+{-@ reflect allDeliverableMessages @-}
 
-dequeueBefore :: Eq r => VectorClock -> DelayQueue r -> Message r -> Message r -> Bool
-dequeueBefore t dq a b = case (listElemIndex a ms, listElemIndex b ms) of
+-- | Has the message been received at a process represented by the delay-queue?
+messageIsReceived :: Eq r => DelayQueue r -> Message r -> Bool
+messageIsReceived (DelayQueue xs) m = listElem m xs
+{-@ inline messageIsReceived @-}
+
+-- | Is the message deliverable at a process represented by the vector-time and
+-- delay-queue?
+messageIsDeliverable :: Eq r => VectorClock -> DelayQueue r -> Message r -> Bool
+messageIsDeliverable t dq m = listElem m (allDeliverableMessages t dq)
+{-@ inline messageIsDeliverable @-}
+
+-- lindsey: the messages are received
+-- lindsey: it's either been received and delivered, or it's sitting in the delay queue
+--
+-- add a precondition that the messages are delivered?
+--
+deliverableBefore :: Eq r => VectorClock -> DelayQueue r -> Message r -> Message r -> Bool
+deliverableBefore t dq a b = case (listElemIndex a deliverableMessages, listElemIndex b deliverableMessages) of
     (Just ai, Just bi) -> ai < bi
+--  (Just ai, Nothing) -> -- a was delivered, but b was not
+--  (Nothing, Just bi) -> -- b was delivered, but a was not
+--  (Nothing, Nothing) -> True
     _ -> True -- Vacuous truth. Since it is not the case that both messages were delivered, they were (technically) delivered in the correct order.
   where
-    ms = dequeueAll t dq
-{-@ inline dequeueBefore @-}
+    deliverableMessages = allDeliverableMessages t dq
+{-@ inline deliverableBefore @-}
 
 
 -- ** Proof
 
--- In lieu of proving the property for the 'Process' type which requires
+-- | A warmup proof that a deliverable message is received.
+{-@
+prop_DeliverableImpliesReceived
+    ::   t:VectorClock
+    ->   dq:DelayQueue r
+    -> { m:Message r | messageIsDeliverable t dq m }
+    -> { _:Proof | messageIsReceived dq m }
+@-}
+{-@ ple prop_DeliverableImpliesReceived @-}
+prop_DeliverableImpliesReceived :: Eq r => VectorClock -> DelayQueue r -> Message r -> Proof
+prop_DeliverableImpliesReceived _ (DelayQueue xs) m
+    =   listElem m xs
+    *** Proof.Admit
+
+-- | Instead of proving the property for the 'Process' type which requires
 -- dealing with the inbox and outbox, provide a more targeted property against
--- the delay queue.
+-- a process represented by a vector-time and delay-queue.
 --
 --      ∀ m1 m2 vt dq. loop over dq, if both m1 and m2 come out, they come out
 --      in that order.
-
 {-@
-propDelayQueue
-    :: a:Message r
-    -> b:Message r
-    -> t:VectorClock
-    -> dq:DelayQueue r
-    -> { causallyBefore a b => dequeueBefore t dq a b }
+prop2
+    ::   a:Message r
+    -> { b:Message r | causallyBefore a b }
+    ->   t:VectorClock
+    -> { dq:DelayQueue r | messageIsDeliverable t dq a && messageIsDeliverable t dq b }
+    -> { _:Proof | deliverableBefore t dq a b }
 @-}
-propDelayQueue :: Message r -> Message r -> VectorClock -> DelayQueue r -> Proof
-propDelayQueue Message{} Message{} VectorClock{} DelayQueue{}
+prop2 :: Message r -> Message r -> VectorClock -> DelayQueue r -> Proof
+prop2 Message{} Message{} VectorClock{} DelayQueue{}
+    -- niki: if PLE doesn't work, follow the strucure of the postcondition..
+    -- niki: start with the case and proof
+    -- niki: for recursive functions, you'll need to call their proofs recursively
+    --
+    -- lindsey: (??) add to precondition that the messages are delivered
     =   ()
-    *** Admit
--- {-@ ple propDelayQueue @-}
+    *** Proof.Admit
+{-@ ple prop2 @-}
