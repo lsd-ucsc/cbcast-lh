@@ -1,6 +1,6 @@
-module Causal.VectorClock where
+module Causal.VectorClockFun where
 
-import Redefined
+-- import Redefined
 
 import Data.UUID (UUID, fromWords)
 
@@ -54,7 +54,9 @@ type VCWrapper pid = (VCFun pid, [pid])
 {-@ vcwNew :: VCWrapper pid @-}
 vcwNew :: VCWrapper pid
 vcwNew = (vcfNew, [])
+-- {-@ inline vcwNew @-} -- TODO lift to specification
 
 {-@ vcwTick :: Eq pid => pid -> VCWrapper pid -> VCWrapper pid @-}
 vcwTick :: Eq pid => pid -> VCWrapper pid -> VCWrapper pid
 vcwTick pid (fun, pids) = (vcfTick pid fun, uInsert pid pids)
+-- {-@ inline vcwTick @-} -- TODO lift to specification
