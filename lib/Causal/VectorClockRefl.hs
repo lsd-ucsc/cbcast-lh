@@ -41,21 +41,13 @@ bad = [('a',1), ('b',1), ('a',1)]
 -- cons, because that fact isn't present in the postcondition. The fix is to
 -- reestablish that fact ahead of doing cons.
 
-{-@ vclTick :: pid -> VCList pid -> VCList pid @-}
+{-@ vclTick :: pid:pid -> xs:VCList pid -> {ys:VCList pid | vclPids ys == S.union (vclPids xs) (S.singleton pid)} @-}
 vclTick :: (Eq pid, Ord pid) => pid -> VCList pid -> VCList pid
 vclTick pid vcl = case vcl of
     []                  -> (pid,1):[]
     (cur,clock):rest
         | pid == cur    -> (cur,clock+1):rest
-        | otherwise     ->
-            let
-                rec = vclTick pid rest
-            in
-                if S.member cur (vclPids rec)
-                then undefined
-                else (cur,clock):rec
-                -- Patrick: could we do this with a lemma?
-                -- Gan: could we first look up, and decide what to do?
+        | otherwise     -> (cur,clock):(vclTick pid rest)
 
 -- Gan: could we first look up, and decide what to do?
 {-@ vclTickPermission :: pid -> VCList pid -> VCList pid @-}
