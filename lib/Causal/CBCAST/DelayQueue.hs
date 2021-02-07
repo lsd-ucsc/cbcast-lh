@@ -102,6 +102,7 @@ extractFirstBy predicate xs = case listBreak predicate xs of
     (before, x:after) -> Just (before `listAppend` after, x)
     _ -> Nothing
 {-@ inline extractFirstBy @-}
+{-@ ple extractFirstBy @-}
 
 
 -- ** Alternate dqDequeue
@@ -126,6 +127,7 @@ dqDequeue t (DelayQueue xs) =
         (before, m:after) -> Just (DelayQueue $ before `listAppend` after, m)
         _ -> Nothing
 {-@ inline dqDequeue @-}
+{-@ ple dqDequeue @-}
 
 -- | FIXME (REFLECTION_RESTRICTION): This is `listBreak` without the predicate
 -- argument. The predicate is hardcoded to break on the first deliverable

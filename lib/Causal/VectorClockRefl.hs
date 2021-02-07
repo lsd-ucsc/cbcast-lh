@@ -73,6 +73,7 @@ vclTickViaLemma pid vcl = case vcl of
         | otherwise     -> (cur,clock):vclTickViaLemma pid rest
                             `withProof` vclTickLemmaP cur pid rest
 {-@ reflect vclTickViaLemma @-}
+{-@ ple vclTickViaLemma @-}
 
 {-@ notIn :: Ord pid => pid -> VCList pid -> Bool @-}
 notIn :: Ord pid => pid -> VCList pid -> Bool

@@ -14,7 +14,7 @@ ghc-options:
     - -fplugin-opt=LiquidHaskell:--exact-data # fix an error where a function that matched a `[]` pattern had "Unbound symbol is$GHC.Types[]"
     - -fplugin-opt=LiquidHaskell:--exact-data-cons # make reflect able to handle functions with custom data structures
     - -fplugin-opt=LiquidHaskell:--no-adt # required for partial constructors
-    - -fplugin-opt=LiquidHaskell:--ple # PLE is off by default?
+    - -fplugin-opt=LiquidHaskell:--ple-local # enable PLE where explicitly turned on
     - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
     - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
     - -fplugin-opt=LiquidHaskell:--prune-unsorted

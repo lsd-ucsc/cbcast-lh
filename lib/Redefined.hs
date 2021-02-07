@@ -93,6 +93,7 @@ listElemIndexImpl a (x:xs) idx
     | a == x = Just idx
     | otherwise = listElemIndexImpl a xs (idx + 1)
 {-@ reflect listElemIndexImpl @-}
+{-@ ple listElemIndexImpl @-}
 
 -- | Implementation of 'elem' lifted to specifications. Copied from 'Prelude'.
 --

@@ -24,3 +24,4 @@ sorted assoc = case assoc of
 propPatternMatchRestIsSorted :: Assoc k v -> Assoc k v
 propPatternMatchRestIsSorted [] = []
 propPatternMatchRestIsSorted (_:xs) = xs
+{-@ ple propPatternMatchRestIsSorted @-}
