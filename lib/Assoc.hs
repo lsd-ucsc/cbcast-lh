@@ -87,19 +87,25 @@ proofLowerBoundUnchangedByMerge _ _ ((aKey,_):_) ((bKey,_):_)
 
 -- * Todo
 
--- {-@
--- m
---     :: Assoc pid {i:Int | 0 < i}
---     -> Assoc pid {i:Int | 0 < i}
---     -> Assoc pid {i:Int | 0 < i} @-}
--- m :: Ord pid => Assoc pid Int -> Assoc pid Int -> Assoc pid Int
--- m xs ys = merge (+) xs ys
+{-@ type Whole = {i:Integer | 0 <= i} @-}
+
+-- {-@ add :: Whole -> Whole -> Whole @-}
+-- add :: Integer -> Integer -> Integer
+-- add a b = a + b
+-- 
+-- {-@ m :: Assoc k Whole -> Assoc k Whole -> Assoc k Whole @-}
+-- m :: Ord k => Assoc k Integer -> Assoc k Integer -> Assoc k Integer
+-- m xs ys = merge add xs ys
 
 -- {-@
--- merge :: forall <p :: v -> Bool>.
---     (v<p> -> v<p> -> v<p>) -> Assoc k v<p> -> Assoc k v<p> -> Assoc k v<p>
+-- merge :: forall <p :: v -> Bool>.  (v<p> -> v<p> -> v<p>) -> Assoc k v<p> -> Assoc k v<p> -> Assoc k v<p>
 -- @-}
 
+-- {-@ reflect valuesSatisfy @-}
+-- valuesSatisfy :: (v -> Bool) -> Assoc k v -> Bool
+-- valuesSatisfy _ [] = True
+-- valuesSatisfy p ((_,v):rest) = p v && valuesSatisfy p rest
+-- 
 -- {-@
 -- proofValuePredMaintained
 --     :: p:(v -> Bool)
@@ -111,8 +117,8 @@ proofLowerBoundUnchangedByMerge _ _ ((aKey,_):_) ((bKey,_):_)
 -- proofValuePredMaintained :: Ord k => (v -> Bool) -> (v -> v -> v) -> Assoc k v -> Assoc k v -> Proof
 -- proofValuePredMaintained _ _ [] _ = () *** QED
 -- proofValuePredMaintained _ _ _ [] = () *** QED
--- proofValuePredMaintained p f ((aKey,aVal):_) ((bKey,bVal):_)
---     | aKey == bKey  = p (f aVal bVal) *** QED
+-- proofValuePredMaintained _ _ ((aKey,_):_) ((bKey,_):_)
+--     | aKey == bKey  = () *** Admit
 --     | aKey <  bKey  = () *** Admit
 --     | otherwise     = () *** Admit
 -- {-@ ple proofValuePredMaintained @-}
