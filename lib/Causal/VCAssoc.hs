@@ -1,4 +1,6 @@
-module Causal.VectorClockLit where
+-- | Implementation of vector clocks over polymorphic PIDs using an explicit
+-- association-list ADT with a strict ordering on PID values.
+module Causal.VCAssoc where
 
 -- import Language.Haskell.Liquid.ProofCombinators
 --     (Proof, QED(..), (***), impossible)
@@ -9,16 +11,16 @@ module Causal.VectorClockLit where
 -- >>> :{
 -- instance Show pid => Show (VCAssoc pid) where
 --     show xs = case xs of
---         Nil                 -> "empty-vc"
---         VC cur clock Nil    -> show cur ++ ':' : 't' : show clock
---         VC cur clock rest   -> show cur ++ ':' : 't' : show clock ++ '\n' : show rest
+--         Nil                  -> "empty-vc"
+--         VCA cur clock Nil    -> show cur ++ ':' : 't' : show clock
+--         VCA cur clock rest   -> show cur ++ ':' : 't' : show clock ++ '\n' : show rest
 -- :}
 --
 -- >>> :{
 -- instance QC.Arbitrary pid => QC.Arbitrary (VCAssoc pid) where
 --     arbitrary = QC.oneof
 --         [ return Nil
---         , VC <$> QC.arbitrary <*> QC.arbitrary <*> QC.arbitrary
+--         , VCA <$> QC.arbitrary <*> QC.arbitrary <*> QC.arbitrary
 --         ]
 -- :}
 --
@@ -27,7 +29,7 @@ module Causal.VectorClockLit where
 -- >>> let face = UUID.fromWords 0xface 0xface 0xface 0xface
 -- >>> beef < cafe && cafe < face
 -- True
--- >>> (#) = vcTick; infixr 5 #
+-- >>> (#) = vcaTick; infixr 5 #
 
 
 -- * Types
@@ -41,17 +43,18 @@ type Clock = Integer
 -- unique.
 data VCAssoc pid
     = Nil
-    | VC pid Clock (VCAssoc pid)
+    | VCA pid Clock (VCAssoc pid)
     deriving (Eq)
 {-@
-data VCAssoc [vcSize] pid
+data VCAssoc pid
     = Nil
-    | VC
+    | VCA
         { p :: pid
         , c :: RealClock
         , r :: VCAssoc {p':pid | p < p'}
         }
 @-}
+-- FIXME add termination measure [vcaSize]; LH rejects it for some reason
 
 
 -- * Clock values
@@ -64,7 +67,7 @@ cMin :: Clock
 cMin = 0
 
 -- | RealClocks range on [1..∞) because vector clocks count ticks, and after
--- the first 'vcTick' of a pid the clock counts one tick. This is the stored
+-- the first 'vcaTick' of a pid the clock counts one tick. This is the stored
 -- type.
 {-@ inline rcMin @-}
 {-@ rcMin :: RealClock @-}
@@ -74,11 +77,11 @@ rcMin = 1
 
 -- * Logical predicates
 
-{-@ measure vcSize @-}
-{-@ vcSize :: VCAssoc pid -> Nat @-}
-vcSize :: VCAssoc pid -> Int
-vcSize Nil = 0
-vcSize (VC _ _ vc) = 1 + vcSize vc
+{-@ measure vcaSize @-}
+{-@ vcaSize :: VCAssoc pid -> Nat @-}
+vcaSize :: VCAssoc pid -> Int
+vcaSize Nil = 0
+vcaSize (VCA _ _ vc) = 1 + vcaSize vc
 
 -- |
 --
@@ -94,64 +97,64 @@ larger a b = if a < b then b else a
 --
 -- Base cases.
 --
--- >>> vcHasPid beef vcNew -- nil
+-- >>> vcaHasPid beef vcaNew -- nil
 -- False
--- >>> vcHasPid cafe (cafe # vcNew) -- found
+-- >>> vcaHasPid cafe (cafe # vcaNew) -- found
 -- True
 --
 -- Recursive cases.
 --
--- >>> vcHasPid beef (cafe # vcNew) -- search, nil
+-- >>> vcaHasPid beef (cafe # vcaNew) -- search, nil
 -- False
--- >>> vcHasPid face (cafe # face # vcNew) -- search, found
+-- >>> vcaHasPid face (cafe # face # vcaNew) -- search, found
 -- True
 --
 -- QuickCheck properties.
 --
--- prop> not $ vcHasPid pid vcNew
--- prop>       vcHasPid pid (pid # vcNew)
-{-@ reflect vcHasPid @-}
-vcHasPid :: Eq pid => pid -> VCAssoc pid -> Bool
-vcHasPid pid Nil    = {-nil   -} False
-vcHasPid pid (VC cur clock rest)
+-- prop> not $ vcaHasPid pid vcaNew
+-- prop>       vcaHasPid pid (pid # vcaNew)
+{-@ reflect vcaHasPid @-}
+vcaHasPid :: Eq pid => pid -> VCAssoc pid -> Bool
+vcaHasPid pid Nil    = {-nil   -} False
+vcaHasPid pid (VCA cur clock rest)
     | pid == cur    = {-found -} True
-    | otherwise     = {-search-} vcHasPid pid rest
+    | otherwise     = {-search-} vcaHasPid pid rest
 
 
 -- * User API 
 
 -- |
 --
--- >>> vcNew
+-- >>> vcaNew
 -- empty-vc
-{-@ inline vcNew @-}
-vcNew :: VCAssoc pid
-vcNew = Nil
+{-@ inline vcaNew @-}
+vcaNew :: VCAssoc pid
+vcaNew = Nil
 
 -- |
 --
--- These tests don't use vcTick to construct the vector clock because that's
+-- These tests don't use vcaTick to construct the vector clock because that's
 -- what is under test.
 --
 -- Base cases.
 --
--- >>> cafe `vcTick` Nil -- nil
+-- >>> cafe `vcaTick` Nil -- nil
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
--- >>> beef `vcTick` (VC cafe rcMin Nil) -- insert
+-- >>> beef `vcaTick` (VCA cafe rcMin Nil) -- insert
 -- 0000beef-0000-beef-0000-beef0000beef:t1
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
--- >>> cafe `vcTick` (VC cafe rcMin Nil) -- update
+-- >>> cafe `vcaTick` (VCA cafe rcMin Nil) -- update
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 --
 -- Recursive cases.
 --
--- >>> face `vcTick` (VC cafe rcMin Nil) -- search, nil
+-- >>> face `vcaTick` (VCA cafe rcMin Nil) -- search, nil
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
 -- 0000face-0000-face-0000-face0000face:t1
 --
 -- Longer test.
 --
--- >>> cafe `vcTick` (VC beef rcMin . VC cafe rcMin . VC face rcMin $ Nil)
+-- >>> cafe `vcaTick` (VCA beef rcMin . VCA cafe rcMin . VCA face rcMin $ Nil)
 -- 0000beef-0000-beef-0000-beef0000beef:t1
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 -- 0000face-0000-face-0000-face0000face:t1
@@ -159,154 +162,154 @@ vcNew = Nil
 -- QuickCheck property showing that the result is the same regardless of the
 -- order of ticks.
 --
--- prop> vcTick a (vcTick b vcNew) == vcTick b (vcTick a vcNew)
+-- prop> vcaTick a (vcaTick b vcaNew) == vcaTick b (vcaTick a vcaNew)
 --
 -- QuickCheck property showing how the presence of a pid relates to vc size
 -- after a tick.
 --
--- prop> vcSize (vcTick pid v) == vcSize (vcTick pid (vcTick pid v))
--- prop> not (vcHasPid pid v) ==> vcSize v + 1 == vcSize (vcTick pid v)
+-- prop> vcaSize (vcaTick pid v) == vcaSize (vcaTick pid (vcaTick pid v))
+-- prop> not (vcaHasPid pid v) ==> vcaSize v + 1 == vcaSize (vcaTick pid v)
 --
 -- TODO: convert QC props to LH props or proofs
-{-@ reflect vcTick @-}
-vcTick :: Ord pid => pid -> VCAssoc pid -> VCAssoc pid
-vcTick pid Nil      = {- nil  -} VC pid rcMin Nil
-vcTick pid (VC cur clock rest)
-    | pid <  cur    = {-insert-} VC pid rcMin (VC cur clock rest)
-    | pid == cur    = {-update-} VC cur (clock+1) rest
-    | otherwise     = {-search-} VC cur clock (vcTick pid rest)
+{-@ reflect vcaTick @-}
+vcaTick :: Ord pid => pid -> VCAssoc pid -> VCAssoc pid
+vcaTick pid Nil      = {- nil  -} VCA pid rcMin Nil
+vcaTick pid (VCA cur clock rest)
+    | pid <  cur    = {-insert-} VCA pid rcMin (VCA cur clock rest)
+    | pid == cur    = {-update-} VCA cur (clock+1) rest
+    | otherwise     = {-search-} VCA cur clock (vcaTick pid rest)
 
 -- |
 --
 -- Base cases.
 --
--- >>> vcRead beef vcNew -- nil
+-- >>> vcaRead beef vcaNew -- nil
 -- 0
--- >>> vcRead cafe (cafe # vcNew) -- found
+-- >>> vcaRead cafe (cafe # vcaNew) -- found
 -- 1
 --
 -- Recursive cases.
 --
--- >>> vcRead beef (cafe # vcNew) -- search, nil
+-- >>> vcaRead beef (cafe # vcaNew) -- search, nil
 -- 0
--- >>> vcRead face (cafe # face # vcNew) -- search, found
+-- >>> vcaRead face (cafe # face # vcaNew) -- search, found
 -- 1
 --
 -- QuickCheck properties.
 --
--- prop> 0 == vcRead pid vcNew
--- prop> 1 == vcRead pid (pid # vcNew)
+-- prop> 0 == vcaRead pid vcaNew
+-- prop> 1 == vcaRead pid (pid # vcaNew)
 --
 -- TODO: convert QC props to LH props or proofs
-{-@ reflect vcRead @-}
-{-@ vcRead :: _ -> _ -> Clock @-}
-vcRead :: Ord pid => pid -> VCAssoc pid -> Clock
-vcRead _ Nil = cMin
-vcRead pid (VC cur clock rest)
+{-@ reflect vcaRead @-}
+{-@ vcaRead :: _ -> _ -> Clock @-}
+vcaRead :: Ord pid => pid -> VCAssoc pid -> Clock
+vcaRead _ Nil = cMin
+vcaRead pid (VCA cur clock rest)
     | pid == cur    = clock
-    | otherwise     = vcRead pid rest
+    | otherwise     = vcaRead pid rest
 
 -- |
 --
 -- Base cases.
 --
--- >>> vcCombine vcNew (beef # vcNew) -- x-nil
+-- >>> vcaCombine vcaNew (beef # vcaNew) -- x-nil
 -- 0000beef-0000-beef-0000-beef0000beef:t1
--- >>> vcCombine (beef # vcNew) vcNew -- y-nil
+-- >>> vcaCombine (beef # vcaNew) vcaNew -- y-nil
 -- 0000beef-0000-beef-0000-beef0000beef:t1
 --
 -- Recursive cases.
 --
--- >>> vcCombine (beef # vcNew) (cafe # vcNew) -- x-ahead, x-nil
+-- >>> vcaCombine (beef # vcaNew) (cafe # vcaNew) -- x-ahead, x-nil
 -- 0000beef-0000-beef-0000-beef0000beef:t1
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
--- >>> vcCombine (cafe # vcNew) (cafe # vcNew) -- compare, x-nil
+-- >>> vcaCombine (cafe # vcaNew) (cafe # vcaNew) -- compare, x-nil
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
--- >>> vcCombine (cafe # cafe # vcNew) (cafe # vcNew) -- compare, x-nil (left is larger)
+-- >>> vcaCombine (cafe # cafe # vcaNew) (cafe # vcaNew) -- compare, x-nil (left is larger)
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
--- >>> vcCombine (cafe # vcNew) (cafe # cafe # vcNew) -- compare, x-nil (right is larger)
+-- >>> vcaCombine (cafe # vcaNew) (cafe # cafe # vcaNew) -- compare, x-nil (right is larger)
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
--- >>> vcCombine (face # vcNew) (cafe # vcNew) -- y-ahead, y-nil
+-- >>> vcaCombine (face # vcaNew) (cafe # vcaNew) -- y-ahead, y-nil
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
 -- 0000face-0000-face-0000-face0000face:t1
 --
 -- QuickCheck property for commutativity.
 --
--- prop> vcCombine a b == vcCombine b a
+-- prop> vcaCombine a b == vcaCombine b a
 --
 -- TODO: convert QC props to LH props or proofs
-{-@ reflect vcCombine @-}
-{-@ vcCombine :: a:_ -> b:_ -> _ / [vcSize a + vcSize b] @-}
-vcCombine :: Ord pid => VCAssoc pid -> VCAssoc pid -> VCAssoc pid
-vcCombine x   Nil   = {- x&nil -} x
-vcCombine Nil y     = {- nil&y -} y
-vcCombine (VC xPid xClock xRest) (VC yPid yClock yRest)
-    | xPid <  yPid  = {-x-ahead-} VC xPid  xClock                  (vcCombine xRest (VC yPid yClock yRest))
-    | xPid == yPid  = {-combine-} VC xPid (xClock `larger` yClock) (vcCombine xRest yRest)
-    | otherwise     = {-y-ahead-} VC yPid                  yClock  (vcCombine (VC xPid xClock xRest) yRest)
+{-@ reflect vcaCombine @-}
+{-@ vcaCombine :: a:_ -> b:_ -> _ / [vcaSize a + vcaSize b] @-}
+vcaCombine :: Ord pid => VCAssoc pid -> VCAssoc pid -> VCAssoc pid
+vcaCombine x   Nil   = {- x&nil -} x
+vcaCombine Nil y     = {- nil&y -} y
+vcaCombine (VCA xPid xClock xRest) (VCA yPid yClock yRest)
+    | xPid <  yPid  = {-x-ahead-} VCA xPid  xClock                  (vcaCombine xRest (VCA yPid yClock yRest))
+    | xPid == yPid  = {-combine-} VCA xPid (xClock `larger` yClock) (vcaCombine xRest yRest)
+    | otherwise     = {-y-ahead-} VCA yPid                  yClock  (vcaCombine (VCA xPid xClock xRest) yRest)
 
 -- |
 --
 -- Base cases.
 --
--- >>> vcLessEqual vcNew vcNew -- nil-nil
+-- >>> vcaLessEqual vcaNew vcaNew -- nil-nil
 -- True
 --
 -- Boring recursive cases.
 --
--- >>> vcLessEqual (beef # vcNew) vcNew -- y-nil, nil-nil (always false because absent values are zero: 1 <= 0 is false)
+-- >>> vcaLessEqual (beef # vcaNew) vcaNew -- y-nil, nil-nil (always false because absent values are zero: 1 <= 0 is false)
 -- False
--- >>> vcLessEqual (VC beef cMin Nil) vcNew -- y-nil, nil-nil (invalid data flips the result: 0 <= 0 is true)
+-- >>> vcaLessEqual (VCA beef cMin Nil) vcaNew -- y-nil, nil-nil (invalid data flips the result: 0 <= 0 is true)
 -- True
 --
--- >>> vcLessEqual vcNew (beef # vcNew) -- x-nil, nil-nil (always true because absent values are zero: 0 <= 1 is true)
+-- >>> vcaLessEqual vcaNew (beef # vcaNew) -- x-nil, nil-nil (always true because absent values are zero: 0 <= 1 is true)
 -- True
--- >>> vcLessEqual vcNew (VC beef cMin Nil) -- x-nil, nil-nil (invalid data: 0 <= 0 is still true)
+-- >>> vcaLessEqual vcaNew (VCA beef cMin Nil) -- x-nil, nil-nil (invalid data: 0 <= 0 is still true)
 -- True
--- >>> vcLessEqual vcNew (VC beef (cMin-1) Nil) -- x-nil, nil-nil (invalid data flips the result: 0 <= -1 is false)
+-- >>> vcaLessEqual vcaNew (VCA beef (cMin-1) Nil) -- x-nil, nil-nil (invalid data flips the result: 0 <= -1 is false)
 -- False
 --
 -- Recursive cases.
 --
--- >>> vcLessEqual (beef # vcNew) (cafe # vcNew) -- x-ahead, x-nil
+-- >>> vcaLessEqual (beef # vcaNew) (cafe # vcaNew) -- x-ahead, x-nil
 -- False
--- >>> vcLessEqual (beef # cafe # vcNew) (cafe # vcNew) -- x-ahead, compare, nil-nil
+-- >>> vcaLessEqual (beef # cafe # vcaNew) (cafe # vcaNew) -- x-ahead, compare, nil-nil
 -- False
--- >>> vcLessEqual (cafe # vcNew) (cafe # vcNew) -- compare, nil-nil
+-- >>> vcaLessEqual (cafe # vcaNew) (cafe # vcaNew) -- compare, nil-nil
 -- True
--- >>> vcLessEqual (cafe # cafe # vcNew) (cafe # vcNew) -- compare, nil-nil (left is larger: 2 <= 1 is false)
+-- >>> vcaLessEqual (cafe # cafe # vcaNew) (cafe # vcaNew) -- compare, nil-nil (left is larger: 2 <= 1 is false)
 -- False
--- >>> vcLessEqual (cafe # vcNew) (cafe # cafe # vcNew) -- compare, nil-nil (right is larger: 1 <= 2 is true)
+-- >>> vcaLessEqual (cafe # vcaNew) (cafe # cafe # vcaNew) -- compare, nil-nil (right is larger: 1 <= 2 is true)
 -- True
--- >>> vcLessEqual (face # vcNew) (cafe # vcNew) -- y-ahead, y-nil
+-- >>> vcaLessEqual (face # vcaNew) (cafe # vcaNew) -- y-ahead, y-nil
 -- False
 --
 -- Longer test.
 --
--- >>> vcLessEqual (beef # cafe # face # vcNew) (beef # cafe # face # vcNew)
+-- >>> vcaLessEqual (beef # cafe # face # vcaNew) (beef # cafe # face # vcaNew)
 -- True
--- >>> vcLessEqual (beef # cafe # face # vcNew) (beef # face # vcNew)
+-- >>> vcaLessEqual (beef # cafe # face # vcaNew) (beef # face # vcaNew)
 -- False
--- >>> vcLessEqual (beef # face # vcNew) (beef # cafe # face # vcNew)
+-- >>> vcaLessEqual (beef # face # vcaNew) (beef # cafe # face # vcaNew)
 -- True
-{-@ reflect vcLessEqual @-}
-{-@ vcLessEqual :: a:_ -> b:_ -> _ / [vcSize a + vcSize b] @-}
-vcLessEqual :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
-vcLessEqual Nil Nil                 = {- equal  -} True
-vcLessEqual (VC _ xClock xRest) Nil = {- x<=nil -} xClock <= cMin   {-False-} && vcLessEqual xRest Nil
-vcLessEqual Nil (VC _ yClock yRest) = {- nil<=y -} cMin   <= yClock {-True -} && vcLessEqual Nil yRest
-vcLessEqual x@(VC xPid xClock xRest) y@(VC yPid yClock yRest)
-    | xPid <  yPid  = {-x-ahead-} xClock <= cMin   {-False-} && vcLessEqual xRest y
-    | xPid == yPid  = {-compare-} xClock <= yClock           && vcLessEqual xRest yRest
-    | otherwise     = {-y-ahead-} cMin   <= yClock {-True -} && vcLessEqual x     yRest
+{-@ reflect vcaLessEqual @-}
+{-@ vcaLessEqual :: a:_ -> b:_ -> _ / [vcaSize a + vcaSize b] @-}
+vcaLessEqual :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
+vcaLessEqual Nil Nil                 = {- equal  -} True
+vcaLessEqual (VCA _ xClock xRest) Nil = {- x<=nil -} xClock <= cMin   {-False-} && vcaLessEqual xRest Nil
+vcaLessEqual Nil (VCA _ yClock yRest) = {- nil<=y -} cMin   <= yClock {-True -} && vcaLessEqual Nil yRest
+vcaLessEqual x@(VCA xPid xClock xRest) y@(VCA yPid yClock yRest)
+    | xPid <  yPid  = {-x-ahead-} xClock <= cMin   {-False-} && vcaLessEqual xRest y
+    | xPid == yPid  = {-compare-} xClock <= yClock           && vcaLessEqual xRest yRest
+    | otherwise     = {-y-ahead-} cMin   <= yClock {-True -} && vcaLessEqual x     yRest
 
-{-@ inline vcLess @-}
-vcLess :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
-vcLess a b = vcLessEqual a b && a /= b
+{-@ inline vcaLess @-}
+vcaLess :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
+vcaLess a b = vcaLessEqual a b && a /= b
 
 -- |
--- >>> vcIndependent vcNew vcNew
+-- >>> vcaIndependent vcaNew vcaNew
 -- True
-{-@ inline vcIndependent @-}
-vcIndependent :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
-vcIndependent a b = not (vcLess a b) && not (vcLess b a)
+{-@ inline vcaIndependent @-}
+vcaIndependent :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
+vcaIndependent a b = not (vcaLess a b) && not (vcaLess b a)
