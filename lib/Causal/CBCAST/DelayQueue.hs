@@ -50,8 +50,6 @@ dqEnqueueImpl m (x:xs)
     | otherwise = m : x:xs
 {-@ reflect dqEnqueueImpl @-}
 
--- REWRITE RESUME HERE
-
 -- | Extract a message from the queue if one is deliverable according to the
 -- vector time. The new queue is returned with the first deliverable message.
 --
