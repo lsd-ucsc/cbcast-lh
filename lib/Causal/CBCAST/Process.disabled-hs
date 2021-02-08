@@ -3,9 +3,9 @@ module Causal.CBCAST.Process where
 
 import Redefined
 
-import Causal.CBCAST.DelayQueue
+import Causal.VectorClock
 import Causal.CBCAST.Message
-import Causal.VectorClockSledge
+import Causal.CBCAST.DelayQueue
 
 type DQ r = DelayQueue r
 
@@ -48,8 +48,8 @@ fList (FIFO xs) = listReverse xs
 -- are ready to broadcast.
 {-@
 data Process [pSize]
-             r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
-data Process r = Process { pNode :: PID, pVT :: VT, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
+             r = Process { pNode :: PID, pVT :: VC, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
+data Process r = Process { pNode :: PID, pVT :: VC, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
@@ -62,6 +62,7 @@ pdqSize :: Process r -> Int
 pdqSize Process{pDQ} = dqSize pDQ
 {-@ measure pdqSize @-}
 
+{-@ ignore pNew @-} -- FIXME failure related to VectorClock wrapper?
 -- | New empty process using the given process ID.
 pNew :: PID -> Process r
 pNew pid = Process

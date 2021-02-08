@@ -55,7 +55,7 @@ causallyBefore a b = mSent a `vcaLess` mSent b
 --
 --          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')"
 
-{-@ ignore proofSafety @-} -- this takes forever
+{-@ ignore proofSafety @-} -- TODO this takes forever
 {-@
 proofSafety
     :: t:VCAssoc p

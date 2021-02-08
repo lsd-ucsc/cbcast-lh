@@ -56,6 +56,8 @@ dqEnqueue m (DQ cur rest)
     | mSent cur `V.vcLessEqual` mSent m = DQ cur (dqEnqueue m rest)
     | otherwise = DQ m (DQ cur rest)
 
+-- REWRITE RESUME HERE
+
 -- | Extract a message from the queue if one is deliverable according to the
 -- vector time. The new queue is returned with the first deliverable message.
 --

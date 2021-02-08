@@ -11,10 +11,10 @@ import Control.Monad.Catch (MonadThrow, MonadCatch, MonadMask)
 import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
 
-import Causal.CBCAST.DelayQueue
+import Causal.VectorClock
 import Causal.CBCAST.Message
+import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Process
-import Causal.VectorClockSledge
 
 -- * Implementation
 
