@@ -2,13 +2,13 @@ module Causal.CBCAST.DelayQueue where
 
 import Redefined
 
+import Causal.VectorClock
 import Causal.CBCAST.Message
-import Causal.VectorClockSledge
 
 
 -- * Types
 
-{-@ data DelayQueue [dqSize] @-}
+{-@ data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
 data DelayQueue r = DelayQueue [Message r]
 -- FIXME (NEWTYPE_RESTRICTION)
 
@@ -69,7 +69,7 @@ dqEnqueueImpl m (x:xs)
 -- TODO: It would be cool to add {m:_ | deliverability t m == Ready} to the result here, as we have with the other definition.
 {-@
 dqDequeueOriginal :: t:_ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
-dqDequeueOriginal :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
+dqDequeueOriginal :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
 dqDequeueOriginal t (DelayQueue xs)
     = maybeMap (\(dq, m) -> (DelayQueue dq, m))
     $ extractFirstBy (\m -> deliverability t m == Ready) xs
@@ -101,7 +101,7 @@ extractFirstBy predicate xs = case listBreak predicate xs of
 -- is deliverable.
 {-@
 dqDequeue :: t:_ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, {m:_ | deliverability t m == Ready}) @-}
-dqDequeue :: VT -> DelayQueue r -> Maybe (DelayQueue r, Message r)
+dqDequeue :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
 dqDequeue t (DelayQueue xs) =
     case breakOnReady t xs of
         (before, m:after) -> Just (DelayQueue $ before `listAppend` after, m)
@@ -117,7 +117,7 @@ dqDequeue t (DelayQueue xs) =
 -- messages aren't ready, and the head of the second list is.
 {-@
 breakOnReady :: t:_ -> xs:_ -> ([{m:_ | deliverability t m /= Ready}], {ms:_ | ms /= [] => deliverability t (head ms) == Ready})<{\ys zs -> listLength xs == listLength ys + listLength zs}> @-}
-breakOnReady :: VT -> [Message r] -> ([Message r], [Message r])
+breakOnReady :: VC -> [Message r] -> ([Message r], [Message r])
 breakOnReady _ [] = ([], [])
 breakOnReady t (m:ms)
     | deliverability t m == Ready = ([], m:ms)

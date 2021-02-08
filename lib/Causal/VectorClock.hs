@@ -28,6 +28,10 @@ vcRead :: UUID -> VC -> Clock
 vcRead pid (VC x) = vcaRead pid x
 {-@ inline vcRead @-}
 
+vcCombine :: VC -> VC -> VC
+vcCombine (VC a) (VC b) = VC (vcaCombine a b)
+{-@ inline vcCombine @-}
+
 vcLessEqual :: VC -> VC -> Bool
 vcLessEqual (VC a) (VC b) = vcaLessEqual a b
 {-@ inline vcLessEqual @-}

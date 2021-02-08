@@ -1,5 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CBCAST.Process where
+module Causal.CBCAST.Process
+( module Causal.CBCAST.Process
+, module Redefined
+) where
 
 import Redefined
 
@@ -62,7 +65,6 @@ pdqSize :: Process r -> Int
 pdqSize Process{pDQ} = dqSize pDQ
 {-@ measure pdqSize @-}
 
-{-@ ignore pNew @-} -- FIXME failure related to VectorClock wrapper?
 -- | New empty process using the given process ID.
 pNew :: PID -> Process r
 pNew pid = Process

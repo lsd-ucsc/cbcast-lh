@@ -16,7 +16,9 @@ import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Process
 
+
 -- * Implementation
+
 
 -- ** Internal operations
 
@@ -64,21 +66,6 @@ internalReceive m = do
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     else State.modify' $ \p -> p{pDQ=dqEnqueue m (pDQ p)}
 
--- | Deliver messages until there are none ready.
---
--- This algorithm delivers full groups of deliverable messages before checking
--- deliverability again. While this can't make anything undeliverable or break
--- causal order of deliveries, it does produce a slightly different delivery
--- order than an algorithm which checks deliverability after every delivery.
-internalDeliverReceived :: Monad m => Internal r m ()
-internalDeliverReceived =
-    dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
-        Just (dq, m) -> do
-            State.modify' $ \p -> p{pDQ=dq}
-            internalDeliver m
-            internalDeliverReceived
-        Nothing -> return ()
-
 -- | Deliver a message.
 --
 --      "(3) When a message m is delivered, VT(p_j) is updated in accordance
@@ -100,6 +87,23 @@ internalDeliver m = State.modify' $ \p -> p
     { pVT = vcCombine (pVT p) (mSent m)
     , pInbox = fPush (pInbox p) m
     }
+
+-- | Deliver messages until there are none ready.
+--
+-- This algorithm delivers full groups of deliverable messages before checking
+-- deliverability again. While this can't make anything undeliverable or break
+-- causal order of deliveries, it does produce a slightly different delivery
+-- order than an algorithm which checks deliverability after every delivery.
+internalDeliverReceived :: Monad m => Internal r m ()
+internalDeliverReceived =
+    dqDequeue <$> State.gets pVT <*> State.gets pDQ >>= \case
+        Just (dq, m) -> do
+            State.modify' $ \p -> p{pDQ=dq}
+            internalDeliver m
+            internalDeliverReceived
+        Nothing -> return ()
+{-@ lazy internalDeliverReceived @-} -- FIXME: given the type of internalDeliverReceived, it's not clear how to specify the decreasing parameter
+
 
 -- ** External API
 
@@ -146,7 +150,3 @@ drainDeliveries = CausalT $ do
     xs <- State.gets pInbox
     State.modify' $ \p -> p{pInbox=fNew}
     return (fList xs)
-
--- * Verification
-
-{-@ lazy internalDeliverReceived @-} -- FIXME: given the type of internalDeliverReceived, it's not clear how to specify the decreasing parameter

@@ -46,7 +46,7 @@ data VCAssoc pid
     | VCA pid Clock (VCAssoc pid)
     deriving (Eq)
 {-@
-data VCAssoc pid
+data VCAssoc [vcaSize] pid
     = Nil
     | VCA
         { p :: pid
@@ -54,7 +54,6 @@ data VCAssoc pid
         , r :: VCAssoc {p':pid | p < p'}
         }
 @-}
--- FIXME add termination measure [vcaSize]; LH rejects it for some reason
 
 
 -- * Clock values
@@ -81,7 +80,7 @@ rcMin = 1
 {-@ vcaSize :: VCAssoc pid -> Nat @-}
 vcaSize :: VCAssoc pid -> Int
 vcaSize Nil = 0
-vcaSize (VCA _ _ vc) = 1 + vcaSize vc
+vcaSize (VCA _ _ rest) = 1 + vcaSize rest
 
 -- |
 --
@@ -115,8 +114,8 @@ larger a b = if a < b then b else a
 -- prop>       vcaHasPid pid (pid # vcaNew)
 {-@ reflect vcaHasPid @-}
 vcaHasPid :: Eq pid => pid -> VCAssoc pid -> Bool
-vcaHasPid pid Nil    = {-nil   -} False
-vcaHasPid pid (VCA cur clock rest)
+vcaHasPid _ Nil     = {-nil   -} False
+vcaHasPid pid (VCA cur _clock rest)
     | pid == cur    = {-found -} True
     | otherwise     = {-search-} vcaHasPid pid rest
 
