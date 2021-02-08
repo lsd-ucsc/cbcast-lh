@@ -2,42 +2,32 @@ module Causal.CBCAST.DelayQueue where
 
 import Redefined
 
-import qualified Causal.VectorClock as V
 import Causal.CBCAST.Message
+import Causal.VectorClockSledge
 
 
 -- * Types
 
-data DelayQueue r
-    = Nil
-    | DQ (Message r) (DelayQueue r)
-{-@
-data DelayQueue [dqSize] r
-    where Nil :: DelayQueue r
-        | DQ :: cur:Message r -> {rest:DelayQueue r | lowerBound cur rest} -> DelayQueue r
-@-}
+{-@ data DelayQueue [dqSize] @-}
+data DelayQueue r = DelayQueue [Message r]
+-- FIXME (NEWTYPE_RESTRICTION)
 
 
 -- * Logical predicates
 
-{-@ inline lowerBound @-}
-lowerBound :: Message r -> DelayQueue r -> Bool
-lowerBound _ Nil = True
-lowerBound m (DQ cur _) = V.vcLessEqual (mSent m) (mSent cur)
-
-{-@ measure dqSize @-}
-{-@ dqSize :: DelayQueue r -> Nat @-}
+{-@
+dqSize :: _ -> Nat @-}
 dqSize :: DelayQueue r -> Int
-dqSize Nil = 0
-dqSize (DQ _ rest) = 1 + dqSize rest
+dqSize (DelayQueue xs) = listLength xs
+{-@ measure dqSize @-}
 
 
 -- * User API
 
 -- | Make a new empty delay-queue.
-{-@ inline dqNew @-}
 dqNew :: DelayQueue r
-dqNew = Nil
+dqNew = DelayQueue []
+{-@ inline dqNew @-}
 
 -- | Insert a message into the delay-queue.
 --
@@ -48,13 +38,17 @@ dqNew = Nil
 -- This is interpreted to mean that a message is inserted past all the messages
 -- which are vcLessEqual than it, and messages are extracted from the left
 -- first. This achieves FIFO for concurrent messages, and vector time ordering
--- for others, assuming that 'dqDequeue' is biased toward the front.
-{-@ reflect dqEnqueue @-}
+-- for others.
 dqEnqueue :: Message r -> DelayQueue r -> DelayQueue r
-dqEnqueue m Nil = DQ m Nil
-dqEnqueue m (DQ cur rest)
-    | mSent cur `V.vcLessEqual` mSent m = DQ cur (dqEnqueue m rest)
-    | otherwise = DQ m (DQ cur rest)
+dqEnqueue m (DelayQueue xs) = DelayQueue (dqEnqueueImpl m xs)
+{-@ inline dqEnqueue @-}
+
+dqEnqueueImpl :: Message r -> [Message r] -> [Message r]
+dqEnqueueImpl m [] = [m]
+dqEnqueueImpl m (x:xs)
+    | mSent x `vcLessEqual` mSent m = x : dqEnqueueImpl m xs
+    | otherwise = m : x:xs
+{-@ reflect dqEnqueueImpl @-}
 
 -- REWRITE RESUME HERE
 

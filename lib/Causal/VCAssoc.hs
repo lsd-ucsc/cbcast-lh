@@ -81,7 +81,7 @@ rcMin = 1
 {-@ vcaSize :: VCAssoc pid -> Nat @-}
 vcaSize :: VCAssoc pid -> Int
 vcaSize Nil = 0
-vcaSize (VCA _ _ rest) = 1 + vcaSize rest
+vcaSize (VCA _ _ vc) = 1 + vcaSize vc
 
 -- |
 --
