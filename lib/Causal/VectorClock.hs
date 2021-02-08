@@ -2,14 +2,8 @@
 -- reflecting functions that have UUID in the type, but if we hide it inside a
 -- data constructor in this module, it works.
 module Causal.VectorClock
-( PID
-, VC(..)
-, vcNew
-, vcTick
-, vcRead
-, vcLessEqual
-, vcLess
-, VCAssoc(..)
+( module Causal.VectorClock
+, module Causal.VCAssoc
 ) where
 
 import Data.UUID (UUID)
@@ -29,6 +23,7 @@ vcTick :: UUID -> VC -> VC
 vcTick pid (VC x) = VC (vcaTick pid x)
 {-@ inline vcTick @-}
 
+{-@ vcRead :: UUID -> VC -> Clock @-}
 vcRead :: UUID -> VC -> Clock
 vcRead pid (VC x) = vcaRead pid x
 {-@ inline vcRead @-}
