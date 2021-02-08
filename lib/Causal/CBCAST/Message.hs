@@ -8,8 +8,6 @@ data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw } @-}
 data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw }
     deriving Eq
 
-data Deliverability = Early | Ready | Late deriving (Eq, Show)
-
 -- | Determine message deliverability relative to current vector time.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
@@ -22,6 +20,8 @@ deliverable :: VC -> Message r -> Bool
 deliverable t Message{mSender, mSent}
     = vcRead mSender mSent == vcRead mSender (vcTick mSender t)
     && mSent `vcLessEqual` t
+
+data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
 {-@ reflect deliverability @-}
 deliverability :: VC -> Message r -> Deliverability
