@@ -24,14 +24,18 @@ import Language.Haskell.Liquid.ProofCombinators
 --      "For messages m and m', the notation m -> m' will be used as a
 --      shorthand for send(m) -> send(m')."
 
+causallyBefore :: Message r -> Message r -> Bool
+causallyBefore a b = mSent a `vcLess` mSent b
+{-@ inline causallyBefore @-}
+
 -- page 11/282:
 --
 --      "Observe first that m_1 -> m_2, hence VT(m_1) < VT(m_2) (basic property
 --      of vector times)."
 
-causallyBefore :: Message r -> Message r -> Bool
-causallyBefore a b = mSent a `vcLess` mSent b
-{-@ inline causallyBefore @-}
+{-@ basicPropertyOfVectorClocks :: m1:Message r -> {m2:Message r | causallyBefore m1 m2} -> { vcLess (mSent m1) (mSent m2) } @-}
+basicPropertyOfVectorClocks :: Message r -> Message r -> Proof
+basicPropertyOfVectorClocks Message{} Message{} = () *** QED
 
 -- page 8/279:
 --
