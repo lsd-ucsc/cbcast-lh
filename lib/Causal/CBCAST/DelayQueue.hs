@@ -6,20 +6,41 @@ import Causal.VectorClock
 import Causal.CBCAST.Message
 
 
+-- * DQ List
+
+{-@ type DQList1 r = [Message r]<{\a b -> pairIsSorted a b}> @-}
+{-@ type DQList2 r = {xs:[Message r] | dqlSorted xs} @-}
+
+{-@ inline pairIsSorted @-}
+pairIsSorted :: Message r -> Message r -> Bool
+pairIsSorted a b = mSent a `vcLessEqual` mSent b
+
+{-@ inline lessEqToHead @-}
+lessEqToHead :: Message r -> [Message r] -> Bool
+lessEqToHead _ [] = True
+lessEqToHead a (b:_) = pairIsSorted a b
+
+{-@ reflect dqlSorted @-}
+dqlSorted :: [Message r] -> Bool
+dqlSorted [] = True
+dqlSorted (x:xs) = lessEqToHead x xs && dqlSorted xs
+
+
 -- * Types
 
-{-@ data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
-data DelayQueue r = DelayQueue [Message r]
 -- FIXME (NEWTYPE_RESTRICTION)
+data DelayQueue r = DelayQueue [Message r]
+-- TODO: sortedness invariant
+-- {-@ data DelayQueue r = DelayQueue (DQList1 r) @-}
+-- {-@ data DelayQueue r = DelayQueue (DQList2 r) @-}
 
 
 -- * Logical predicates
 
-{-@
-dqSize :: _ -> Nat @-}
+{-@ measure dqSize @-}
+{-@ dqSize :: _ -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
-{-@ measure dqSize @-}
 
 
 -- * User API
