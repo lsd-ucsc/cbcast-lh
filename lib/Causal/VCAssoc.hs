@@ -2,8 +2,8 @@
 -- association-list ADT with a strict ordering on PID values.
 module Causal.VCAssoc where
 
--- import Language.Haskell.Liquid.ProofCombinators
---     (Proof, QED(..), (***), impossible)
+import Language.Haskell.Liquid.ProofCombinators
+    (Proof, QED(..), (===), (***), (?), impossible)
 
 -- $setup
 -- >>> import qualified Data.UUID as UUID
@@ -312,3 +312,18 @@ vcaLess a b = vcaLessEqual a b && a /= b
 {-@ inline vcaIndependent @-}
 vcaIndependent :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
 vcaIndependent a b = not (vcaLess a b) && not (vcaLess b a)
+
+
+-- * Properties
+
+-- | Practice proof. Also provable with PLE.
+{-@ proofSmthNotLessEqToEmpty :: {vca:VCAssoc pid | vca /= Nil} -> { not (vcaLessEqual vca Nil) } @-}
+proofSmthNotLessEqToEmpty :: Ord pid => VCAssoc pid -> Proof
+proofSmthNotLessEqToEmpty Nil = impossible "vca /= Nil"
+proofSmthNotLessEqToEmpty (VCA cur clock rest)
+    =   not (vcaLessEqual (VCA cur clock rest) Nil)
+    === not (clock <= cMin && vcaLessEqual rest Nil)
+    === not (False && vcaLessEqual rest Nil)
+    === not False
+    === True
+    *** QED
