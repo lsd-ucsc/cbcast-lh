@@ -15,6 +15,10 @@ data VC = VC (VCAssoc PID) @-}
 data VC = VC (VCAssoc PID)
     deriving Eq
 
+{-@ inline vcPidsMatch @-}
+vcPidsMatch :: VC -> VC -> Bool
+vcPidsMatch (VC a) (VC b) = vcaPidsMatch a b
+
 vcNew :: VC
 vcNew = VC vcaNew
 {-@ inline vcNew @-}

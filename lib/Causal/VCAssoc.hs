@@ -82,6 +82,12 @@ vcaSize :: VCAssoc pid -> Int
 vcaSize Nil = 0
 vcaSize (VCA _ _ rest) = 1 + vcaSize rest
 
+{-@ reflect vcaPidsMatch @-}
+vcaPidsMatch :: Eq pid => VCAssoc pid -> VCAssoc pid -> Bool
+vcaPidsMatch (VCA xPid _ xRest) (VCA yPid _ yRest) = xPid == yPid && vcaPidsMatch xRest yRest
+vcaPidsMatch Nil Nil = True
+vcaPidsMatch _ _ = False
+
 -- |
 --
 -- >>> larger 1 2

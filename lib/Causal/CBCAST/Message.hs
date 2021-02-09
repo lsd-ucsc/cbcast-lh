@@ -8,6 +8,9 @@ data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw } @-}
 data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw }
     deriving Eq
 
+
+-- * Deliverability
+
 -- | Determine message deliverability relative to current vector time.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
@@ -16,13 +19,42 @@ data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw }
 --          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
 --                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
 {-@ inline deliverable @-}
-deliverable :: VC -> Message r -> Bool
-deliverable t Message{mSender, mSent}
-    = vcRead mSender mSent == vcRead mSender (vcTick mSender t)
-    && mSent `vcLessEqual` t
+{-@ deliverable :: m:Message r -> {p:VC | vcPidsMatch (mSent m) p} -> Bool @-}
+deliverable :: Message r -> VC -> Bool
+deliverable Message{mSender, mSent} localTime = vcDeliverable mSender mSent localTime
 
+-- | TODO decide whether this belongs in the VectorClock module or can be folded into the above
+{-@ inline vcDeliverable @-}
+{-@ vcDeliverable :: PID -> m:VC -> {p:VC | vcPidsMatch m p} -> Bool @-}
+vcDeliverable :: PID -> VC -> VC -> Bool
+vcDeliverable mSender (VC mSent) (VC localTime) = vcaDeliverable mSender mSent localTime
+
+-- | TODO decide whether this belongs in the VCAssoc module
+{-@ reflect vcaDeliverable @-}
+{-@ ple vcaDeliverable @-}
+{-@ vcaDeliverable :: pid -> m:VCAssoc pid -> {p:VCAssoc pid | vcaPidsMatch m p} -> Bool @-}
+vcaDeliverable :: Ord pid => pid -> VCAssoc pid -> VCAssoc pid -> Bool
+vcaDeliverable _ Nil Nil = True
+vcaDeliverable _ Nil _ = impossible "VCs have the same set of PIDs"
+vcaDeliverable _ _ Nil = impossible "VCs have the same set of PIDs"
+vcaDeliverable mSender (VCA mIdx mClock mRest) (VCA pIdx pClock pRest)
+    | mIdx == pIdx && mIdx == mSender   = mClock == pClock + 1 && vcaDeliverable mSender mRest pRest
+    | mIdx == pIdx                      = mClock <= pClock     && vcaDeliverable mSender mRest pRest
+    | otherwise                         = impossible "VCs have the same set of PIDs"
+
+{-@ inline impossible @-}
+{-@ impossible :: {_:_ | false } -> _ @-}
+impossible :: String -> Bool
+impossible _ = False
+
+
+-- * Old deliverability
+
+-- | Old notion of deliverability
 data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
+-- | Old notion of deliverability which doesn't need a `vcRead` but is hard to
+-- mentally map to the paper's definition.
 {-@ reflect deliverability @-}
 deliverability :: VC -> Message r -> Deliverability
 deliverability t m

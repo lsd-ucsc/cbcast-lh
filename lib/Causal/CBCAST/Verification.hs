@@ -59,9 +59,9 @@ causallyBefore a b = mSent a `vcLess` mSent b
 {-@
 proofSafety
     :: t:VC
-    -> {m1:Message r | deliverable t m1}
+    -> {m1:Message r | deliverable m1 t}
     -> {m2:Message r | causallyBefore m1 m2}
-    -> {not (deliverable t m2)}
+    -> {not (deliverable m2 t)}
 @-}
 proofSafety :: VC -> Message r -> Message r -> Proof
 proofSafety (VC Nil) Message{} Message{} = () *** QED
