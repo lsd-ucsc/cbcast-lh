@@ -327,3 +327,20 @@ proofSmthNotLessEqToEmpty (VCA cur clock rest)
     === not False
     === True
     *** QED
+
+{-@ proofGreaterIsNotEmpty :: t1:VCAssoc pid -> {t2:VCAssoc pid | vcaLess t1 t2} -> { t2 /= Nil } @-}
+proofGreaterIsNotEmpty :: Ord pid => VCAssoc pid -> VCAssoc pid -> Proof
+proofGreaterIsNotEmpty Nil Nil = impossible "precondition `vcLess t1 t2` implies `t1 /= t2`"
+proofGreaterIsNotEmpty Nil VCA{} = () *** QED
+proofGreaterIsNotEmpty (VCA cur clock rest) Nil
+    =   vcaLess (VCA cur clock rest) Nil
+    === (vcaLessEqual (VCA cur clock rest) Nil && (VCA cur clock rest) /= Nil)
+    === (vcaLessEqual (VCA cur clock rest) Nil && True)
+    === vcaLessEqual (VCA cur clock rest) Nil
+    === (clock <= cMin && vcaLessEqual rest Nil)
+    === (False && vcaLessEqual rest Nil)
+    === False
+    === impossible "precondition `vcless t1 t2` failed"
+    *** QED
+proofGreaterIsNotEmpty (VCA aP aC aR) (VCA bP bC bR)
+    =   () *** Admit
