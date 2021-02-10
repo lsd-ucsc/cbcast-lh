@@ -102,3 +102,10 @@ listElem :: Eq a => a -> [a] -> Bool
 listElem _ []     = False
 listElem x (y:ys) = x==y || listElem x ys
 {-@ reflect listElem @-}
+
+-- | Implementation of 'impossible' lifted to specifications. similar to the
+-- one in 'Language.Haskell.Liquid.ProofCombinators'.
+{-@ inline impossibleConst @-}
+{-@ impossibleConst :: _ -> {_:_ | false } -> _ @-}
+impossibleConst :: a -> b -> a
+impossibleConst a _ = a
