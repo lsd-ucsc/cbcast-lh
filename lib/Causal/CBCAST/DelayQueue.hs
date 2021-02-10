@@ -86,6 +86,7 @@ dqEnqueueImpl m (x:xs)
 -- FIXME (REFLECTION_RESTRICTION): We don't use this function, though it's defined with better abstraction than the other version
 --
 -- TODO: It would be cool to add {m:_ | deliverability t m == Ready} to the result here, as we have with the other definition.
+{-
 {-@
 dqDequeueOriginal :: t:_ -> a:_ -> Maybe ({b:_ | dqSize a - 1 == dqSize b}, _) @-}
 dqDequeueOriginal :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
@@ -102,6 +103,7 @@ extractFirstBy predicate xs = case listBreak predicate xs of
     _ -> Nothing
 {-@ inline extractFirstBy @-}
 {-@ ple extractFirstBy @-}
+-}
 
 
 -- ** Alternate dqDequeue
