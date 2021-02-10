@@ -35,11 +35,11 @@ vcDeliverable mSender (VC mSent) (VC localTime) = vcaDeliverable mSender mSent l
 {-@ vcaDeliverable :: pid -> m:VCAssoc pid -> {p:VCAssoc pid | vcaPidsMatch m p} -> Bool @-}
 vcaDeliverable :: Ord pid => pid -> VCAssoc pid -> VCAssoc pid -> Bool
 vcaDeliverable _ Nil Nil = True
-vcaDeliverable _ Nil _ = impossible "VCs have the same set of PIDs"
-vcaDeliverable _ _ Nil = impossible "VCs have the same set of PIDs"
+vcaDeliverable _ Nil VCA{} = impossible "VCs have the same set of PIDs"
+vcaDeliverable _ VCA{} Nil = impossible "VCs have the same set of PIDs"
 vcaDeliverable mSender (VCA mIdx mClock mRest) (VCA pIdx pClock pRest)
     | mIdx == pIdx && mIdx == mSender   = mClock == pClock + 1 && vcaDeliverable mSender mRest pRest
-    | mIdx == pIdx                      = mClock <= pClock     && vcaDeliverable mSender mRest pRest
+    | mIdx == pIdx && mIdx /= mSender   = mClock <= pClock     && vcaDeliverable mSender mRest pRest
     | otherwise                         = impossible "VCs have the same set of PIDs"
 
 {-@ inline impossible @-}
