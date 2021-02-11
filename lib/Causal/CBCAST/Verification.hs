@@ -5,6 +5,7 @@ import Causal.VectorClock
 import Causal.CBCAST.Message
 
 import Language.Haskell.Liquid.ProofCombinators
+    (Proof, QED(..), (***))
 
 -- page 7/278:
 --
@@ -23,7 +24,6 @@ import Language.Haskell.Liquid.ProofCombinators
 --      "For messages m and m', the notation m -> m' will be used as a
 --      shorthand for send(m) -> send(m')."
 
-{-@ causallyBefore :: a:Message r -> {b:Message r | mPidsMatch a b} -> Bool @-}
 causallyBefore :: Message r -> Message r -> Bool
 causallyBefore a b = mSent a `vcLess` mSent b
 {-@ inline causallyBefore @-}

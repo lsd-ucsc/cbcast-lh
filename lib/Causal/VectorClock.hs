@@ -3,4 +3,4 @@ module Causal.VectorClock
 ( module X
 ) where
 
-import Causal.VCLite as X
+import Causal.VCAssoc as X
