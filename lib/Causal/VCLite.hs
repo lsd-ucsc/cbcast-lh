@@ -175,15 +175,28 @@ vcTick pid (VC pids clocks) = VC pids $ listSetIndex clocks (clock+1) index
     index = listElemIndex pid pids
     clock = maybeFromJust 0 $ listGetIndex clocks index
 
--- {-@ inline vcCombine @-} -- FIXME can't lift a partially applied function to specifications
+-- {-@ inline vcCombine1 @-} -- FIXME can't lift a partially applied function to specifications
+{-@ vcCombine1 :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
+vcCombine1 :: Eq pid => VC pid -> VC pid -> VC pid
+vcCombine1 (VC aPids aClocks) (VC bPids bClocks)
+    | aPids == bPids    = VC aPids $ listZipWith larger aClocks bClocks
+    | otherwise         = impossibleConst (VC [] []) "vcPidsMatch a b"
+
+-- {-@ inline vcCombine2 @-} -- FIXME can't lift a partially applied function to specifications
+{-@ vcCombine2 :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
+vcCombine2 :: Eq pid => VC pid -> VC pid -> VC pid
+vcCombine2 (VC aPids aClocks) (VC _ bClocks)
+    = VC aPids $ listZipWith larger aClocks bClocks
+
+{-@ inline vcCombine @-}
 {-@ vcCombine :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
 vcCombine :: Eq pid => VC pid -> VC pid -> VC pid
 vcCombine (VC aPids aClocks) (VC _ bClocks)
-    = VC aPids $ listZipWith larger aClocks bClocks
+    = VC aPids $ vcCombineClocks aClocks bClocks
 
--- {-@ inline vcCombine_ @-} -- FIXME can't lift a partially applied function to specifications
-{-@ vcCombine_ :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
-vcCombine_ :: Eq pid => VC pid -> VC pid -> VC pid
-vcCombine_ (VC aPids aClocks) (VC bPids bClocks)
-    | aPids == bPids    = VC aPids $ listZipWith larger aClocks bClocks
-    | otherwise         = impossibleConst (VC [] []) "vcPidsMatch a b"
+{-@ reflect vcCombineClocks @-}
+{-@ vcCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
+vcCombineClocks :: [Clock] -> [Clock] -> [Clock]
+vcCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vcCombineClocks xs ys
+vcCombineClocks [] [] = []
+vcCombineClocks _ _ = impossibleConst [] "lists have same length"
