@@ -3,7 +3,10 @@
 --
 -- Functions operating on pairs of VCs constrain those to have the same list of
 -- PIDs.
-module Causal.VCLite where
+module Causal.VCLite
+( module Causal.VCLite
+, module Redefined
+) where
 
 import Data.UUID (UUID)
 import Redefined (listLength, listElem, impossibleConst)
@@ -386,7 +389,7 @@ type PID = UUID
 -- constructor, it works.
 {-@
 data VC = VC (VCL PID) @-}
-data VC = VC (VCL PID)
+data VC = VC (VCL PID) deriving Eq
 
 {-@ inline vcHasPid @-}
 vcHasPid :: UUID -> VC -> Bool

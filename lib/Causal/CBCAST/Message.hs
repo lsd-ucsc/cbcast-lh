@@ -3,10 +3,19 @@ module Causal.CBCAST.Message where
 
 import Causal.VectorClock
 
-{-@
-data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw } @-}
 data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw }
     deriving Eq
+{-@
+data Message raw = Message
+    { mSender :: PID
+    , mSent :: {sent:VC | vcHasPid mSender sent}
+    , mRaw :: raw
+    }
+@-}
+
+{-@ inline mPidsMatch @-}
+mPidsMatch :: Message r -> Message r -> Bool
+mPidsMatch a b = mSent a `vcPidsMatch` mSent b
 
 
 -- * Deliverability
@@ -19,7 +28,7 @@ data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw }
 --          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
 --                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
 {-@ inline deliverable @-}
-{-@ deliverable :: m:Message r -> {p:VC | vcPidsMatch (mSent m) p} -> Bool @-}
+{-@ deliverable :: m:Message r -> {p:VC | vcHasPid (mSender m) p && vcPidsMatch (mSent m) p} -> Bool @-}
 deliverable :: Message r -> VC -> Bool
 deliverable Message{mSender, mSent} localTime = vcDeliverable mSender mSent localTime
 
@@ -30,6 +39,7 @@ data Deliverability = Early | Ready | Late deriving (Eq, Show)
 
 -- | Old notion of deliverability which doesn't need a `vcRead` but is hard to
 -- mentally map to the paper's definition.
+{-@ ignore deliverability @-} -- FIXME
 {-@ reflect deliverability @-}
 deliverability :: VC -> Message r -> Deliverability
 deliverability t m
