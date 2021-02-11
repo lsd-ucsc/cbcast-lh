@@ -138,16 +138,6 @@ listZipWith _ _ _ = impossibleConst [] "lists have same length"
 
 -- ** Specific
 
--- |
---
--- >>> larger 1 2
--- 2
--- >>> larger 2 1
--- 2
-{-@ inline larger @-}
-larger :: Ord a => a -> a -> a
-larger a b = if a < b then b else a
-
 {-@ inline vcHasPid @-}
 vcHasPid :: Eq pid => pid -> VC pid -> Bool
 vcHasPid pid (VC pids _) = listElem pid pids
@@ -155,6 +145,20 @@ vcHasPid pid (VC pids _) = listElem pid pids
 {-@ inline vcPidsMatch @-}
 vcPidsMatch :: Eq pid => VC pid -> VC pid -> Bool
 vcPidsMatch (VC aPids _) (VC bPids _) = aPids == bPids
+
+{-@ reflect vcCombineClocks @-}
+{-@ vcCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
+vcCombineClocks :: [Clock] -> [Clock] -> [Clock]
+vcCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vcCombineClocks xs ys
+vcCombineClocks [] [] = []
+vcCombineClocks _ _ = impossibleConst [] "lists have same length"
+
+{-@ reflect vcLessEqualClocks @-}
+{-@ vcLessEqualClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
+vcLessEqualClocks :: [Clock] -> [Clock] -> Bool
+vcLessEqualClocks (x:xs) (y:ys) = x <= y && vcLessEqualClocks xs ys
+vcLessEqualClocks [] [] = True
+vcLessEqualClocks _ _ = impossibleConst False "lists have same length"
 
 
 -- * User API
@@ -176,46 +180,17 @@ vcTick pid (VC pids clocks) = VC pids $ listSetIndex clocks (clock+1) index
     index = listElemIndex pid pids
     clock = maybeFromJust 0 $ listGetIndex clocks index
 
--- {-@ inline vcCombine1 @-} -- FIXME can't lift a partially applied function to specifications
-{-@ vcCombine1 :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
-vcCombine1 :: Eq pid => VC pid -> VC pid -> VC pid
-vcCombine1 (VC aPids aClocks) (VC bPids bClocks)
-    | aPids == bPids    = VC aPids $ listZipWith larger aClocks bClocks
-    | otherwise         = impossibleConst (VC [] []) "vcPidsMatch a b"
-
--- {-@ inline vcCombine2 @-} -- FIXME can't lift a partially applied function to specifications
-{-@ vcCombine2 :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
-vcCombine2 :: VC pid -> VC pid -> VC pid
-vcCombine2 (VC aPids aClocks) (VC _ bClocks)
-    = VC aPids $ listZipWith larger aClocks bClocks
-
 {-@ inline vcCombine @-}
 {-@ vcCombine :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
 vcCombine :: VC pid -> VC pid -> VC pid
 vcCombine (VC aPids aClocks) (VC _ bClocks)
     = VC aPids $ vcCombineClocks aClocks bClocks
 
--- TODO: move out of user api section
-{-@ reflect vcCombineClocks @-}
-{-@ vcCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
-vcCombineClocks :: [Clock] -> [Clock] -> [Clock]
-vcCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vcCombineClocks xs ys
-vcCombineClocks [] [] = []
-vcCombineClocks _ _ = impossibleConst [] "lists have same length"
-
 {-@ inline vcLessEqual @-}
 {-@ vcLessEqual :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
 vcLessEqual :: VC pid -> VC pid -> Bool
 vcLessEqual (VC _ aClocks) (VC _ bClocks)
     = vcLessEqualClocks aClocks bClocks
-
--- TODO: move out of user api section
-{-@ reflect vcLessEqualClocks @-}
-{-@ vcLessEqualClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
-vcLessEqualClocks :: [Clock] -> [Clock] -> Bool
-vcLessEqualClocks (x:xs) (y:ys) = x <= y && vcLessEqualClocks xs ys
-vcLessEqualClocks [] [] = True
-vcLessEqualClocks _ _ = impossibleConst False "lists have same length"
 
 {-@ inline vcLess @-}
 {-@ vcLess :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
