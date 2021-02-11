@@ -60,6 +60,7 @@ basicPropertyOfVectorClocks Message{} Message{} = () *** QED
 --          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')"
 
 {-@ ignore proofSafety @-} -- TODO this takes forever
+{-@ ple proofSafety @-}
 {-@
 proofSafety
     :: t:VC
@@ -68,4 +69,4 @@ proofSafety
     -> {not (deliverable m2 t)}
 @-}
 proofSafety :: VC -> Message r -> Message r -> Proof
-proofSafety _ _ _ = trivial
+proofSafety _ _ _ = () *** QED
