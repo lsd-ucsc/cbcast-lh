@@ -4,7 +4,6 @@ module Causal.VCSame where
 import Redefined
 --import Language.Haskell.Liquid.ProofCombinators
 import qualified Data.Set as S -- Lifted: Set, empty, singleton, member, union, intersection, difference
-import Data.UUID (UUID)
 
 
 type Assoc k v = [(k, v)]
