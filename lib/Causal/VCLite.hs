@@ -194,9 +194,24 @@ vcCombine :: Eq pid => VC pid -> VC pid -> VC pid
 vcCombine (VC aPids aClocks) (VC _ bClocks)
     = VC aPids $ vcCombineClocks aClocks bClocks
 
+-- TODO: move out of user api section
 {-@ reflect vcCombineClocks @-}
 {-@ vcCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
 vcCombineClocks :: [Clock] -> [Clock] -> [Clock]
 vcCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vcCombineClocks xs ys
 vcCombineClocks [] [] = []
 vcCombineClocks _ _ = impossibleConst [] "lists have same length"
+
+{-@ inline vcLessEqual @-}
+{-@ vcLessEqual :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
+vcLessEqual :: Eq pid => VC pid -> VC pid -> Bool
+vcLessEqual (VC _ aClocks) (VC _ bClocks)
+    = vcLessEqualClocks aClocks bClocks
+
+-- TODO: move out of user api section
+{-@ reflect vcLessEqualClocks @-}
+{-@ vcLessEqualClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
+vcLessEqualClocks :: [Clock] -> [Clock] -> Bool
+vcLessEqualClocks (x:xs) (y:ys) = x <= y && vcLessEqualClocks xs ys
+vcLessEqualClocks [] [] = True
+vcLessEqualClocks _ _ = impossibleConst False "lists have same length"
