@@ -12,9 +12,9 @@ import Redefined (listLength, listElem, impossibleConst)
 -- >>> import Data.Maybe (fromMaybe)
 -- >>> import Data.Typeable (Typeable(..), typeOf)
 -- >>> :{
--- instance Show pid => Show (VC pid) where
---     show (VC [] []) = "empty-vc"
---     show (VC pids clocks)
+-- instance Show pid => Show (VCL pid) where
+--     show (VCL [] []) = "empty-vc"
+--     show (VCL pids clocks)
 --         | length pids == length clocks = intercalate "\n" $ zipWith item pids clocks
 --         | otherwise = error "pids length must equal clocks length"
 --       where
@@ -28,12 +28,12 @@ import Redefined (listLength, listElem, impossibleConst)
 --
 -- >>> import qualified Test.QuickCheck as QC
 -- >>> :{
--- instance QC.Arbitrary pid => QC.Arbitrary (VC pid) where
+-- instance QC.Arbitrary pid => QC.Arbitrary (VCL pid) where
 --     arbitrary = do
 --         pids <- QC.arbitrary
 --         clocks <- QC.arbitrary
 --         let m = length pids `min` length clocks
---         return $ VC (take m pids) (take m clocks)
+--         return $ VCL (take m pids) (take m clocks)
 -- :}
 --
 -- >>> import qualified Data.UUID as UUID
@@ -42,7 +42,7 @@ import Redefined (listLength, listElem, impossibleConst)
 -- >>> let face = UUID.fromWords 0xface 0xface 0xface 0xface
 -- >>> beef < cafe && cafe < face
 -- True
--- >>> (#) = vcTick; infixr 5 #
+-- >>> (#) = vclTick; infixr 5 #
 
 
 -- * Types
@@ -50,12 +50,12 @@ import Redefined (listLength, listElem, impossibleConst)
 type Clock = Integer
 {-@ type Clock = {c:Integer | cMin <= c} @-}
 
-data VC pid
-    = VC [pid] [Clock]
+data VCL pid
+    = VCL [pid] [Clock]
     deriving Eq
 {-@
-data VC pid
-    = VC
+data VCL pid
+    = VCL
         { pids :: [pid]
         , clocks :: {cs:[Clock] | len pids == len cs}
         }
@@ -176,122 +176,122 @@ listZipWith _ _ _ = impossibleConst [] "lists have same length"
 
 -- |
 --
--- >>> vcHasPid beef $ VC [] []
+-- >>> vclHasPid beef $ VCL [] []
 -- False
--- >>> vcHasPid cafe $ VC [cafe] [cMin]
+-- >>> vclHasPid cafe $ VCL [cafe] [cMin]
 -- True
--- >>> vcHasPid beef $ VC [cafe] [cMin]
+-- >>> vclHasPid beef $ VCL [cafe] [cMin]
 -- False
--- >>> vcHasPid face $ VC [cafe, face] [cMin, cMin]
+-- >>> vclHasPid face $ VCL [cafe, face] [cMin, cMin]
 -- True
 --
 -- QuickCheck properties.
 --
--- prop> pid `elem` pids ==> pid `vcHasPid` vcNew pids
-{-@ inline vcHasPid @-}
-vcHasPid :: Eq pid => pid -> VC pid -> Bool
-vcHasPid pid (VC pids _) = listElem pid pids
+-- prop> pid `elem` pids ==> pid `vclHasPid` vclNew pids
+{-@ inline vclHasPid @-}
+vclHasPid :: Eq pid => pid -> VCL pid -> Bool
+vclHasPid pid (VCL pids _) = listElem pid pids
 
 -- |
 --
--- >>> VC [] [] `vcPidsMatch` VC [] []
+-- >>> VCL [] [] `vclPidsMatch` VCL [] []
 -- True
--- >>> VC [cafe] [] `vcPidsMatch` VC [] []
+-- >>> VCL [cafe] [] `vclPidsMatch` VCL [] []
 -- False
--- >>> VC [] [] `vcPidsMatch` VC [cafe] []
+-- >>> VCL [] [] `vclPidsMatch` VCL [cafe] []
 -- False
--- >>> VC [cafe] [] `vcPidsMatch` VC [cafe] []
+-- >>> VCL [cafe] [] `vclPidsMatch` VCL [cafe] []
 -- True
 --
-{-@ inline vcPidsMatch @-}
-vcPidsMatch :: Eq pid => VC pid -> VC pid -> Bool
-vcPidsMatch (VC aPids _) (VC bPids _) = aPids == bPids
+{-@ inline vclPidsMatch @-}
+vclPidsMatch :: Eq pid => VCL pid -> VCL pid -> Bool
+vclPidsMatch (VCL aPids _) (VCL bPids _) = aPids == bPids
 
 -- |
 --
--- >>> [] `vcCombineClocks` []
+-- >>> [] `vclCombineClocks` []
 -- []
--- >>> [1, 2, 0] `vcCombineClocks` [0, 4, 1]
+-- >>> [1, 2, 0] `vclCombineClocks` [0, 4, 1]
 -- [1,4,1]
 --
-{-@ reflect vcCombineClocks @-}
-{-@ vcCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
-vcCombineClocks :: [Clock] -> [Clock] -> [Clock]
-vcCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vcCombineClocks xs ys
-vcCombineClocks [] [] = []
-vcCombineClocks _ _ = impossibleConst [] "lists have same length"
+{-@ reflect vclCombineClocks @-}
+{-@ vclCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
+vclCombineClocks :: [Clock] -> [Clock] -> [Clock]
+vclCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vclCombineClocks xs ys
+vclCombineClocks [] [] = []
+vclCombineClocks _ _ = impossibleConst [] "lists have same length"
 
 -- |
 --
--- >>> [] `vcLessEqualClocks` []
+-- >>> [] `vclLessEqualClocks` []
 -- True
--- >>> [1, 2, 0] `vcLessEqualClocks` [2, 2, 0]
+-- >>> [1, 2, 0] `vclLessEqualClocks` [2, 2, 0]
 -- True
--- >>> [1, 2, 4] `vcLessEqualClocks` [2, 2, 0]
+-- >>> [1, 2, 4] `vclLessEqualClocks` [2, 2, 0]
 -- False
 --
-{-@ reflect vcLessEqualClocks @-}
-{-@ vcLessEqualClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
-vcLessEqualClocks :: [Clock] -> [Clock] -> Bool
-vcLessEqualClocks (x:xs) (y:ys) = x <= y && vcLessEqualClocks xs ys
-vcLessEqualClocks [] [] = True
-vcLessEqualClocks _ _ = impossibleConst False "lists have same length"
+{-@ reflect vclLessEqualClocks @-}
+{-@ vclLessEqualClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
+vclLessEqualClocks :: [Clock] -> [Clock] -> Bool
+vclLessEqualClocks (x:xs) (y:ys) = x <= y && vclLessEqualClocks xs ys
+vclLessEqualClocks [] [] = True
+vclLessEqualClocks _ _ = impossibleConst False "lists have same length"
 
 
 -- * User API
 
 -- |
 --
--- >>> vcNew []
+-- >>> vclNew []
 -- empty-vc
--- >>> vcNew [cafe, face]
+-- >>> vclNew [cafe, face]
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t0
 -- 0000face-0000-face-0000-face0000face:t0
 --
-{-@ inline vcNew @-}
-vcNew :: [pid] -> VC pid
-vcNew pids = VC pids $ listReplicate (listLength pids) 0
+{-@ inline vclNew @-}
+vclNew :: [pid] -> VCL pid
+vclNew pids = VCL pids $ listReplicate (listLength pids) 0
 
 -- |
 --
--- >>> vcRead beef $ vcNew [] -- this case eliminated by LH precondition
+-- >>> vclRead beef $ vclNew [] -- this case eliminated by LH precondition
 -- 0
--- >>> vcRead cafe $ vcNew [cafe]
+-- >>> vclRead cafe $ vclNew [cafe]
 -- 0
 --
 -- Recursive cases.
 --
--- >>> vcRead beef (cafe # vcNew [cafe]) -- this case eliminated by LH precondition
+-- >>> vclRead beef (cafe # vclNew [cafe]) -- this case eliminated by LH precondition
 -- 0
--- >>> vcRead face (cafe # face # vcNew [cafe, face])
+-- >>> vclRead face (cafe # face # vclNew [cafe, face])
 -- 1
 --
 -- QuickCheck properties.
 --
--- prop> 0 == vcRead pid (vcNew [])
--- prop> 1 == vcRead pid (pid # vcNew [pid])
+-- prop> 0 == vclRead pid (vclNew [])
+-- prop> 1 == vclRead pid (pid # vclNew [pid])
 --
-{-@ inline vcRead @-}
-{-@ vcRead :: p:pid -> {vc:VC pid | vcHasPid p vc} -> Clock @-}
-vcRead :: Eq pid => pid -> VC pid -> Clock
-vcRead pid (VC pids clocks)
+{-@ inline vclRead @-}
+{-@ vclRead :: p:pid -> {vc:VCL pid | vclHasPid p vc} -> Clock @-}
+vclRead :: Eq pid => pid -> VCL pid -> Clock
+vclRead pid (VCL pids clocks)
     = maybeFromJust 0 $ listGetIndex clocks (listElemIndex pid pids)
 
 -- |
 --
--- >>> cafe `vcTick` VC [cafe] [1] -- update
+-- >>> cafe `vclTick` VCL [cafe] [1] -- update
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 --
--- >>> cafe `vcTick` VC [beef, cafe, face] [1, 1, 1]
+-- >>> cafe `vclTick` VCL [beef, cafe, face] [1, 1, 1]
 -- 0000beef-0000-beef-0000-beef0000beef:t1
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 -- 0000face-0000-face-0000-face0000face:t1
 --
--- >>> beef # beef # cafe # vcNew [beef, cafe, face]
+-- >>> beef # beef # cafe # vclNew [beef, cafe, face]
 -- 0000beef-0000-beef-0000-beef0000beef:t2
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
 -- 0000face-0000-face-0000-face0000face:t0
--- >>> cafe # cafe # vcNew [beef, cafe, face]
+-- >>> cafe # cafe # vclNew [beef, cafe, face]
 -- 0000beef-0000-beef-0000-beef0000beef:t0
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 -- 0000face-0000-face-0000-face0000face:t0
@@ -299,75 +299,75 @@ vcRead pid (VC pids clocks)
 -- QuickCheck property showing that the result is the same regardless of the
 -- order of ticks.
 --
--- prop> vcTick a (vcTick b $ vcNew [a, b]) == vcTick b (vcTick a $ vcNew [a, b])
-{-@ inline vcTick @-}
-{-@ vcTick :: p:pid -> {vc:VC pid | vcHasPid p vc} -> VC pid @-}
-vcTick :: Eq pid => pid -> VC pid -> VC pid
-vcTick pid (VC pids clocks) = VC pids $ listSetIndex clocks (clock+1) index
+-- prop> vclTick a (vclTick b $ vclNew [a, b]) == vclTick b (vclTick a $ vclNew [a, b])
+{-@ inline vclTick @-}
+{-@ vclTick :: p:pid -> {vc:VCL pid | vclHasPid p vc} -> VCL pid @-}
+vclTick :: Eq pid => pid -> VCL pid -> VCL pid
+vclTick pid (VCL pids clocks) = VCL pids $ listSetIndex clocks (clock+1) index
   where
     index = listElemIndex pid pids
     clock = maybeFromJust 0 $ listGetIndex clocks index
 
 -- |
 --
--- >>> vcCombine (vcNew []) (vcNew [])
+-- >>> vclCombine (vclNew []) (vclNew [])
 -- empty-vc
 --
--- >>> vcCombine (cafe # vcNew [cafe]) (cafe # vcNew [cafe]) -- compare
+-- >>> vclCombine (cafe # vclNew [cafe]) (cafe # vclNew [cafe]) -- compare
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t1
--- >>> vcCombine (cafe # cafe # vcNew [cafe]) (cafe # vcNew [cafe]) -- compare
+-- >>> vclCombine (cafe # cafe # vclNew [cafe]) (cafe # vclNew [cafe]) -- compare
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
--- >>> vcCombine (cafe # vcNew [cafe]) (cafe # cafe # vcNew [cafe]) -- compare
+-- >>> vclCombine (cafe # vclNew [cafe]) (cafe # cafe # vclNew [cafe]) -- compare
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 --
--- >>> vcCombine (beef # beef # cafe # vcNew [beef, cafe, face]) (cafe # cafe # vcNew [beef, cafe, face]) -- compare
+-- >>> vclCombine (beef # beef # cafe # vclNew [beef, cafe, face]) (cafe # cafe # vclNew [beef, cafe, face]) -- compare
 -- 0000beef-0000-beef-0000-beef0000beef:t2
 -- 0000cafe-0000-cafe-0000-cafe0000cafe:t2
 -- 0000face-0000-face-0000-face0000face:t0
 --
 -- QuickCheck property for commutativity.
 --
--- prop> let a = VC pids aClocks; b = VC pids bClocks in vcCombine a b == vcCombine b a
-{-@ inline vcCombine @-}
-{-@ vcCombine :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
-vcCombine :: VC pid -> VC pid -> VC pid
-vcCombine (VC aPids aClocks) (VC _ bClocks)
-    = VC aPids $ vcCombineClocks aClocks bClocks
+-- prop> let a = VCL pids aClocks; b = VCL pids bClocks in vclCombine a b == vclCombine b a
+{-@ inline vclCombine @-}
+{-@ vclCombine :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> {c:VCL pid | vclPidsMatch a c && vclPidsMatch b c} @-}
+vclCombine :: VCL pid -> VCL pid -> VCL pid
+vclCombine (VCL aPids aClocks) (VCL _ bClocks)
+    = VCL aPids $ vclCombineClocks aClocks bClocks
 
 -- |
 --
--- >>> vcLessEqual (vcNew []) (vcNew []) -- nil-nil
+-- >>> vclLessEqual (vclNew []) (vclNew []) -- nil-nil
 -- True
 --
--- >>> vcLessEqual (cafe # vcNew [cafe]) (cafe # vcNew [cafe]) -- compare
+-- >>> vclLessEqual (cafe # vclNew [cafe]) (cafe # vclNew [cafe]) -- compare
 -- True
--- >>> vcLessEqual (cafe # cafe # vcNew [cafe]) (cafe # vcNew [cafe]) -- compare
+-- >>> vclLessEqual (cafe # cafe # vclNew [cafe]) (cafe # vclNew [cafe]) -- compare
 -- False
--- >>> vcLessEqual (cafe # vcNew [cafe]) (cafe # cafe # vcNew [cafe]) -- compare
+-- >>> vclLessEqual (cafe # vclNew [cafe]) (cafe # cafe # vclNew [cafe]) -- compare
 -- True
 --
--- >>> vcLessEqual (beef # cafe # face # vcNew [beef, cafe, face]) (beef # cafe # face # vcNew [beef, cafe, face])
+-- >>> vclLessEqual (beef # cafe # face # vclNew [beef, cafe, face]) (beef # cafe # face # vclNew [beef, cafe, face])
 -- True
--- >>> vcLessEqual (beef # cafe # face # vcNew [beef, cafe, face]) (beef # face # vcNew [beef, cafe, face])
+-- >>> vclLessEqual (beef # cafe # face # vclNew [beef, cafe, face]) (beef # face # vclNew [beef, cafe, face])
 -- False
--- >>> vcLessEqual (beef # face # vcNew [beef, cafe, face]) (beef # cafe # face # vcNew [beef, cafe, face])
+-- >>> vclLessEqual (beef # face # vclNew [beef, cafe, face]) (beef # cafe # face # vclNew [beef, cafe, face])
 -- True
-{-@ inline vcLessEqual @-}
-{-@ vcLessEqual :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
-vcLessEqual :: VC pid -> VC pid -> Bool
-vcLessEqual (VC _ aClocks) (VC _ bClocks)
-    = vcLessEqualClocks aClocks bClocks
+{-@ inline vclLessEqual @-}
+{-@ vclLessEqual :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> Bool @-}
+vclLessEqual :: VCL pid -> VCL pid -> Bool
+vclLessEqual (VCL _ aClocks) (VCL _ bClocks)
+    = vclLessEqualClocks aClocks bClocks
 
-{-@ inline vcLess @-}
-{-@ vcLess :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
-vcLess :: Eq pid => VC pid -> VC pid -> Bool
-vcLess a b = vcLessEqual a b && a /= b
+{-@ inline vclLess @-}
+{-@ vclLess :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> Bool @-}
+vclLess :: Eq pid => VCL pid -> VCL pid -> Bool
+vclLess a b = vclLessEqual a b && a /= b
 
 -- |
 --
--- >>> vcIndependent (vcNew []) (vcNew [])
+-- >>> vclIndependent (vclNew []) (vclNew [])
 -- True
-{-@ inline vcIndependent @-}
-{-@ vcIndependent :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
-vcIndependent :: Eq pid => VC pid -> VC pid -> Bool
-vcIndependent a b = not (vcLess a b) && not (vcLess b a)
+{-@ inline vclIndependent @-}
+{-@ vclIndependent :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> Bool @-}
+vclIndependent :: Eq pid => VCL pid -> VCL pid -> Bool
+vclIndependent a b = not (vclLess a b) && not (vclLess b a)
