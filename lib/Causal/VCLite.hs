@@ -5,6 +5,7 @@
 -- PIDs.
 module Causal.VCLite where
 
+import Data.UUID (UUID)
 import Redefined (listLength, listElem, impossibleConst)
 
 -- $setup
@@ -50,15 +51,12 @@ import Redefined (listLength, listElem, impossibleConst)
 type Clock = Integer
 {-@ type Clock = {c:Integer | cMin <= c} @-}
 
-data VCL pid
-    = VCL [pid] [Clock]
-    deriving Eq
+data VCL pid = VCL [pid] [Clock] deriving Eq
 {-@
-data VCL pid
-    = VCL
-        { pids :: [pid]
-        , clocks :: {cs:[Clock] | len pids == len cs}
-        }
+data VCL pid = VCL
+    { pids :: [pid]
+    , clocks :: {cs:[Clock] | len pids == len cs}
+    }
 @-}
 
 
@@ -371,3 +369,51 @@ vclLess a b = vclLessEqual a b && a /= b
 {-@ vclIndependent :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> Bool @-}
 vclIndependent :: Eq pid => VCL pid -> VCL pid -> Bool
 vclIndependent a b = not (vclLess a b) && not (vclLess b a)
+
+
+-- * Wrapper
+
+type PID = UUID
+-- | Wrapper around "VCL" with PIDs anchored to UUID. LH has trouble reflecting
+-- functions that have UUID in the type, but if we hide it inside a data
+-- constructor, it works.
+{-@
+data VC = VC (VCL PID) @-}
+data VC = VC (VCL PID)
+
+{-@ inline vcHasPid @-}
+vcHasPid :: UUID -> VC -> Bool
+vcHasPid pid (VC x) = vclHasPid pid x
+
+{-@ inline vcPidsMatch @-}
+vcPidsMatch :: VC -> VC -> Bool
+vcPidsMatch (VC a) (VC b) = vclPidsMatch a b
+
+{-@ inline vcNew @-}
+vcNew :: [UUID] -> VC
+vcNew pids = VC $ vclNew pids
+
+{-@ inline vcRead @-}
+{-@ vcRead :: p:UUID -> {vc:VC | vcHasPid p vc} -> Clock @-}
+vcRead :: UUID -> VC -> Clock
+vcRead pid (VC x) = vclRead pid x
+
+{-@ inline vcTick @-}
+{-@ vcTick :: p:UUID -> {vc:VC | vcHasPid p vc} -> VC @-}
+vcTick :: UUID -> VC -> VC
+vcTick pid (VC x) = VC (vclTick pid x)
+
+{-@ inline vcCombine @-}
+{-@ vcCombine :: a:VC -> {b:VC | vcPidsMatch a b} -> {c:VC | vcPidsMatch a c && vcPidsMatch b c} @-}
+vcCombine :: VC -> VC -> VC
+vcCombine (VC a) (VC b) = VC (vclCombine a b)
+
+{-@ inline vcLessEqual @-}
+{-@ vcLessEqual :: a:VC -> {b:VC | vcPidsMatch a b} -> Bool @-}
+vcLessEqual :: VC -> VC -> Bool
+vcLessEqual (VC a) (VC b) = vclLessEqual a b
+
+{-@ inline vcLess @-}
+{-@ vcLess :: a:VC -> {b:VC | vcPidsMatch a b} -> Bool @-}
+vcLess :: VC -> VC -> Bool
+vcLess (VC a) (VC b) = vclLess a b
