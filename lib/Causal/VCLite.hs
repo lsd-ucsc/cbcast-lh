@@ -370,6 +370,31 @@ vclLess a b = vclLessEqual a b && a /= b
 vclIndependent :: Eq pid => VCL pid -> VCL pid -> Bool
 vclIndependent a b = not (vclLess a b) && not (vclLess b a)
 
+-- | Determine message deliverability relative to current vector time.
+--
+--      "(2) On reception of message m sent by p_i and timestamped with VT(m),
+--      process p_j =/= p_i delays delivery of m until:
+--
+--          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
+--                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
+--
+-- @vclDeliverable mSender mSent localTime@ computes whether a message sent by
+-- @mSender@ at @mSent@ is deliverable at @localTime@.
+--
+{-@ inline vclDeliverable @-}
+{-@ vclDeliverable :: mSender:pid -> {mSent:VCL pid | vclHasPid mSender mSent} -> {localTime:VCL pid | vclHasPid mSender localTime && vclPidsMatch mSent localTime} -> Bool @-}
+vclDeliverable :: Eq pid => pid -> VCL pid -> VCL pid -> Bool
+vclDeliverable mSender (VCL _ mClocks) (VCL pPids pClocks)
+    = vclDeliverableImpl mSender mClocks pPids pClocks
+{-@ vclDeliverableImpl :: pid -> ws:[Clock] -> {xs:[pid] | len ws == len xs} -> {ys:[Clock] | len ws == len ys && len xs == len ys} -> Bool @-}
+{-@ reflect vclDeliverableImpl @-}
+vclDeliverableImpl :: Eq pid => pid -> [Clock] -> [pid] -> [Clock] -> Bool
+vclDeliverableImpl mSender (mClock:mRest) (pid:pids) (pClock:pRest)
+    | pid == mSender    = mClock == pClock + 1 && vclDeliverableImpl mSender mRest pids pRest
+    | pid /= mSender    = mClock <= pClock     && vclDeliverableImpl mSender mRest pids pRest
+vclDeliverableImpl _ [] [] [] = True
+vclDeliverableImpl _ _ _ _ = impossibleConst False "lists have same length"
+
 
 -- * Wrapper
 
@@ -417,3 +442,10 @@ vcLessEqual (VC a) (VC b) = vclLessEqual a b
 {-@ vcLess :: a:VC -> {b:VC | vcPidsMatch a b} -> Bool @-}
 vcLess :: VC -> VC -> Bool
 vcLess (VC a) (VC b) = vclLess a b
+
+-- | @vcDeliverable mSender mSent localTime@ computes whether a message sent by
+-- @mSender@ at @mSent@ is deliverable at @localTime@.
+{-@ inline vcDeliverable @-}
+{-@ vcDeliverable :: mSender:UUID -> {mSent:VC | vcHasPid mSender mSent} -> {localTime:VC | vcHasPid mSender localTime && vcPidsMatch mSent localTime} -> Bool @-}
+vcDeliverable :: PID -> VC -> VC -> Bool
+vcDeliverable mSender (VC mSent) (VC localTime) = vclDeliverable mSender mSent localTime
