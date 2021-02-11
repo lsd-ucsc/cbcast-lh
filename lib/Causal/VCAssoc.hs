@@ -5,9 +5,10 @@
 -- one irrespective of the constituent sets of PIDs.
 module Causal.VCAssoc where
 
+import Data.UUID (UUID)
 import Redefined (impossibleConst)
 import Language.Haskell.Liquid.ProofCombinators
-    (Proof, QED(..), (===), (***), (?), impossible)
+    (Proof, QED(..), (===), (***), impossible)
 
 -- $setup
 -- >>> import qualified Data.UUID as UUID
@@ -350,6 +351,53 @@ vcaDeliverable mSender (VCA mIdx mClock mRest) (VCA pIdx pClock pRest)
     | mIdx == pIdx && mIdx == mSender   = mClock == pClock + 1 && vcaDeliverable mSender mRest pRest
     | mIdx == pIdx && mIdx /= mSender   = mClock <= pClock     && vcaDeliverable mSender mRest pRest
     | otherwise                         = impossibleConst False "VCs have the same set of PIDs"
+
+
+-- * Wrapper
+
+type PID = UUID
+-- | Wrapper around "VCAssoc" with PIDs anchored to UUID. LH has trouble
+-- reflecting functions that have UUID in the type, but if we hide it inside a
+-- data constructor, it works.
+{-@
+data VC = VC (VCAssoc PID) @-}
+data VC = VC (VCAssoc PID) deriving Eq
+
+{-@ inline vcPidsMatch @-}
+vcPidsMatch :: VC -> VC -> Bool
+vcPidsMatch (VC a) (VC b) = vcaPidsMatch a b
+
+{-@ inline vcNew @-}
+vcNew :: VC
+vcNew = VC vcaNew
+
+{-@ inline vcRead @-}
+{-@ vcRead :: UUID -> VC -> Clock @-}
+vcRead :: UUID -> VC -> Clock
+vcRead pid (VC x) = vcaRead pid x
+
+{-@ inline vcTick @-}
+vcTick :: UUID -> VC -> VC
+vcTick pid (VC x) = VC (vcaTick pid x)
+
+{-@ inline vcCombine @-}
+vcCombine :: VC -> VC -> VC
+vcCombine (VC a) (VC b) = VC (vcaCombine a b)
+
+{-@ inline vcLessEqual @-}
+vcLessEqual :: VC -> VC -> Bool
+vcLessEqual (VC a) (VC b) = vcaLessEqual a b
+
+{-@ inline vcLess @-}
+vcLess :: VC -> VC -> Bool
+vcLess (VC a) (VC b) = vcaLess a b
+
+-- | @vcDeliverable mSender mSent localTime@ computes whether a message sent by
+-- @mSender@ at @mSent@ is deliverable at @localTime@.
+{-@ inline vcDeliverable @-}
+{-@ vcDeliverable :: PID -> m:VC -> {p:VC | vcPidsMatch m p} -> Bool @-}
+vcDeliverable :: PID -> VC -> VC -> Bool
+vcDeliverable mSender (VC mSent) (VC localTime) = vcaDeliverable mSender mSent localTime
 
 
 -- * Properties
