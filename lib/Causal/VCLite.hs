@@ -205,36 +205,6 @@ vclHasPid pid (VCL pids _) = listElem pid pids
 vclPidsMatch :: Eq pid => VCL pid -> VCL pid -> Bool
 vclPidsMatch (VCL aPids _) (VCL bPids _) = aPids == bPids
 
--- |
---
--- >>> [] `vclCombineClocks` []
--- []
--- >>> [1, 2, 0] `vclCombineClocks` [0, 4, 1]
--- [1,4,1]
---
-{-@ reflect vclCombineClocks @-}
-{-@ vclCombineClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
-vclCombineClocks :: [Clock] -> [Clock] -> [Clock]
-vclCombineClocks (x:xs) (y:ys) = (if x < y then y else x):vclCombineClocks xs ys
-vclCombineClocks [] [] = []
-vclCombineClocks _ _ = impossibleConst [] "lists have same length"
-
--- |
---
--- >>> [] `vclLessEqualClocks` []
--- True
--- >>> [1, 2, 0] `vclLessEqualClocks` [2, 2, 0]
--- True
--- >>> [1, 2, 4] `vclLessEqualClocks` [2, 2, 0]
--- False
---
-{-@ reflect vclLessEqualClocks @-}
-{-@ vclLessEqualClocks :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
-vclLessEqualClocks :: [Clock] -> [Clock] -> Bool
-vclLessEqualClocks (x:xs) (y:ys) = x <= y && vclLessEqualClocks xs ys
-vclLessEqualClocks [] [] = True
-vclLessEqualClocks _ _ = impossibleConst False "lists have same length"
-
 
 -- * User API
 
@@ -330,7 +300,13 @@ vclTick pid (VCL pids clocks) = VCL pids $ listSetIndex clocks (clock+1) index
 {-@ vclCombine :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> {c:VCL pid | vclPidsMatch a c && vclPidsMatch b c} @-}
 vclCombine :: VCL pid -> VCL pid -> VCL pid
 vclCombine (VCL aPids aClocks) (VCL _ bClocks)
-    = VCL aPids $ vclCombineClocks aClocks bClocks
+    = VCL aPids $ vclCombineImpl aClocks bClocks
+{-@ reflect vclCombineImpl @-}
+{-@ vclCombineImpl :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | len xs == len zs && len ys == len zs} @-}
+vclCombineImpl :: [Clock] -> [Clock] -> [Clock]
+vclCombineImpl (x:xs) (y:ys) = (if x < y then y else x):vclCombineImpl xs ys
+vclCombineImpl [] [] = []
+vclCombineImpl _ _ = impossibleConst [] "lists have same length"
 
 -- |
 --
@@ -354,7 +330,13 @@ vclCombine (VCL aPids aClocks) (VCL _ bClocks)
 {-@ vclLessEqual :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> Bool @-}
 vclLessEqual :: VCL pid -> VCL pid -> Bool
 vclLessEqual (VCL _ aClocks) (VCL _ bClocks)
-    = vclLessEqualClocks aClocks bClocks
+    = vclLessEqualImpl aClocks bClocks
+{-@ reflect vclLessEqualImpl @-}
+{-@ vclLessEqualImpl :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> Bool @-}
+vclLessEqualImpl :: [Clock] -> [Clock] -> Bool
+vclLessEqualImpl (x:xs) (y:ys) = x <= y && vclLessEqualImpl xs ys
+vclLessEqualImpl [] [] = True
+vclLessEqualImpl _ _ = impossibleConst False "lists have same length"
 
 {-@ inline vclLess @-}
 {-@ vclLess :: a:VCL pid -> {b:VCL pid | vclPidsMatch a b} -> Bool @-}
