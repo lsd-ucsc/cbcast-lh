@@ -1,5 +1,8 @@
 -- | Implementation of vector clocks over polymorphic PIDs using an explicit
 -- association-list ADT with a strict ordering on PID values.
+--
+-- Functions operating on pairs of VCs use the ordering to merge correctly to
+-- one irrespective of the constituent sets of PIDs.
 module Causal.VCAssoc where
 
 import Language.Haskell.Liquid.ProofCombinators
@@ -325,7 +328,8 @@ vcaIndependent a b = not (vcaLess a b) && not (vcaLess b a)
 -- | Practice proof. Also provable with PLE.
 {-@ proofSmthNotLessEqToEmpty :: {vca:VCAssoc pid | vca /= Nil} -> { not (vcaLessEqual vca Nil) } @-}
 proofSmthNotLessEqToEmpty :: Ord pid => VCAssoc pid -> Proof
-proofSmthNotLessEqToEmpty Nil = impossible "vca /= Nil"
+proofSmthNotLessEqToEmpty Nil
+    =   impossible "precondition `vca /= Nil` failed"
 proofSmthNotLessEqToEmpty (VCA cur clock rest)
     =   not (vcaLessEqual (VCA cur clock rest) Nil)
     === not (clock <= cMin && vcaLessEqual rest Nil)
@@ -334,10 +338,14 @@ proofSmthNotLessEqToEmpty (VCA cur clock rest)
     === True
     *** QED
 
+-- | Practice proof. Got lazy and PLE proved it.
+{-@ ple proofGreaterIsNotEmpty @-}
 {-@ proofGreaterIsNotEmpty :: t1:VCAssoc pid -> {t2:VCAssoc pid | vcaLess t1 t2} -> { t2 /= Nil } @-}
 proofGreaterIsNotEmpty :: Ord pid => VCAssoc pid -> VCAssoc pid -> Proof
-proofGreaterIsNotEmpty Nil Nil = impossible "precondition `vcLess t1 t2` implies `t1 /= t2`"
-proofGreaterIsNotEmpty Nil VCA{} = () *** QED
+proofGreaterIsNotEmpty Nil Nil
+    =   impossible "precondition `vcLess t1 t2` implies `t1 /= t2`"
+proofGreaterIsNotEmpty Nil VCA{}
+    =   () *** QED
 proofGreaterIsNotEmpty (VCA cur clock rest) Nil
     =   vcaLess (VCA cur clock rest) Nil
     === (vcaLessEqual (VCA cur clock rest) Nil && (VCA cur clock rest) /= Nil)
@@ -349,4 +357,6 @@ proofGreaterIsNotEmpty (VCA cur clock rest) Nil
     === impossible "precondition `vcless t1 t2` failed"
     *** QED
 proofGreaterIsNotEmpty (VCA aP aC aR) (VCA bP bC bR)
-    =   () *** Admit
+    =   vcaLess (VCA aP aC aR) (VCA bP bC bR)
+    === (vcaLessEqual (VCA aP aC aR) (VCA bP bC bR) && (VCA aP aC aR) /= (VCA bP bC bR))
+    *** QED -- TODO
