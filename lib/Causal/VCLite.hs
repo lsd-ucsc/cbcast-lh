@@ -16,6 +16,7 @@ type Clock = Integer
 
 data VC pid
     = VC [pid] [Clock]
+    deriving Eq
 {-@
 data VC pid
     = VC
@@ -184,13 +185,13 @@ vcCombine1 (VC aPids aClocks) (VC bPids bClocks)
 
 -- {-@ inline vcCombine2 @-} -- FIXME can't lift a partially applied function to specifications
 {-@ vcCombine2 :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
-vcCombine2 :: Eq pid => VC pid -> VC pid -> VC pid
+vcCombine2 :: VC pid -> VC pid -> VC pid
 vcCombine2 (VC aPids aClocks) (VC _ bClocks)
     = VC aPids $ listZipWith larger aClocks bClocks
 
 {-@ inline vcCombine @-}
 {-@ vcCombine :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> {c:VC pid | vcPidsMatch a c && vcPidsMatch b c} @-}
-vcCombine :: Eq pid => VC pid -> VC pid -> VC pid
+vcCombine :: VC pid -> VC pid -> VC pid
 vcCombine (VC aPids aClocks) (VC _ bClocks)
     = VC aPids $ vcCombineClocks aClocks bClocks
 
@@ -204,7 +205,7 @@ vcCombineClocks _ _ = impossibleConst [] "lists have same length"
 
 {-@ inline vcLessEqual @-}
 {-@ vcLessEqual :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
-vcLessEqual :: Eq pid => VC pid -> VC pid -> Bool
+vcLessEqual :: VC pid -> VC pid -> Bool
 vcLessEqual (VC _ aClocks) (VC _ bClocks)
     = vcLessEqualClocks aClocks bClocks
 
@@ -215,3 +216,13 @@ vcLessEqualClocks :: [Clock] -> [Clock] -> Bool
 vcLessEqualClocks (x:xs) (y:ys) = x <= y && vcLessEqualClocks xs ys
 vcLessEqualClocks [] [] = True
 vcLessEqualClocks _ _ = impossibleConst False "lists have same length"
+
+{-@ inline vcLess @-}
+{-@ vcLess :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
+vcLess :: Eq pid => VC pid -> VC pid -> Bool
+vcLess a b = vcLessEqual a b && a /= b
+
+{-@ inline vcIndependent @-}
+{-@ vcIndependent :: a:VC pid -> {b:VC pid | vcPidsMatch a b} -> Bool @-}
+vcIndependent :: Eq pid => VC pid -> VC pid -> Bool
+vcIndependent a b = not (vcLess a b) && not (vcLess b a)
