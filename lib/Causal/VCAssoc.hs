@@ -5,6 +5,7 @@
 -- one irrespective of the constituent sets of PIDs.
 module Causal.VCAssoc where
 
+import Redefined (impossibleConst)
 import Language.Haskell.Liquid.ProofCombinators
     (Proof, QED(..), (===), (***), (?), impossible)
 
@@ -321,6 +322,34 @@ vcaLess a b = vcaLessEqual a b && a /= b
 {-@ inline vcaIndependent @-}
 vcaIndependent :: Ord pid => VCAssoc pid -> VCAssoc pid -> Bool
 vcaIndependent a b = not (vcaLess a b) && not (vcaLess b a)
+
+
+-- | Determine message deliverability relative to current vector time.
+--
+--      "(2) On reception of message m sent by p_i and timestamped with VT(m),
+--      process p_j =/= p_i delays delivery of m until:
+--
+--          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
+--                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
+--
+-- While the rest of the functions in this module are written to work with any
+-- set of PIDs, by merging together correctly, this function requires in its LH
+-- precondition that the PID sets match.
+--
+-- @vcaDeliverable mSender mSent localTime@ computes whether a message sent by
+-- @mSender@ at @mSent@ is deliverable at @localTime@.
+--
+{-@ reflect vcaDeliverable @-}
+{-@ ple vcaDeliverable @-}
+{-@ vcaDeliverable :: pid -> m:VCAssoc pid -> {p:VCAssoc pid | vcaPidsMatch m p} -> Bool @-}
+vcaDeliverable :: Ord pid => pid -> VCAssoc pid -> VCAssoc pid -> Bool
+vcaDeliverable _ Nil Nil = True
+vcaDeliverable _ Nil VCA{} = impossibleConst False "VCs have the same set of PIDs"
+vcaDeliverable _ VCA{} Nil = impossibleConst False "VCs have the same set of PIDs"
+vcaDeliverable mSender (VCA mIdx mClock mRest) (VCA pIdx pClock pRest)
+    | mIdx == pIdx && mIdx == mSender   = mClock == pClock + 1 && vcaDeliverable mSender mRest pRest
+    | mIdx == pIdx && mIdx /= mSender   = mClock <= pClock     && vcaDeliverable mSender mRest pRest
+    | otherwise                         = impossibleConst False "VCs have the same set of PIDs"
 
 
 -- * Properties

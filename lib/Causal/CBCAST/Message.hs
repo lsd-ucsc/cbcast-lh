@@ -1,8 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Causal.CBCAST.Message where
 
-import Redefined
-
 import Causal.VectorClock
 
 {-@
@@ -24,26 +22,6 @@ data Message raw = Message { mSender :: PID, mSent :: VC, mRaw :: raw }
 {-@ deliverable :: m:Message r -> {p:VC | vcPidsMatch (mSent m) p} -> Bool @-}
 deliverable :: Message r -> VC -> Bool
 deliverable Message{mSender, mSent} localTime = vcDeliverable mSender mSent localTime
-
--- | TODO decide whether this belongs in the VectorClock module or can be folded into the above
-{-@ inline vcDeliverable @-}
-{-@ vcDeliverable :: PID -> m:VC -> {p:VC | vcPidsMatch m p} -> Bool @-}
-vcDeliverable :: PID -> VC -> VC -> Bool
-vcDeliverable mSender (VC mSent) (VC localTime) = vcaDeliverable mSender mSent localTime
-
--- | TODO decide whether this belongs in the VCAssoc module
-{-@ reflect vcaDeliverable @-}
-{-@ ple vcaDeliverable @-}
-{-@ vcaDeliverable :: pid -> m:VCAssoc pid -> {p:VCAssoc pid | vcaPidsMatch m p} -> Bool @-}
-vcaDeliverable :: Ord pid => pid -> VCAssoc pid -> VCAssoc pid -> Bool
-vcaDeliverable _ Nil Nil = True
-vcaDeliverable _ Nil VCA{} = impossibleConst False "VCs have the same set of PIDs"
-vcaDeliverable _ VCA{} Nil = impossibleConst False "VCs have the same set of PIDs"
-vcaDeliverable mSender (VCA mIdx mClock mRest) (VCA pIdx pClock pRest)
-    | mIdx == pIdx && mIdx == mSender   = mClock == pClock + 1 && vcaDeliverable mSender mRest pRest
-    | mIdx == pIdx && mIdx /= mSender   = mClock <= pClock     && vcaDeliverable mSender mRest pRest
-    | otherwise                         = impossibleConst False "VCs have the same set of PIDs"
-
 
 -- * Old deliverability
 

@@ -43,3 +43,10 @@ vcLessEqual (VC a) (VC b) = vcaLessEqual a b
 vcLess :: VC -> VC -> Bool
 vcLess (VC a) (VC b) = vcaLess a b
 {-@ inline vcLess @-}
+
+-- | @vcDeliverable mSender mSent localTime@ computes whether a message sent by
+-- @mSender@ at @mSent@ is deliverable at @localTime@.
+{-@ inline vcDeliverable @-}
+{-@ vcDeliverable :: PID -> m:VC -> {p:VC | vcPidsMatch m p} -> Bool @-}
+vcDeliverable :: PID -> VC -> VC -> Bool
+vcDeliverable mSender (VC mSent) (VC localTime) = vcaDeliverable mSender mSent localTime
