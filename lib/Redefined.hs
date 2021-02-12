@@ -19,6 +19,37 @@ listLength [] = 0
 listLength (_x:xs) = 1 + listLength xs
 {-@ measure listLength @-}
 
+-- | Implementation of 'enumFromTo' lifted to specifications. Probably same as
+-- 'Prelude'. Has extra preconditions and postconditions.
+--
+-- >>> listEnumFromTo 0 2
+-- [0,1,2]
+-- >>> listEnumFromTo 0 0
+-- [0]
+--
+-- prop> enumFromTo x y == listEnumFromTo x y
+{-@ reflect listEnumFromTo @-}
+{-@ listEnumFromTo :: a:Int -> {b:Int | a <= b} -> [{n:Int | a <= n && n <= b}] / [b - a] @-}
+listEnumFromTo :: Int -> Int -> [Int]
+listEnumFromTo a b
+    | b <  a = impossibleConst [] "precondition a less-eq b"
+    | a == b = [a]
+    | otherwise = a:listEnumFromTo (a+1) b
+
+-- | Implementation of 'listZip' lifted to specifications. Probably same as
+-- 'Prelude'. Has extra preconditions and postconditions.
+--
+-- >>> listZip "foo" "bar"
+-- [('f','b'),('o','a'),('o','r')]
+--
+-- prop> let (xs,ys) = splitAt (length input `div` 2) input in zip xs ys == listZip xs ys
+{-@ reflect listZip @-}
+{-@ listZip :: xs:[a] -> {ys:[b] | len xs == len ys} -> {zs:[(a, b)] | len xs == len zs && len ys == len zs} @-}
+listZip :: [a] -> [b] -> [(a, b)]
+listZip (x:xs) (y:ys) = (x,y):listZip xs ys
+listZip [] [] = []
+listZip _ _ = impossibleConst [] "lists have same length"
+
 -- | Implementation of 'fmap' over 'Maybe' lifted to specifications.
 --
 -- prop> fmap f m == maybeMap f m
