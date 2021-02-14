@@ -3,7 +3,21 @@ module Causal.CBCAST.Verification where
 import Language.Haskell.Liquid.ProofCombinators
 
 -- $setup
+-- >>> :set -XStandaloneDeriving -XDeriveGeneric
+-- >>> deriving instance Show Process
+-- >>> deriving instance Show r => Show (Message r)
+-- >>> import GHC.Generics (Generic)
+-- >>> deriving instance Generic Process
+-- >>> deriving instance Generic r => Generic (Message r)
 -- >>> import qualified Test.QuickCheck as QC
+-- >>> :{
+-- instance QC.Arbitrary Process where
+--     arbitrary = QC.sized $ \n -> do
+--         time <- QC.suchThat QC.arbitrary (\xs -> length xs == n)
+--         node <- QC.choose (0, length time)
+--         return $ Process node time
+--     shrink = QC.recursivelyShrink
+-- :}
 --
 -- >>> :{
 -- instance QC.Arbitrary r => QC.Arbitrary (Message r) where
@@ -12,19 +26,11 @@ import Language.Haskell.Liquid.ProofCombinators
 --         sender <- QC.choose (0, length sent)
 --         raw <- QC.arbitrary
 --         return $ Message sender sent raw
+--     shrink m =
+--         [ Message sender sent raw
+--         | (sender, sent, raw) <- QC.shrink (mSender m, mSent m, mRaw m)
+--         ]
 -- :}
---
--- >>> :{
--- instance QC.Arbitrary Process where
---     arbitrary = QC.sized $ \n -> do
---         time <- QC.suchThat QC.arbitrary (\xs -> length xs == n)
---         node <- QC.choose (0, length time)
---         return $ Process node time
--- :}
---
--- >>> :set -XStandaloneDeriving
--- >>> deriving instance Show r => Show (Message r)
--- >>> deriving instance Show Process
 --
 -- >>> -- QC.sample (QC.arbitrary :: QC.Gen (Message String))
 -- >>> -- QC.sample (QC.arbitrary :: QC.Gen Process)
@@ -256,7 +262,7 @@ deliverable1 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
 -- almost the same as @deliverable1@ but this one uses explicit recursion
 -- instead of a list comprehension.
 --
--- prop> deliverable1 m p == deliverable2 m p
+-- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable2 m p
 {-@ inline deliverable2 @-}
 {-@ deliverable2 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
@@ -282,8 +288,8 @@ deliverable2Pred k p_i m'VT p_j'VT
 -- @mSent m@ is deliverable to @pNode p@ at @pTime p@. This implementation is
 -- more efficient than @deliverable1@ and @deliverable2@.
 --
--- prop> deliverable1 m p == deliverable3 m p
--- prop> deliverable2 m p == deliverable3 m p
+-- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable3 m p
+-- prop> length (mSent m) == length (pTime p) ==> deliverable2 m p == deliverable3 m p
 {-@ inline deliverable3 @-}
 {-@ deliverable3 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
