@@ -363,7 +363,7 @@ causallyBefore a b = mSent a `vcLess` mSent b
 
 {-@ proofVectorClocksConsistentWithCausality :: m1:Message r -> {m2:Message r | causallyBefore m1 m2} -> { vcLess (mSent m1) (mSent m2) } @-}
 proofVectorClocksConsistentWithCausality :: Message r -> Message r -> Proof
-proofVectorClocksConsistentWithCausality _ _ = () *** QED
+proofVectorClocksConsistentWithCausality _ _ = trivial
 
 -- page 8/279:
 --
