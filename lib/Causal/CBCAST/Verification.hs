@@ -236,13 +236,25 @@ data Message raw = Message
     , mRaw :: raw
     }
 
--- | Determine message deliverability relative to current vector time.
+-- | Determine message deliverability at a process.
 --
---      "(2) On reception of message m sent by p_i and timestamped with VT(m),
+--      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
+--      m.
+--
+--      (2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
 --
 --          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
---                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
+--                           { VT(m)[k] <= VT(p_j)[k]     otherwise
+--
+--      Process p_j need not delay messages received from itself."
+--
+-- We interpret this to mean that for `p_j == p_i` a message is deliverable
+-- when `VT(m) == VT(p_j)` because (1) means that the process and the message
+-- have the same vector clock when it is sent, and "p_j need not delay messages
+-- received from itself."
+--
+-- For `p_j /= p_i` we check the elementwise VC inequality above.
 --
 -- @deliverable1 m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@. This implementation uses a list
@@ -250,7 +262,8 @@ data Message raw = Message
 {-@ deliverable1 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
 deliverable1 :: Message r -> Process -> Bool
 deliverable1 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
-    = p_j == p_i || listAnd
+    | p_j == p_i    = m'VT == p_j'VT
+    | otherwise     = listAnd
         [ if k == p_i   then (m'VT ! k) == (p_j'VT ! k) + 1
                         else (m'VT ! k) <= (p_j'VT ! k)
         | k <- [0 .. listLength p_j'VT]
@@ -267,7 +280,8 @@ deliverable1 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
 {-@ deliverable2 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
 deliverable2 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
-    = p_j == p_i || listAnd (deliverable2Iter k n p_i m'VT p_j'VT)
+    | p_j == p_i    = m'VT == p_j'VT
+    | otherwise     = listAnd (deliverable2Iter k n p_i m'VT p_j'VT)
   where
     k = 0
     n = listLength p_j'VT
@@ -294,7 +308,8 @@ deliverable2Pred k p_i m'VT p_j'VT
 {-@ deliverable3 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
 deliverable3 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
-    = p_j == p_i || deliverable3Iter p_i m'VT p_j'VT
+    | p_j == p_i    = m'VT == p_j'VT
+    | otherwise     = deliverable3Iter p_i m'VT p_j'VT
 {-@ reflect deliverable3Iter @-}
 {-@ deliverable3Iter :: Int -> m'VT:VC -> {p_j'VT:VC | len m'VT == len p_j'VT} -> Bool @-}
 deliverable3Iter :: PID -> VC -> VC -> Bool
