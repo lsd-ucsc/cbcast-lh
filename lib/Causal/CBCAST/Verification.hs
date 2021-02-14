@@ -361,9 +361,9 @@ causallyBefore a b = mSent a `vcLess` mSent b
 --      "Observe first that m_1 -> m_2, hence VT(m_1) < VT(m_2) (basic property
 --      of vector times)."
 
-{-@ basicPropertyOfVectorClocks :: m1:Message r -> {m2:Message r | causallyBefore m1 m2} -> { vcLess (mSent m1) (mSent m2) } @-}
-basicPropertyOfVectorClocks :: Message r -> Message r -> Proof
-basicPropertyOfVectorClocks Message{} Message{} = () *** QED
+{-@ proofVectorClocksConsistentWithCausality :: m1:Message r -> {m2:Message r | causallyBefore m1 m2} -> { vcLess (mSent m1) (mSent m2) } @-}
+proofVectorClocksConsistentWithCausality :: Message r -> Message r -> Proof
+proofVectorClocksConsistentWithCausality _ _ = () *** QED
 
 -- page 8/279:
 --
