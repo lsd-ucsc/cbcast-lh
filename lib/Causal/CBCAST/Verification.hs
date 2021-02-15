@@ -236,6 +236,14 @@ data Message raw = Message
     , mRaw :: raw
     }
 
+{-@ reflect compatibleVCsMP @-}
+compatibleVCsMP :: Message r -> Process -> Bool
+compatibleVCsMP m p = listLength (mSent m) == listLength (pTime p)
+
+{-@ reflect compatibleVCsMM @-}
+compatibleVCsMM :: Message r -> Message r -> Bool
+compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
+
 -- | Determine message deliverability at a process.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
@@ -259,9 +267,10 @@ data Message raw = Message
 -- @deliverable1 m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@. This implementation uses a list
 -- comprehension and can't be lifted to specifications.
-{-@ deliverable1 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
+{-@ deliverable1 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable1 :: Message r -> Process -> Bool
-deliverable1 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
+deliverable1 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'VT}
+    | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | p_j == p_i    = m'VT == p_j'VT
     | otherwise     = listAnd
         [ if k == p_i   then (m'VT ! k) == (p_j'VT ! k) + 1
@@ -277,9 +286,10 @@ deliverable1 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable2 m p
 {-@ inline deliverable2 @-}
-{-@ deliverable2 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
+{-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
-deliverable2 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
+deliverable2 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'VT}
+    | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | p_j == p_i    = m'VT == p_j'VT
     | otherwise     = listAnd (deliverable2Iter k n p_i m'VT p_j'VT)
   where
@@ -305,9 +315,10 @@ deliverable2Pred k p_i m'VT p_j'VT
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable3 m p
 -- prop> length (mSent m) == length (pTime p) ==> deliverable2 m p == deliverable3 m p
 {-@ inline deliverable3 @-}
-{-@ deliverable3 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
+{-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
-deliverable3 Message{mSender=p_i, mSent=m'VT} Process{pNode=p_j, pTime=p_j'VT}
+deliverable3 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'VT}
+    | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | p_j == p_i    = m'VT == p_j'VT
     | otherwise     = deliverable3Iter p_i m'VT p_j'VT
 {-@ reflect deliverable3Iter @-}
@@ -352,9 +363,11 @@ proofDeliverable2SameAs3 Message{} Process{}
 --      shorthand for send(m) -> send(m')."
 
 {-@ inline causallyBefore @-}
-{-@ causallyBefore :: a:Message r -> {b:Message r | len (mSent a) == len (mSent b)} -> Bool @-}
+{-@ causallyBefore :: a:Message r -> {b:Message r | compatibleVCsMM a b} -> Bool @-}
 causallyBefore :: Message r -> Message r -> Bool
-causallyBefore a b = mSent a `vcLess` mSent b
+causallyBefore a b
+    | not (compatibleVCsMM a b) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
+    | otherwise = mSent a `vcLess` mSent b
 
 -- page 11/282:
 --
@@ -396,6 +409,6 @@ proofSafety
     -> {not (deliverable2 m2 p)}
 @-}
 proofSafety :: Process -> Message r -> Message r -> Proof
-proofSafety Process{} Message{} Message{}
-    =   ()
+proofSafety p m1 m2
+    =   not (deliverable2 m2 p)
     *** Admit -- TODO
