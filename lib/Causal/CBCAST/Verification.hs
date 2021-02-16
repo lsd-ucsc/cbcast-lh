@@ -236,6 +236,14 @@ data Message raw = Message
     , mRaw :: raw
     }
 
+{-@ reflect compatibleVCsMP @-}
+compatibleVCsMP :: Message r -> Process -> Bool
+compatibleVCsMP m p = listLength (mSent m) == listLength (pTime p)
+
+{-@ reflect compatibleVCsMM @-}
+compatibleVCsMM :: Message r -> Message r -> Bool
+compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
+
 -- | Determine message deliverability at a process.
 --
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
@@ -259,9 +267,10 @@ data Message raw = Message
 -- @deliverable1 m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@. This implementation uses a list
 -- comprehension and can't be lifted to specifications.
-{-@ deliverable1 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
+{-@ deliverable1 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable1 :: Message r -> Process -> Bool
-deliverable1 Message{mSender=mID, mSent=mVT} Process{pNode=pID, pTime=pVT}
+deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
+    | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | mID == pID    = mVT == pVT
     | otherwise     = listAnd
         [ if k == mID   then (mVT ! k) == (pVT ! k) + 1
@@ -277,9 +286,10 @@ deliverable1 Message{mSender=mID, mSent=mVT} Process{pNode=pID, pTime=pVT}
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable2 m p
 {-@ inline deliverable2 @-}
-{-@ deliverable2 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
+{-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
-deliverable2 Message{mSender=mID, mSent=mVT} Process{pNode=pID, pTime=pVT}
+deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
+    | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | mID == pID    = mVT == pVT
     | otherwise     = listAnd (deliverable2Iter k n mID mVT pVT)
   where
@@ -305,9 +315,10 @@ deliverable2Pred k mID mVT pVT
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable3 m p
 -- prop> length (mSent m) == length (pTime p) ==> deliverable2 m p == deliverable3 m p
 {-@ inline deliverable3 @-}
-{-@ deliverable3 :: m:Message r -> {p:Process | len (mSent m) == len (pTime p)} -> Bool @-}
+{-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
-deliverable3 Message{mSender=mID, mSent=mVT} Process{pNode=pID, pTime=pVT}
+deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
+    | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | mID == pID    = mVT == pVT
     | otherwise     = deliverable3Iter mID mVT pVT
 {-@ reflect deliverable3Iter @-}
@@ -352,9 +363,11 @@ proofDeliverable2SameAs3 Message{} Process{}
 --      shorthand for send(m) -> send(m')."
 
 {-@ inline causallyBefore @-}
-{-@ causallyBefore :: a:Message r -> {b:Message r | len (mSent a) == len (mSent b)} -> Bool @-}
+{-@ causallyBefore :: a:Message r -> {b:Message r | compatibleVCsMM a b} -> Bool @-}
 causallyBefore :: Message r -> Message r -> Bool
-causallyBefore a b = mSent a `vcLess` mSent b
+causallyBefore a b
+    | not (compatibleVCsMM a b) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
+    | otherwise = mSent a `vcLess` mSent b
 
 -- page 11/282:
 --
@@ -410,6 +423,7 @@ proofOwnMessagesSafety
 proofOwnMessagesSafety :: Process -> Message r -> Message r -> Proof
 proofOwnMessagesSafety p@Process{} m1@Message{} m2@Message{}
     -- Cases of: deliverable2 m2 p
+    | not (compatibleVCsMP m2 p)    = unreachable
     | pNode p == mSender m2         = trivial *** QED
     | otherwise                     = unreachable
     -- m1 being deliverable means it has the same vc as p
