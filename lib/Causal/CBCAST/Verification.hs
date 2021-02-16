@@ -314,6 +314,13 @@ deliverable2Pred k mID mVT pVT
     | k == mID  = (mVT ! k) == (pVT ! k) + 1
     | otherwise = (mVT ! k) <= (pVT ! k)
 
+-- | Is the PID in the first VC exactly one more than the corresponding in the
+-- second VC?
+{-@ inline pidUpNext @-}
+{-@ pidUpNext :: mID:PID -> {mVT:VC | mID < len mVT} -> {pVT:VC | mID < len pVT} -> Bool @-}
+pidUpNext :: PID -> VC -> VC -> Bool
+pidUpNext mID mVT pVT = (mVT ! mID) == (pVT ! mID) + 1
+
 -- | @deliverable3 m p@ computes whether a message sent by @mSender m@ at
 -- @mSent m@ is deliverable to @pNode p@ at @pTime p@. This implementation is
 -- more efficient than @deliverable1@ and @deliverable2@.
@@ -428,3 +435,12 @@ proofSafety p@Process{} m1@Message{} m2@Message{}
         = () *** Admit
     | otherwise
         = () *** Admit
+
+{-@
+proofDeliverableUpNext
+    :: p:Process
+    -> {m:Message r | pNode p /= mSender m && deliverable2 m p}
+    -> {pidUpNext (mSender m) (mSent m) (pTime p)}
+@-}
+proofDeliverableUpNext p@Process{pNode=pID, pTime=pVT} m@Message{mSender=mID, mSent=mVT}
+    = () *** Admit
