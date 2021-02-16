@@ -86,28 +86,34 @@ type VC = [Clock]
 type PID = Nat @-}
 type PID = Int
 
--- | Read the index in a vector clock. Probably similar to (!!) but doesn't
--- crash when out of bounds.
+-- | Read the index in a vector clock. Similar to (!!) but doesn't crash when
+-- out of bounds.
 --
--- >>> [9,8,7] ! 0
+-- >>> vcRead 0 [9,8,7]
 -- 9
--- >>> [9,8,7] ! 1
+-- >>> vcRead 1 [9,8,7]
 -- 8
--- >>> [9,8,7] ! 2
+-- >>> vcRead 2 [9,8,7]
 -- 7
 --
--- >>> [9,8,7] ! (-1)
+-- >>> vcRead (-1) [9,8,7]
 -- 0
--- >>> [9,8,7] ! 3
+-- >>> vcRead 3 [9,8,7]
 -- 0
-{-@ reflect ! @-}
+{-@ reflect vcRead @-}
+{-@
+vcRead :: p:PID -> {xs:VC | p < len xs} -> Clock @-}
+vcRead :: PID -> VC -> Clock
+vcRead _ [] = impossibleConst 0 "index is less than list length"
+vcRead p (c:cs)
+    | p == 0    = c
+    | otherwise = vcRead (p-1) cs
+
+{-@ inline ! @-}
 {-@
 (!) :: xs:VC -> {p:PID | p < len xs} -> Clock @-}
 (!) :: VC -> PID -> Clock
-[] ! _ = impossibleConst 0 "index is less than list length"
-(c:cs) ! p
-    | p == 0    = c
-    | otherwise = cs ! (p-1)
+cs ! p = vcRead p cs
 infixl 9 !
 
 -- | Increment the index in a vector clock.
