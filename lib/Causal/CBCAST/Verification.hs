@@ -269,14 +269,14 @@ compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 -- comprehension and can't be lifted to specifications.
 {-@ deliverable1 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable1 :: Message r -> Process -> Bool
-deliverable1 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'VT}
+deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | p_j == p_i    = m'VT == p_j'VT
+    | mID == pID    = mVT == pVT
     | otherwise     = listAnd
-        [ if k == p_i   then (m'VT ! k) == (p_j'VT ! k) + 1
-                        else (m'VT ! k) <= (p_j'VT ! k)
-        | k <- [0 .. listLength p_j'VT]
-        , 0 <= k && k < listLength p_j'VT
+        [ if k == mID   then (mVT ! k) == (pVT ! k) + 1
+                        else (mVT ! k) <= (pVT ! k)
+        | k <- [0 .. listLength pVT]
+        , 0 <= k && k < listLength pVT
         ]
 
 -- | @deliverable2 m p@ computes whether a message sent by @mSender m@ at
@@ -288,25 +288,25 @@ deliverable1 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'V
 {-@ inline deliverable2 @-}
 {-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
-deliverable2 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'VT}
+deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | p_j == p_i    = m'VT == p_j'VT
-    | otherwise     = listAnd (deliverable2Iter k n p_i m'VT p_j'VT)
+    | mID == pID    = mVT == pVT
+    | otherwise     = listAnd (deliverable2Iter k n mID mVT pVT)
   where
     k = 0
-    n = listLength p_j'VT
-{-@ deliverable2Iter :: k:Nat -> n:Nat -> {p_i:PID | p_i < n} -> {m'VT:VC | n == len m'VT} -> {p_j'VT:VC | n == len p_j'VT} -> [Bool] / [n - k] @-}
+    n = listLength pVT
+{-@ deliverable2Iter :: k:Nat -> n:Nat -> {mID:PID | mID < n} -> {mVT:VC | n == len mVT} -> {pVT:VC | n == len pVT} -> [Bool] / [n - k] @-}
 {-@ reflect deliverable2Iter @-}
 deliverable2Iter :: Int -> Int -> PID -> VC -> VC -> [Bool]
-deliverable2Iter k n p_i m'VT p_j'VT
-    | k < n     = deliverable2Pred k p_i m'VT p_j'VT:deliverable2Iter (k+1) n p_i m'VT p_j'VT
+deliverable2Iter k n mID mVT pVT
+    | k < n     = deliverable2Pred k mID mVT pVT:deliverable2Iter (k+1) n mID mVT pVT
     | otherwise = []
-{-@ deliverable2Pred :: k:PID -> p_i:PID -> {m'VT:VC | k < len m'VT && p_i < len m'VT} -> {p_j'VT:VC | k < len p_j'VT && p_i < len p_j'VT} -> Bool @-}
+{-@ deliverable2Pred :: k:PID -> mID:PID -> {mVT:VC | k < len mVT && mID < len mVT} -> {pVT:VC | k < len pVT && mID < len pVT} -> Bool @-}
 {-@ inline deliverable2Pred @-}
 deliverable2Pred :: PID -> PID -> VC -> VC -> Bool
-deliverable2Pred k p_i m'VT p_j'VT
-    | k == p_i  = (m'VT ! k) == (p_j'VT ! k) + 1
-    | otherwise = (m'VT ! k) <= (p_j'VT ! k)
+deliverable2Pred k mID mVT pVT
+    | k == mID  = (mVT ! k) == (pVT ! k) + 1
+    | otherwise = (mVT ! k) <= (pVT ! k)
 
 -- | @deliverable3 m p@ computes whether a message sent by @mSender m@ at
 -- @mSent m@ is deliverable to @pNode p@ at @pTime p@. This implementation is
@@ -317,16 +317,16 @@ deliverable2Pred k p_i m'VT p_j'VT
 {-@ inline deliverable3 @-}
 {-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
-deliverable3 m@Message{mSender=p_i, mSent=m'VT} p@Process{pNode=p_j, pTime=p_j'VT}
+deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | p_j == p_i    = m'VT == p_j'VT
-    | otherwise     = deliverable3Iter p_i m'VT p_j'VT
+    | mID == pID    = mVT == pVT
+    | otherwise     = deliverable3Iter mID mVT pVT
 {-@ reflect deliverable3Iter @-}
-{-@ deliverable3Iter :: Int -> m'VT:VC -> {p_j'VT:VC | len m'VT == len p_j'VT} -> Bool @-}
+{-@ deliverable3Iter :: Int -> mVT:VC -> {pVT:VC | len mVT == len pVT} -> Bool @-}
 deliverable3Iter :: PID -> VC -> VC -> Bool
-deliverable3Iter p_i (mClock:mRest) (pClock:pRest)
-    | p_i == 0  = mClock == pClock + 1  && deliverable3Iter (p_i-1) mRest pRest
-    | otherwise = mClock <= pClock      && deliverable3Iter (p_i-1) mRest pRest
+deliverable3Iter mID (mClock:mRest) (pClock:pRest)
+    | mID == 0  = mClock == pClock + 1  && deliverable3Iter (mID-1) mRest pRest
+    | otherwise = mClock <= pClock      && deliverable3Iter (mID-1) mRest pRest
 deliverable3Iter _ [] [] = True
 deliverable3Iter _ _ _ = impossibleConst False "VCs have same length"
 
