@@ -415,23 +415,16 @@ proofSafety
     -> {not (deliverable2 m2 p)}
 @-}
 proofSafety :: Process -> Message r -> Message r -> Proof
-proofSafety p m1 m2
-    | pNode p == mSender m1 && mSender m1 == mSender m2 = proofOwnMessagesSafety p m1 m2
-    | otherwise                                         = () *** Admit
-
-{-@
-proofOwnMessagesSafety
-    :: p:Process
-    -> {m1:Message r | pNode p == mSender m1 && deliverable2 m1 p}
-    -> {m2:Message r | pNode p == mSender m2 && causallyBefore m1 m2}
-    -> {not (deliverable2 m2 p)}
-@-}
-proofOwnMessagesSafety :: Process -> Message r -> Message r -> Proof
-proofOwnMessagesSafety p@Process{} m1@Message{} m2@Message{}
-    -- Cases of: deliverable2 m2 p
-    | not (compatibleVCsMP m2 p)    = unreachable
-    | pNode p == mSender m2         = trivial *** QED
-    | otherwise                     = unreachable
-    -- m1 being deliverable means it has the same vc as p
-    -- m1 being causally before m2 means their vcs are distinct
-    -- therefore m2 cannot be deliverable
+proofSafety p@Process{} m1@Message{} m2@Message{}
+    | pNode p == mSender m1 && pNode p == mSender m2
+        -- m1 being sent by p and being deliverable means it has the same vc as p
+        -- m1 being causally before m2 means their vcs are distinct
+        -- but m2 is known to have the same vc as p
+        -- therefore this case is a contradiction
+        = unreachable
+    | pNode p == mSender m1 && pNode p /= mSender m2
+        = () *** Admit
+    | pNode p /= mSender m1 && pNode p == mSender m2
+        = () *** Admit
+    | otherwise
+        = () *** Admit
