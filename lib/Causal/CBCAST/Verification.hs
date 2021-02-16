@@ -442,19 +442,8 @@ proofSafety
     -> {not (deliverable2 m2 p)}
 @-}
 proofSafety :: Process -> Message r -> Message r -> Proof
-proofSafety p@Process{} m1@Message{} m2@Message{}
-    | pNode p == mSender m1 && mSender m1 == mSender m2
-        -- m1 being sent by p and being deliverable means m1 has the same vc as p
-        -- m1 being causally before m2 means their vcs are distinct
-        -- for m2 to be deliverable it would have to have the same vc as p
-        = trivial
-    | pNode p == mSender m1 && mSender m1 /= mSender m2
-        -- m1 being sent by p and being deliverable means m1 has the same vc as p
-        -- m1 being causally before m2 means ..
-        --
-        = () *** Admit
-    | otherwise
-        = () *** Admit
+proofSafety Process{} Message{} Message{}
+    = () *** Admit
 
 {-@
 proofDeliverableUpNext
@@ -463,5 +452,5 @@ proofDeliverableUpNext
     -> {pidUpNext (mSender m) (mSent m) (pTime p)}
 @-}
 proofDeliverableUpNext :: Process -> Message r -> Proof
-proofDeliverableUpNext p@Process{pNode=pID, pTime=pVT} m@Message{mSender=mID, mSent=mVT}
+proofDeliverableUpNext Process{} Message{}
     = () *** Admit
