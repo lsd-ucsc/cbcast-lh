@@ -263,12 +263,35 @@ compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 --
 --      Process p_j need not delay messages received from itself."
 --
--- We interpret this to mean that for `p_j == p_i` a message is deliverable
--- when `VT(m) == VT(p_j)` because (1) means that the process and the message
--- have the same vector clock when it is sent, and "p_j need not delay messages
--- received from itself."
+-- Example:
 --
--- For `p_j /= p_i` we check the elementwise VC inequality above.
+-- P0 and P1 both start at [0,0].
+-- >    P0@[0,0]    P1@[0,0]
+-- P0 sends "hello" causing it to increment its own vector clock and append
+-- that to the message.
+-- >    P0@[1,0]    P1@[0,0]
+-- P1 receives the message from P0, delivers it, and applies the attached
+-- vector clock.
+-- >    P0@[1,0]    P1@[1,0]
+-- P1 sends "world" causing it to increment its own vector clock and append
+-- that to the message.
+-- >    P0@[1,0]    P1@[1,1]
+-- What does P0 think of the deliverability of both messages?
+--
+-- * The "hello"@[1,0] is not deliverable at P0.
+-- * The "world"@[1,1] is deliverable at P0.
+--
+-- From this we conclude that "Process p_j need not delay messages received
+-- from itself" means that it actually _cannot_ delay such messages, since they
+-- won't be considered deliverable. This interpretation is bolstered by the
+-- precondition in (2) "On reception of message m sent by p_i, process p_j =/=
+-- p_i delays delivery".
+--
+-- >>> let p = Process 0 [1,0]
+-- >>> deliverable1 (Message 0 [1,0] "hello") p
+-- False
+-- >>> deliverable1 (Message 1 [1,1] "world") p
+-- True
 --
 -- @deliverable1 m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@. This implementation uses a list
@@ -277,7 +300,6 @@ compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 deliverable1 :: Message r -> Process -> Bool
 deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | mID == pID    = mVT == pVT
     | otherwise     = listAnd
         [ if k == mID   then (mVT ! k) == (pVT ! k) + 1
                         else (mVT ! k) <= (pVT ! k)
@@ -296,7 +318,6 @@ deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
 deliverable2 :: Message r -> Process -> Bool
 deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | mID == pID    = mVT == pVT
     | otherwise     = listAnd (deliverable2Iter k n mID mVT pVT)
   where
     k = 0
@@ -332,7 +353,6 @@ pidUpNext mID mVT pVT = (mVT ! mID) == (pVT ! mID) + 1
 deliverable3 :: Message r -> Process -> Bool
 deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | mID == pID    = mVT == pVT
     | otherwise     = deliverable3Iter mID mVT pVT
 {-@ reflect deliverable3Iter @-}
 {-@ deliverable3Iter :: Int -> mVT:VC -> {pVT:VC | len mVT == len pVT} -> Bool @-}

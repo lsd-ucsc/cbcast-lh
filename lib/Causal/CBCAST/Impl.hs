@@ -24,6 +24,9 @@ internalSend :: r -> Process r -> Process r
 internalSend r p = let vt = vcTick (pNode p) (pVT p) in p
     { pVT = vt
     , pOutbox = fPush (pOutbox p) Message{mSender=pNode p, mSent=vt, mRaw=r}
+    -- FIXME: message to self should be placed directly in the inbox
+    -- FIXME: message to self must be delivered directly to self without passing through DQ
+    -- FIXME: message to self must not go on the network; if it _does_ go on the network it must be specially handled upon receipt so as not to go on the delay queue
     }
 {-@ inline internalSend @-}
 
@@ -102,6 +105,7 @@ internalDeliverReceived p =
 -- messages in the delay queue.
 send :: r -> Process r -> Process r
 send r p = internalDeliverReceived $ internalSend r p
+-- FIXME: message to self must be delivered directly to self without passing through DQ
 {-@ inline send @-}
 
 -- | Receive a message, possibly triggering the delivery of messages in the
