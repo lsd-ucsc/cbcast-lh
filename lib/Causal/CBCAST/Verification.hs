@@ -439,3 +439,14 @@ proofSafety p@Process{} m1@Message{} m2@Message{}
     =   (listLength (pTime p) === listLength (mSent m2) *** QED) -- transitivity of compatibility
     &&& (deliverable2 m1 p === causallyBefore m1 m2 *** QED) -- unfold the preconditions
     &&& (deliverable2 m2 p *** Admit) -- uctual proof
+
+-- Notes from Yiyun
+--  * Two kinds of automation; SMT constraints & PLE
+--      * SMT can handle sentences of boolean logic w/o quantifiers
+--          * p | q -> r
+--          * Functions bring in forall quantifiers
+--      * PLE unfolds reflected functions (which otherwise only have congruence)
+--  * Reflected functions need PLE or a proof to establish some postconditions
+--      * PLE won't be able to prove things which need induction
+--      * `cast` lets you attach a proof into a reflected function (eg. where PLE isn't enough)
+--      * eg. vrdt/src/Liquid/Data/Map.hs
