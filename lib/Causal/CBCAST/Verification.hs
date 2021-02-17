@@ -89,31 +89,32 @@ type PID = Int
 -- | Read the index in a vector clock. Similar to (!!) but doesn't crash when
 -- out of bounds.
 --
--- >>> vcRead 0 [9,8,7]
+-- >>> vcRead [9,8,7] 0
 -- 9
--- >>> vcRead 1 [9,8,7]
+-- >>> vcRead [9,8,7] 1
 -- 8
--- >>> vcRead 2 [9,8,7]
+-- >>> vcRead [9,8,7] 2
 -- 7
 --
--- >>> vcRead (-1) [9,8,7]
+-- >>> vcRead [9,8,7] (-1)
 -- 0
--- >>> vcRead 3 [9,8,7]
+-- >>> vcRead [9,8,7] 3
 -- 0
 {-@ reflect vcRead @-}
 {-@
-vcRead :: p:PID -> {xs:VC | p < len xs} -> Clock @-}
-vcRead :: PID -> VC -> Clock
-vcRead _ [] = impossibleConst 0 "index is less than list length"
-vcRead p (c:cs)
+vcRead :: xs:VC -> {p:PID | p < len xs} -> Clock @-}
+vcRead :: VC -> PID -> Clock
+vcRead [] _ = impossibleConst 0 "index is less than list length"
+vcRead (c:cs) p
     | p == 0    = c
-    | otherwise = vcRead (p-1) cs
+    | otherwise = vcRead cs (p-1)
 
+-- | Alias for 'vcRead'
 {-@ inline ! @-}
 {-@
 (!) :: xs:VC -> {p:PID | p < len xs} -> Clock @-}
 (!) :: VC -> PID -> Clock
-cs ! p = vcRead p cs
+cs ! p = vcRead cs p
 infixl 9 !
 
 -- | Increment the index in a vector clock.
