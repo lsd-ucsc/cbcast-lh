@@ -313,7 +313,8 @@ deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
 -- instead of a list comprehension.
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable2 m p
-{-@ inline deliverable2 @-}
+{-@ reflect deliverable2 @-}
+{-@ ple deliverable2 @-}
 {-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
 deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
@@ -329,7 +330,7 @@ deliverable2Iter k n mID mVT pVT
     | k < n     = deliverable2Pred k mID mVT pVT:deliverable2Iter (k+1) n mID mVT pVT
     | otherwise = []
 {-@ deliverable2Pred :: k:PID -> mID:PID -> {mVT:VC | k < len mVT && mID < len mVT} -> {pVT:VC | k < len pVT && mID < len pVT} -> Bool @-}
-{-@ inline deliverable2Pred @-}
+{-@ reflect deliverable2Pred @-}
 deliverable2Pred :: PID -> PID -> VC -> VC -> Bool
 deliverable2Pred k mID mVT pVT
     | k == mID  = (mVT ! k) == (pVT ! k) + 1
@@ -348,7 +349,7 @@ pidUpNext mID mVT pVT = (mVT ! mID) == (pVT ! mID) + 1
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable3 m p
 -- prop> length (mSent m) == length (pTime p) ==> deliverable2 m p == deliverable3 m p
-{-@ inline deliverable3 @-}
+{-@ reflect deliverable3 @-}
 {-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
 deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
