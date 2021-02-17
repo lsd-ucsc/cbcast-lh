@@ -298,9 +298,9 @@ compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 -- comprehension and can't be lifted to specifications.
 {-@ deliverable1 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable1 :: Message r -> Process -> Bool
-deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
+deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | otherwise     = listAnd
+    | otherwise = listAnd
         [ if k == mID   then (mVT ! k) == (pVT ! k) + 1
                         else (mVT ! k) <= (pVT ! k)
         | k <- [0 .. listLength pVT]
@@ -316,9 +316,9 @@ deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
 {-@ inline deliverable2 @-}
 {-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
-deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
+deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | otherwise     = listAnd (deliverable2Iter k n mID mVT pVT)
+    | otherwise = listAnd (deliverable2Iter k n mID mVT pVT)
   where
     k = 0
     n = listLength pVT
@@ -351,9 +351,9 @@ pidUpNext mID mVT pVT = (mVT ! mID) == (pVT ! mID) + 1
 {-@ inline deliverable3 @-}
 {-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
-deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pNode=pID, pTime=pVT}
+deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
-    | otherwise     = deliverable3Iter mID mVT pVT
+    | otherwise = deliverable3Iter mID mVT pVT
 {-@ reflect deliverable3Iter @-}
 {-@ deliverable3Iter :: Int -> mVT:VC -> {pVT:VC | len mVT == len pVT} -> Bool @-}
 deliverable3Iter :: PID -> VC -> VC -> Bool
