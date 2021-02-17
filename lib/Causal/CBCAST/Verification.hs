@@ -263,8 +263,20 @@ compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 --                           { VT(m)[k] <= VT(p_j)[k]     otherwise
 --
 --      Process p_j need not delay messages received from itself."
---
--- Example:
+{-@
+type Deliverable r
+    =  n:PID
+    -> m:Message r
+    -> p:Process
+    -> {k:PID| k < n}
+    -> {b:Bool | b <=>
+         (    (k == mSenderId m) => (vcRead (mSenderVc m) k == vcRead (pTime p) k + 1)
+           && (k /= mSenderId m) => (vcRead (mSenderVc m) k <= vcRead (pTime p) k    )
+         )
+       }
+@-}
+
+-- | Example:
 --
 -- P0 and P1 both start at [0,0].
 -- >    P0@[0,0]    P1@[0,0]
