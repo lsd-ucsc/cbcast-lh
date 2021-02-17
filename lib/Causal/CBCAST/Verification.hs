@@ -313,8 +313,7 @@ deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
 -- instead of a list comprehension.
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable2 m p
-{-@ reflect deliverable2 @-}
-{-@ ple deliverable2 @-}
+{-@ inline deliverable2 @-}
 {-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable2 :: Message r -> Process -> Bool
 deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
@@ -330,7 +329,7 @@ deliverable2Iter k n mID mVT pVT
     | k < n     = deliverable2Pred k mID mVT pVT:deliverable2Iter (k+1) n mID mVT pVT
     | otherwise = []
 {-@ deliverable2Pred :: k:PID -> mID:PID -> {mVT:VC | k < len mVT && mID < len mVT} -> {pVT:VC | k < len pVT && mID < len pVT} -> Bool @-}
-{-@ reflect deliverable2Pred @-}
+{-@ inline deliverable2Pred @-}
 deliverable2Pred :: PID -> PID -> VC -> VC -> Bool
 deliverable2Pred k mID mVT pVT
     | k == mID  = (mVT ! k) == (pVT ! k) + 1
@@ -342,7 +341,7 @@ deliverable2Pred k mID mVT pVT
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable3 m p
 -- prop> length (mSent m) == length (pTime p) ==> deliverable2 m p == deliverable3 m p
-{-@ reflect deliverable3 @-}
+{-@ inline deliverable3 @-}
 {-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
 deliverable3 :: Message r -> Process -> Bool
 deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
@@ -436,6 +435,7 @@ proofSafety
     -> {not (deliverable2 m2 p)}
 @-}
 proofSafety :: Process -> Message r -> Message r -> Proof
-proofSafety Process{} Message{} Message{}
-    = () *** Admit
-
+proofSafety p@Process{} m1@Message{} m2@Message{}
+    =   (listLength (pTime p) === listLength (mSent m2) *** QED) -- transitivity of compatibility
+    &&& (deliverable2 m1 p === causallyBefore m1 m2 *** QED) -- unfold the preconditions
+    &&& (deliverable2 m2 p *** Admit) -- uctual proof
