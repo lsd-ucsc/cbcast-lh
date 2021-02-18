@@ -7,7 +7,6 @@ module Causal.CBCAST.Process
 import Redefined
 
 import Causal.VectorClock
-import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 
 type DQ r = DelayQueue r
@@ -51,12 +50,20 @@ fList (FIFO xs) = listReverse xs
 -- are ready to broadcast.
 {-@
 data Process [pSize]
-             r = Process { pNode :: PID, pVT :: VC, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
-data Process r = Process { pNode :: PID, pVT :: VC, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
+             r = Process { pProc :: Proc, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
+data Process r = Process { pProc :: Proc, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
 {-@ measure pSize @-}
+
+pID :: Process r -> PID
+pID Process{pProc=Proc{pNode=pid}} = pid
+{-@ measure pID @-}
+
+pVT :: Process r -> VC
+pVT Process{pProc=Proc{pTime=vc}} = vc
+{-@ measure pVT @-}
 
 -- | Alternate measure for the 'DelayQueue' of a 'Process'
 {-@
@@ -66,11 +73,15 @@ pdqSize Process{pDQ} = dqSize pDQ
 {-@ measure pdqSize @-}
 
 -- | New empty process using the given process ID.
-pNew :: PID -> Process r
-pNew pid = Process
-    { pNode = pid
-    , pVT = vcNew
-    , pDQ = dqNew
+{-@
+pNew :: p:PID -> {n:Nat | p < n} -> Process r @-}
+pNew :: PID -> Int -> Process r
+pNew pid pCount = Process
+    { pProc = Proc
+        { pNode = pid
+        , pTime = vcNew pCount
+        }
+    , pDQ = dqNew pCount
     , pInbox = fNew
     , pOutbox = fNew
     }
