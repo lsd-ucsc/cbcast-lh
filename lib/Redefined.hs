@@ -19,73 +19,25 @@ listLength [] = 0
 listLength (_x:xs) = 1 + listLength xs
 {-@ measure listLength @-}
 
--- | Implementation of 'enumFromTo' lifted to specifications. Probably same as
--- 'Prelude'. Has extra preconditions and postconditions.
+-- | Implementation of 'and' lifted to specifications. Probably same as
+-- 'Prelude'.
 --
--- >>> listEnumFromTo 0 2
--- [0,1,2]
--- >>> listEnumFromTo 0 0
--- [0]
---
--- prop> enumFromTo x y == listEnumFromTo x y
-{-@ reflect listEnumFromTo @-}
-{-@ listEnumFromTo :: a:Int -> {b:Int | a <= b} -> [{n:Int | a <= n && n <= b}] / [b - a] @-}
-listEnumFromTo :: Int -> Int -> [Int]
-listEnumFromTo a b
-    | b <  a = impossibleConst [] "precondition a less-eq b"
-    | a == b = [a]
-    | otherwise = a:listEnumFromTo (a+1) b
+-- prop> and xs == listAnd xs
+{-@ reflect listAnd @-} -- FIXME: this causes a crash when it's a measure?
+listAnd :: [Bool] -> Bool
+listAnd [] = True
+listAnd (b:bs) = b && listAnd bs
 
--- | Implementation of 'listZip' lifted to specifications. Probably same as
--- 'Prelude'. Has extra preconditions and postconditions.
+-- | Implementation of 'replicate' lifted to specifications. Probably same as
+-- that of 'Prelude'.
 --
--- >>> listZip "foo" "bar"
--- [('f','b'),('o','a'),('o','r')]
---
--- prop> let (xs,ys) = splitAt (length input `div` 2) input in zip xs ys == listZip xs ys
-{-@ reflect listZip @-}
-{-@ listZip :: xs:[a] -> {ys:[b] | len xs == len ys} -> {zs:[(a, b)] | len xs == len zs && len ys == len zs} @-}
-listZip :: [a] -> [b] -> [(a, b)]
-listZip (x:xs) (y:ys) = (x,y):listZip xs ys
-listZip [] [] = []
-listZip _ _ = impossibleConst [] "lists have same length"
-
--- | Implementation of 'fmap' over 'Maybe' lifted to specifications.
---
--- prop> fmap f m == maybeMap f m
-maybeMap :: (a -> b) -> Maybe a -> Maybe b
-maybeMap _ Nothing= Nothing
-maybeMap f (Just a) = Just (f a)
-{-@ reflect maybeMap @-}
-
--- | Implementation of 'break' lifted to specifications. Copied from 'Prelude',
--- but with changes to naming for readability.
---
--- >>> listBreak (> 'm') "hello world"
--- ("hell","o world")
---
--- Test whether this returns the same values as that of the 'Prelude'. It
--- should, since it's copied from there.
---
--- prop> break p xs == listBreak p xs
-{-@
-listBreak :: p:_ -> xs:_ -> ([{y:a | not (p y)}], {zs:_ | zs /= [] => p (head zs)})<{\ys zs -> listLength xs == listLength ys + listLength zs}> @-}
-listBreak :: (a -> Bool) -> [a] -> ([a], [a])
-listBreak _ [] = ([], [])
-listBreak exclude (x:xs)
-    | exclude x = ([], x:xs)
-    | otherwise = let (incl,excl) = listBreak exclude xs in (x:incl,excl)
-{-@ reflect listBreak @-}
-
--- | Implementation of '++' lifted to specifications. Copied from 'Prelude'.
---
--- prop> xs ++ ys == xs `listAppend` ys
-{-@
-listAppend :: xs:_ -> ys:_ -> {zs:_ | listLength xs + listLength ys == listLength zs} @-}
-listAppend :: [a] -> [a] -> [a]
-listAppend []     ys = ys
-listAppend (x:xs) ys = x : xs `listAppend` ys
-{-@ reflect listAppend @-}
+-- prop> replicate n x == listReplicate n x
+{-@ reflect listReplicate @-}
+{-@ listReplicate :: n:Nat -> item:a -> {xs:[{x:a | x == item}] | n == listLength xs} @-}
+listReplicate :: Int -> a -> [a]
+listReplicate n x
+    | n <= 0    = []
+    | otherwise = x:listReplicate (n-1) x
 
 -- | Implementation of 'reverse' lifted to specifications. Copied from
 -- 'Prelude'.
