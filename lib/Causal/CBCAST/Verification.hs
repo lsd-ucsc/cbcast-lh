@@ -2,20 +2,22 @@ module Causal.CBCAST.Verification where
 
 import Language.Haskell.Liquid.ProofCombinators
 
+import Redefined
+
 -- $setup
 -- >>> :set -XStandaloneDeriving -XDeriveGeneric
--- >>> deriving instance Show Process
+-- >>> deriving instance Show Proc
 -- >>> deriving instance Show r => Show (Message r)
 -- >>> import GHC.Generics (Generic)
--- >>> deriving instance Generic Process
+-- >>> deriving instance Generic Proc
 -- >>> deriving instance Generic r => Generic (Message r)
 -- >>> import qualified Test.QuickCheck as QC
 -- >>> :{
--- instance QC.Arbitrary Process where
+-- instance QC.Arbitrary Proc where
 --     arbitrary = QC.sized $ \n -> do
 --         time <- QC.suchThat QC.arbitrary (\xs -> length xs == n)
 --         node <- QC.choose (0, length time)
---         return $ Process node time
+--         return $ Proc node time
 --     shrink = QC.recursivelyShrink
 -- :}
 --
@@ -33,37 +35,7 @@ import Language.Haskell.Liquid.ProofCombinators
 -- :}
 --
 -- >>> -- QC.sample (QC.arbitrary :: QC.Gen (Message String))
--- >>> -- QC.sample (QC.arbitrary :: QC.Gen Process)
-
-
--- * Helpers
-
--- | Reify the @len@ measure defined in the 'liquid-base:GHC.Base'
--- specification into code and back into specifications.
---
--- prop> length xs == listLength xs
-{-@ measure listLength @-}
-{-@ listLength :: xs:_ -> {n:Nat | len xs == n } @-}
-listLength :: [a] -> Int
-listLength [] = 0
-listLength (_:xs) = 1 + listLength xs
-
--- | Implementation of 'impossible' lifted to specifications. similar to the
--- one in 'liquid-prelude:Language.Haskell.Liquid.ProofCombinators' but with an
--- argument of the type which must be returned.
-{-@ inline impossibleConst @-}
-{-@ impossibleConst :: a -> {v:b | false } -> a @-}
-impossibleConst :: a -> b -> a
-impossibleConst a _ = a
-
--- | Implementation of 'and' lifted to specifications. Probably same as
--- 'Prelude'.
---
--- prop> and xs == listAnd xs
-{-@ reflect listAnd @-} -- FIXME: this causes a crash when it's a measure?
-listAnd :: [Bool] -> Bool
-listAnd [] = True
-listAnd (b:bs) = b && listAnd bs
+-- >>> -- QC.sample (QC.arbitrary :: QC.Gen Proc)
 
 
 -- * Vector clocks
@@ -85,6 +57,12 @@ type VC = [Clock]
 {-@
 type PID = Nat @-}
 type PID = Int
+
+{-@ inline vcNew @-}
+{-@
+vcNew :: n:Nat -> {vc:VC | n == len vc} @-}
+vcNew :: Int -> VC
+vcNew size = listReplicate size clockMin
 
 -- | Read the index in a vector clock. Similar to (!!) but doesn't crash when
 -- out of bounds.
@@ -220,12 +198,12 @@ vcIndependent a b = not (vcLess a b) && not (vcLess b a)
 -- * Deliverability
 
 {-@
-data Process = Process
+data Proc = Proc
     { pNode :: PID
     , pTime :: {time:VC | pNode < len time}
     }
 @-}
-data Process = Process
+data Proc = Proc
     { pNode :: PID
     , pTime :: VC
     }
@@ -243,11 +221,11 @@ data Message raw = Message
     , mRaw :: raw
     }
 
-{-@ reflect compatibleVCsMP @-}
-compatibleVCsMP :: Message r -> Process -> Bool
+{-@ inline compatibleVCsMP @-}
+compatibleVCsMP :: Message r -> Proc -> Bool
 compatibleVCsMP m p = listLength (mSent m) == listLength (pTime p)
 
-{-@ reflect compatibleVCsMM @-}
+{-@ reflect compatibleVCsMM @-} -- FIXME: this doesn't work with inline?
 compatibleVCsMM :: Message r -> Message r -> Bool
 compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 
@@ -267,7 +245,7 @@ compatibleVCsMM a b = listLength (mSent a) == listLength (mSent b)
 type Deliverable r
     =  n:PID
     -> m:Message r
-    -> p:Process
+    -> p:Proc
     -> {k:PID| k < n}
     -> {b:Bool | b <=>
          (    (k == mSenderId m) => (vcRead (mSenderVc m) k == vcRead (pTime p) k + 1)
@@ -300,7 +278,7 @@ type Deliverable r
 -- precondition in (2) "On reception of message m sent by p_i, process p_j =/=
 -- p_i delays delivery".
 --
--- >>> let p = Process 0 [1,0]
+-- >>> let p = Proc 0 [1,0]
 -- >>> deliverable1 (Message 0 [1,0] "hello") p
 -- False
 -- >>> deliverable1 (Message 1 [1,1] "world") p
@@ -309,9 +287,9 @@ type Deliverable r
 -- @deliverable1 m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@. This implementation uses a list
 -- comprehension and can't be lifted to specifications.
-{-@ deliverable1 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
-deliverable1 :: Message r -> Process -> Bool
-deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
+{-@ deliverable1 :: m:Message r -> {p:Proc | compatibleVCsMP m p} -> Bool @-}
+deliverable1 :: Message r -> Proc -> Bool
+deliverable1 m@Message{mSender=mID, mSent=mVT} p@Proc{pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | otherwise = listAnd
         [ if k == mID   then (mVT ! k) == (pVT ! k) + 1
@@ -327,9 +305,9 @@ deliverable1 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
 --
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable2 m p
 {-@ inline deliverable2 @-}
-{-@ deliverable2 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
-deliverable2 :: Message r -> Process -> Bool
-deliverable2 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
+{-@ deliverable2 :: m:Message r -> {p:Proc | compatibleVCsMP m p} -> Bool @-}
+deliverable2 :: Message r -> Proc -> Bool
+deliverable2 m@Message{mSender=mID, mSent=mVT} p@Proc{pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | otherwise = listAnd (deliverable2Iter k n mID mVT pVT)
   where
@@ -355,9 +333,9 @@ deliverable2Pred k mID mVT pVT
 -- prop> length (mSent m) == length (pTime p) ==> deliverable1 m p == deliverable3 m p
 -- prop> length (mSent m) == length (pTime p) ==> deliverable2 m p == deliverable3 m p
 {-@ inline deliverable3 @-}
-{-@ deliverable3 :: m:Message r -> {p:Process | compatibleVCsMP m p} -> Bool @-}
-deliverable3 :: Message r -> Process -> Bool
-deliverable3 m@Message{mSender=mID, mSent=mVT} p@Process{pTime=pVT}
+{-@ deliverable3 :: m:Message r -> {p:Proc | compatibleVCsMP m p} -> Bool @-}
+deliverable3 :: Message r -> Proc -> Bool
+deliverable3 m@Message{mSender=mID, mSent=mVT} p@Proc{pTime=pVT}
     | not (compatibleVCsMP m p) = impossibleConst False "VCs have same length" -- FIXME this case reestablishes the precondition in the rest of the body wherever deliverable is used
     | otherwise = deliverable3Iter mID mVT pVT
 {-@ reflect deliverable3Iter @-}
@@ -373,11 +351,11 @@ deliverable3Iter _ _ _ = impossibleConst False "VCs have same length"
 {-@
 proofDeliverable2SameAs3
     :: m:Message r
-    -> p:Process
+    -> p:Proc
     -> {deliverable2 m p <=> deliverable3 m p}
 @-}
-proofDeliverable2SameAs3 :: Message r -> Process -> Proof
-proofDeliverable2SameAs3 Message{} Process{}
+proofDeliverable2SameAs3 :: Message r -> Proc -> Proof
+proofDeliverable2SameAs3 Message{} Proc{}
     =   ()
     *** Admit -- TODO
 
@@ -442,13 +420,13 @@ proofVectorClocksConsistentWithCausality _ _ = trivial
 {-@ ple proofSafety @-}
 {-@
 proofSafety
-    :: p:Process
+    :: p:Proc
     -> {m1:Message r | deliverable2 m1 p}
     -> {m2:Message r | causallyBefore m1 m2}
     -> {not (deliverable2 m2 p)}
 @-}
-proofSafety :: Process -> Message r -> Message r -> Proof
-proofSafety p@Process{} m1@Message{} m2@Message{}
+proofSafety :: Proc -> Message r -> Message r -> Proof
+proofSafety p@Proc{} m1@Message{} m2@Message{}
     =   (listLength (pTime p) === listLength (mSent m2) *** QED) -- transitivity of compatibility
     &&& (deliverable2 m1 p === causallyBefore m1 m2 *** QED) -- unfold the preconditions
     &&& (deliverable2 m2 p *** Admit) -- uctual proof
