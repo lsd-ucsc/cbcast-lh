@@ -25,6 +25,8 @@ data Message = Message { senderId :: Fin  , messageVc :: VectorClock }
 data Process = Process { procId :: Fin n, procVc :: VectorClock } @-}
 data Process = Process { procId :: Fin  , procVc :: VectorClock }
 
+-- | @iter f k@ calls @f@ on each value of the finite set @Fin n@ starting with
+-- @k@ and combines the results with @&&@.
 {-@ reflect iter @-}
 {-@
 iter :: (Fin n -> Bool) -> k:Fin n -> Bool / [n - k] @-}
