@@ -27,7 +27,7 @@ data Process = Process { procId :: Fin  , procVc :: VectorClock }
 
 {-@ reflect iter @-}
 {-@
-iter :: (Fin n -> Bool) -> Fin n -> Bool @-}
+iter :: (Fin n -> Bool) -> k:Fin n -> Bool / [n - k] @-}
 iter :: (Fin -> Bool) -> Fin -> Bool
 iter f k
     | k < n = f k && if k' < n then iter f k' else True
@@ -88,8 +88,7 @@ safety p m1 m2
             === True
         , deliverable m1 p
             === iter (deliverableK m1 p) 0
-                ? assert (n > 0)
---          === (deliverableK m1 p 0 && if 1 < n then deliverableK m1 p 1 else True)
+            === (deliverableK m1 p 0 && if 1 < n then iter (deliverableK m1 p) 1 else True)
 --          === bang vc1 sender1 == bang vcP sender1 + 1
 --          === True
 --          ? deliverable m1 p
