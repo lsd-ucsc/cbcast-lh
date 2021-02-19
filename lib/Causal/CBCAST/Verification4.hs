@@ -66,13 +66,13 @@ causallyBeforeK m1 m2 k
     &&  messageVc m1 /= messageVc m2
 
 {-@
-causallyBeforeSameSender
+assume causallyBeforeSameSender
     ::  m1 : Message
     ->  {m2 : Message | senderId m1 == senderId m2 && causallyBefore m1 m2 }
     ->  { bang (messageVc m1) (senderId m1) < bang (messageVc m2) (senderId m2) }
 @-}
 causallyBeforeSameSender :: Message -> Message -> Proof
-causallyBeforeSameSender _m1 _m2 = () *** Admit
+causallyBeforeSameSender _m1 _m2 = () -- process-order is not modeled and therefore assumed
 
 {-@ ple safety @-}
 {-@
