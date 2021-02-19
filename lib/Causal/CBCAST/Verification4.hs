@@ -30,10 +30,10 @@ data Process = Process { procId :: Fin  , procVc :: VectorClock }
 iter :: (Fin n -> Bool) -> Fin n -> Bool @-}
 iter :: (Fin -> Bool) -> Fin -> Bool
 iter f k
-    | k < n = f k && if k' < n then f k' else True
+    | k < n = f k && if k' < n then iter f k' else True
     | otherwise = impossibleConst False "all cases covered"
   where
-    k' = n + 1
+    k' = k + 1
 
 {-@ reflect deliverable @-}
 {-@
