@@ -25,57 +25,83 @@ data Message = Message { senderId :: Fin  , messageVc :: VectorClock }
 data Process = Process { procId :: Fin n, procVc :: VectorClock } @-}
 data Process = Process { procId :: Fin  , procVc :: VectorClock }
 
+{-@ reflect iter @-}
+{-@
+iter :: (Fin n -> Bool) -> Fin n -> Bool @-}
+iter :: (Fin -> Bool) -> Fin -> Bool
+iter f k
+    | k < n = f k && if k' < n then f k' else True
+    | otherwise = impossibleConst False "all cases covered"
+  where
+    k' = n + 1
+
 {-@ reflect deliverable @-}
 {-@
-deliverable :: Message -> Process -> Fin n -> Bool @-}
-deliverable :: Message -> Process -> Fin -> Bool
-deliverable msg proc k
+deliverable :: Message -> Process -> Bool @-}
+deliverable :: Message -> Process -> Bool
+deliverable msg proc = iter (deliverableK msg proc) 0
+
+{-@ reflect deliverableK @-}
+{-@
+deliverableK :: Message -> Process -> Fin n -> Bool @-}
+deliverableK :: Message -> Process -> Fin -> Bool
+deliverableK msg proc k
     | k == senderId msg     = bang (messageVc msg) k == bang (procVc proc) k + 1
     | k /= senderId msg     = bang (messageVc msg) k <= bang (procVc proc) k
     | otherwise = impossibleConst False "all cases covered"
 
 {-@ reflect causallyBefore @-}
 {-@
-causallyBefore :: Message -> Message -> Fin n -> Bool @-}
-causallyBefore :: Message -> Message -> Fin -> Bool
-causallyBefore m1 m2 k
+causallyBefore :: Message -> Message -> Bool @-}
+causallyBefore m1 m2 = iter (causallyBeforeK m1 m2) 0
+
+{-@ reflect causallyBeforeK @-}
+{-@
+causallyBeforeK :: Message -> Message -> Fin n -> Bool @-}
+causallyBeforeK :: Message -> Message -> Fin -> Bool
+causallyBeforeK m1 m2 k
     =   bang (messageVc m1) k <= bang (messageVc m2) k
     &&  messageVc m1 /= messageVc m2
 
 {-@
 causallyBeforeSameSender
-    ::  k : Fin n
-    ->  m1 : Message
-    ->  {m2 : Message | senderId m1 == senderId m2 && causallyBefore m1 m2 k }
+    ::  m1 : Message
+    ->  {m2 : Message | senderId m1 == senderId m2 && causallyBefore m1 m2 }
     ->  { bang (messageVc m1) (senderId m1) < bang (messageVc m2) (senderId m2) }
 @-}
-causallyBeforeSameSender :: Fin -> Message -> Message -> Proof
-causallyBeforeSameSender _k _m1 _m2 = () *** Admit
+causallyBeforeSameSender :: Message -> Message -> Proof
+causallyBeforeSameSender _m1 _m2 = () *** Admit
 
 {-@ ple safety @-}
 {-@
 safety
-    ::  k : Fin n
-    ->  p : Process
-    ->  {m1 : Message | deliverable m1 p k}
-    ->  {m2 : Message | causallyBefore m1 m2 k}
-    ->  { not (deliverable m2 p k) }
+    ::  p : Process
+    ->  {m1 : Message | deliverable m1 p}
+    ->  {m2 : Message | causallyBefore m1 m2}
+    ->  { not (deliverable m2 p) }
 @-}
-safety :: Fin -> Process -> Message -> Message -> Proof
-safety k p m1 m2
-    | sender1 == sender2
-        =   ( bang vc1 sender1 < bang vc2 sender2
-                ? causallyBeforeSameSender k m1 m2
-                === True
---          , bang vc1 sender1 === bang vcP sender1 + 1
---              ? deliverable m1 p sender1
---          , bang vc2 sender2 == bang vcP sender2 + 1
---              === True
---          , bang vc1 sender1 == 
-            ) *** Admit
-    | sender1 /= sender2
-        = () *** Admit
-    | otherwise = impossibleConst () "all cases covered"
+safety :: Process -> Message -> Message -> Proof
+safety p m1 m2
+    | sender1 == sender2 =
+        ( bang vc1 sender1 < bang vc2 sender2
+            ? causallyBeforeSameSender m1 m2
+            === True
+        , deliverable m1 p
+            === iter (deliverableK m1 p) 0
+                ? assert (n > 0)
+--          === (deliverableK m1 p 0 && if 1 < n then deliverableK m1 p 1 else True)
+--          === bang vc1 sender1 == bang vcP sender1 + 1
+--          === True
+--          ? deliverable m1 p
+
+--      , bang vc2 sender2 == bang vcP sender2 + 1
+--          === True
+--      , bang vc1 sender1 == 
+        ) *** Admit
+    | sender1 /= sender2 =
+        () *** Admit
+    | otherwise =
+        impossibleConst () "all cases covered"
   where
     vc1 = messageVc m1
     vc2 = messageVc m2
