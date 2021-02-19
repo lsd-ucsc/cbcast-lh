@@ -1,4 +1,4 @@
-module Causal.CBCAST.Verification3 where
+module Causal.CBCAST.Verification4 where
 
 import Prelude hiding (lookup)
 import Language.Haskell.Liquid.ProofCombinators
