@@ -81,32 +81,10 @@ safety
     ->  { not (deliverable m2 p) }
 @-}
 safety :: Process -> Message -> Message -> Proof
-safety p m1 m2
-    | sender1 == sender2 =
-        ( bang vc1 sender1 < bang vc2 sender2
-            ? causallyBeforeSameSender m1 m2
-            === True
-        , deliverable m1 p
-            === iter (deliverableK m1 p) 0
-            === (deliverableK m1 p 0 && if 1 < n then iter (deliverableK m1 p) 1 else True)
---          === bang vc1 sender1 == bang vcP sender1 + 1
---          === True
---          ? deliverable m1 p
-
---      , bang vc2 sender2 == bang vcP sender2 + 1
---          === True
---      , bang vc1 sender1 == 
-        ) *** Admit
-    | sender1 /= sender2 =
-        () *** Admit
-    | otherwise =
-        impossibleConst () "all cases covered"
-  where
-    vc1 = messageVc m1
-    vc2 = messageVc m2
-    sender1 = senderId m1
-    sender2 = senderId m2
-    vcP = procVc p
+safety _p m1 m2
+    | senderId m1 == senderId m2 = () ? causallyBeforeSameSender m1 m2 *** QED
+    | senderId m1 /= senderId m2 = () *** QED
+    | otherwise = impossibleConst () "all cases covered"
 
 
 -- * Agda things reimplemented
