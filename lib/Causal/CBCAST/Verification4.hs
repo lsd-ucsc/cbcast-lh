@@ -58,6 +58,7 @@ deliverableK msg proc k
 {-@ reflect causallyBefore @-}
 {-@
 causallyBefore :: Message -> Message -> Bool @-}
+causallyBefore :: Message -> Message -> Bool
 causallyBefore m1 m2 = iter (causallyBeforeK m1 m2) 0
 
 {-@ reflect causallyBeforeK @-}
