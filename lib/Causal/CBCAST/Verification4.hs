@@ -75,13 +75,12 @@ causallyBeforeK m1 m2 k
 -- VC(m2)[i], which is the fact that LH needs to complete the proof.
 {-@
 assume processOrderAxiom
-    :: pid : Fin n
-    -> {m1 : Message | senderId m1 == pid}
-    -> {m2 : Message | senderId m2 == pid}
-    -> { bang (messageVc m1) pid != bang (messageVc m2) pid }
+    ::  m1 : Message
+    -> {m2 : Message | senderId m1 == senderId m2}
+    -> { bang (messageVc m1) (senderId m1) != bang (messageVc m2) (senderId m2) }
 @-}
-processOrderAxiom :: Fin -> Message -> Message -> Proof
-processOrderAxiom pid m1 m2 = ()
+processOrderAxiom :: Message -> Message -> Proof
+processOrderAxiom _m1 _m2 = ()
 
 {-@ ple safety @-}
 {-@
@@ -92,8 +91,8 @@ safety
     ->  { not (deliverable m2 p) }
 @-}
 safety :: Process -> Message -> Message -> Proof
-safety p m1 m2
-    | senderId m1 == senderId m2 = processOrderAxiom (senderId m1) m1 m2
+safety _p m1 m2
+    | senderId m1 == senderId m2 = processOrderAxiom m1 m2
     | senderId m1 /= senderId m2 = () *** QED
     | otherwise = impossibleConst () "all cases covered"
 
