@@ -80,7 +80,7 @@ assume processOrderAxiom
     -> { bang (messageVc m1) (senderId m1) != bang (messageVc m2) (senderId m2) }
 @-}
 processOrderAxiom :: Message -> Message -> Proof
-processOrderAxiom _ _ = ()
+processOrderAxiom _m1 _m2 = ()
 
 {-@ ple safety @-}
 {-@
@@ -91,7 +91,7 @@ safety
     ->  { not (deliverable m2 p) }
 @-}
 safety :: Process -> Message -> Message -> Proof
-safety p m1 m2
+safety _p m1 m2
     | senderId m1 == senderId m2 = processOrderAxiom m1 m2
     | senderId m1 /= senderId m2 = () *** QED
     | otherwise = impossibleConst () "all cases covered"
