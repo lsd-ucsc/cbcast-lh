@@ -1,3 +1,7 @@
+-- | Attempt to translate the things Gan did in agda to LiquidHaskell, more or
+-- less exactly
+--
+-- Status: Incomplete, abandoned
 module Causal.CBCAST.Verification3 where
 
 import Prelude hiding (lookup)

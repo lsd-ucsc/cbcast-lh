@@ -1,7 +1,8 @@
 {-# LANGUAGE GADTs #-}
+-- | Live translation of the things Gan does in agda
+--
+-- Status: Incomplete, abandoned
 module Causal.CBCAST.Verification2 where
-
--- Live translation of the things we do in agda
 
 {-@ type Clock = {c:Integer | 0 <= c} @-}
 type Clock = Integer

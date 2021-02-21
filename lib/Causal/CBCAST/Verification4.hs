@@ -1,3 +1,6 @@
+-- | Translate Gan's proof in agda to a LiquidHaskell-native approach
+--
+-- Status: Complete, proof works
 module Causal.CBCAST.Verification4 where
 
 import Prelude hiding (lookup)
