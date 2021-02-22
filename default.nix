@@ -1,11 +1,11 @@
 { config ? { allowBroken = true; }, ... }:
 let
   # get pinned/overridden haskellPackages containing LH
-  lh-source = (import <nixpkgs> {}).fetchFromGitHub {
+  lh-source = (import <nixpkgs> { }).fetchFromGitHub {
     owner = "plredmond";
     repo = "liquidhaskell";
     rev = "a4b24ab24"; # nixify branch built from LH `develop` branch source Fri 12 Feb 2021 07:31:04 PM UTC
-    sha256 = "1ms2d7rabidssjm12kxxd63ngxff8ni02fpzd27pzqwwkcdx0d70";
+    sha256 = "0jvbvzyhvj3cy05zx02hvi59ymqmlxrfdm6fvm08nx7hb2922qva";
     fetchSubmodules = true;
   };
   # extract pinned nixpkgs and haskellPackages
