@@ -5,7 +5,7 @@
 -- global n (or use niki's trick to make the proof not aware of the concrete
 -- n).
 --
--- Status: In progress
+-- Status: Translated from agda with Gan. It works.
 module Causal.CBCAST.Verification7nGlobSpecs where
 
 import Prelude hiding (lookup)
@@ -36,11 +36,11 @@ data Process = Process { procId :: Fin  , procVc :: VectorClock }
 {-@
 type Deliverable MSG PROC
     =   k : Fin n
-    ->  ( { _:Proof | k == senderId MSG } -> { _:Proof | bang (messageVc MSG) k == bang (procVc PROC) k + 1 }
-        , { _:Proof | k /= senderId MSG } -> { _:Proof | bang (messageVc MSG) k <= bang (procVc PROC) k     }
-        )
+    ->  { _:Proof | ( k == senderId MSG => bang (messageVc MSG) k == bang (procVc PROC) k + 1 )
+                 && ( k /= senderId MSG => bang (messageVc MSG) k <= bang (procVc PROC) k     )
+        }
 @-}
-type Deliverable = Fin -> (Proof -> Proof, Proof -> Proof)
+type Deliverable = Fin -> Proof
 
 {-@
 type CausallyBefore M1 M2
@@ -77,15 +77,15 @@ safety :: Process -> Message -> Message -> Deliverable -> CausallyBefore -> Deli
 safety p m1 m2 m1_d_p m1_before_m2 m2_d_p
     | senderId m1 == senderId m2
         =   ()
-            ? (fst (m1_d_p (senderId m1))) () -- () says that (senderId m1 == senderId m1)
-            ? (fst (m2_d_p (senderId m2))) () -- () says that (senderId m2 == senderId m1)
+            ? m1_d_p (senderId m1)
+            ? m2_d_p (senderId m2)
             ? causallyBeforeSameSender m1 m2 m1_before_m2 ()
             *** QED
     | otherwise
         =   ()
             ? m1_before_m2 (senderId m1)
-            ? (fst (m1_d_p (senderId m1))) () -- () says that ...
-            ? (snd (m2_d_p (senderId m1))) () -- () says that ...
+            ? m1_d_p (senderId m1)
+            ? m2_d_p (senderId m1)
             *** QED
 
 
