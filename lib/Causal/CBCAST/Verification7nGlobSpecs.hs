@@ -11,11 +11,8 @@ module Causal.CBCAST.Verification7nGlobSpecs where
 import Prelude hiding (lookup)
 import Language.Haskell.Liquid.ProofCombinators
 
--- | The whole module is parameterized over the number of processes n
-{-@ reflect n @-}
-{-@ n :: Nat @-}
-n :: Int
-n = 400000000
+-- | The LH specs are parameterized over n, but no value is given.
+{-@ measure n :: Nat @-}
 
 {-@ type VectorClock = Vec Nat n @-}
 type VectorClock = [Int]
