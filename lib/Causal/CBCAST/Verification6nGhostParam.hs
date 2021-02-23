@@ -35,11 +35,7 @@ data Process = Process { procVc :: VectorClock, procId :: Fin }
 {-@
 iter :: n:Nat -> (Fin n -> Bool) -> k:Fin n -> Bool / [n - k] @-}
 iter :: Int -> (Fin -> Bool) -> Fin -> Bool
-iter n f k
-    | k < n = f k && if k' < n then iter n f k' else True
-    | otherwise = impossibleConst False "all cases covered"
-  where
-    k' = k + 1
+iter n f k = f k && if (k + 1) < n then iter n f (k + 1) else True
 
 {-@ reflect deliverable @-}
 {-@
