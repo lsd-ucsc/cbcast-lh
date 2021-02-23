@@ -1,5 +1,5 @@
--- | Attempt to translate the things Gan did in agda to LiquidHaskell, more or
--- less exactly, but use more liquid-haskell native representations of specs.
+-- | Use universal and existential quantification over k to prove things
+-- without iteration
 --
 -- Status: Works. It's very similar to Verification7nGlobSpecs.hs
 module Causal.CBCAST.Verification8nGlobImpls where
