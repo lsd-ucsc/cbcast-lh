@@ -11,6 +11,9 @@ module Causal.CBCAST.Verification7nGlobSpecs where
 import Prelude hiding (lookup)
 import Language.Haskell.Liquid.ProofCombinators
 
+
+-- * Safety of spec
+
 -- | The LH specs are parameterized over n, but no value is given.
 {-@ measure n :: Nat @-}
 
@@ -84,6 +87,62 @@ safety _p m1 m2 m1_d_p m1_before_m2 m2_d_p
             ? m1_d_p (senderId m1)
             ? m2_d_p (senderId m1)
             *** QED
+
+
+-- * Safety of implementation
+
+--- -- | @iter f k@ calls @f@ on each value of the finite set @Fin n@ starting with
+--- -- @k@ and combines the results with @&&@.
+--- {-@ reflect iter @-}
+--- {-@
+--- iter :: (Fin n -> Bool) -> k:Fin n -> Bool / [n - k] @-}
+--- iter :: (Fin -> Bool) -> Fin -> Bool
+--- iter f k
+---     | k < n = f k && if k' < n then iter f k' else True
+---     | otherwise = impossibleConst False "all cases covered"
+---   where
+---     k' = k + 1
+--- 
+--- {-@ reflect deliverable @-}
+--- {-@
+--- deliverable :: Message -> Process -> Bool @-}
+--- deliverable :: Message -> Process -> Bool
+--- deliverable msg proc = iter (deliverableK msg proc) 0
+--- 
+--- {-@ reflect deliverableK @-}
+--- {-@
+--- deliverableK :: Message -> Process -> Fin n -> Bool @-}
+--- deliverableK :: Message -> Process -> Fin -> Bool
+--- deliverableK msg proc k
+---     | k == senderId msg     = bang (messageVc msg) k == bang (procVc proc) k + 1
+---     | k /= senderId msg     = bang (messageVc msg) k <= bang (procVc proc) k
+---     | otherwise = impossibleConst False "all cases covered"
+--- 
+--- -- type IFF (f :: * -> *) (g :: * -> *) = (f -> g, g -> f)
+--- type IFF f g = (f -> g, g -> f)
+--- 
+--- {-@
+--- deliverableImplCorrect
+---     :: m:Message
+---     -> p:Process
+---     -> IFF (Deliverable m p) { _:Proof | deliverable m p }
+--- @-}
+--- deliverableImplCorrect :: Message -> Process -> IFF (Proof -> Proof) (Proof -> Proof)
+--- deliverableImplCorrect = undefined
+--- 
+--- {-@ reflect causallyBefore @-}
+--- {-@
+--- causallyBefore :: Message -> Message -> Bool @-}
+--- causallyBefore :: Message -> Message -> Bool
+--- causallyBefore m1 m2 = iter (causallyBeforeK m1 m2) 0
+--- 
+--- {-@ reflect causallyBeforeK @-}
+--- {-@
+--- causallyBeforeK :: Message -> Message -> Fin n -> Bool @-}
+--- causallyBeforeK :: Message -> Message -> Fin -> Bool
+--- causallyBeforeK m1 m2 k
+---     =   bang (messageVc m1) k <= bang (messageVc m2) k
+---     &&  messageVc m1 /= messageVc m2
 
 
 -- * Agda things reimplemented
