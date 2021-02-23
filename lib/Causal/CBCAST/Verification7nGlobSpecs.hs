@@ -71,7 +71,7 @@ safety
     ->  { _:Proof | false}
 @-}
 safety :: Process -> Message -> Message -> Deliverable -> CausallyBefore -> Deliverable -> Proof
-safety p m1 m2 m1_d_p m1_before_m2 m2_d_p
+safety _p m1 m2 m1_d_p m1_before_m2 m2_d_p
     | senderId m1 == senderId m2
         =   ()
             ? m1_d_p (senderId m1)
