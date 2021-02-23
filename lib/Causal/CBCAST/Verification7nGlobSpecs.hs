@@ -51,16 +51,23 @@ type CausallyBefore M1 M2
 @-}
 type CausallyBefore = Fin -> Proof
 
+-- | @processOrderAxiom@ says that every message sent by a given
+-- process has a unique VC value at the sender position.  (This
+-- follows from the fact that events on a process have a total order.)
+-- This is enough to prove safety in the same-sender case, because we
+-- already know that m1 -> m2, so we know that for each position i in
+-- their respective VCs, VC(m1)[i] <= VC(m2)[i].  This axiom rules out
+-- the case where they're equal, so then we know that VC(m1)[i] <
+-- VC(m2)[i], which is the fact that LH needs to complete the proof.
 {-@
-assume causallyBeforeSameSender
+assume processOrderAxiom
     ::  m1 : Message
     ->  m2 : Message
-    ->  CausallyBefore m1 m2
     ->  { _:Proof | senderId m1 == senderId m2 }
-    ->  { _:Proof | bang (messageVc m1) (senderId m1) < bang (messageVc m2) (senderId m2) }
+    ->  { _:Proof | bang (messageVc m1) (senderId m1) != bang (messageVc m2) (senderId m2) }
 @-}
-causallyBeforeSameSender :: Message -> Message -> CausallyBefore -> Proof -> Proof
-causallyBeforeSameSender _m1 _m2 _proof () = ()
+processOrderAxiom :: Message -> Message -> Proof -> Proof
+processOrderAxiom _m1 _m2 _proof = ()
 
 {-@ ple safety @-}
 {-@
@@ -79,7 +86,7 @@ safety _p m1 m2 m1_d_p m1_before_m2 m2_d_p
         =   ()
             ? m1_d_p (senderId m1)
             ? m2_d_p (senderId m2)
-            ? causallyBeforeSameSender m1 m2 m1_before_m2 ()
+            ? processOrderAxiom m1 m2 ()
             *** QED
     | otherwise
         =   ()
