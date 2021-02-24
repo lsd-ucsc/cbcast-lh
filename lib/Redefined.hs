@@ -8,12 +8,15 @@ module Redefined where
 -- >>> instance Show (a -> b) where show _ = "(a -> b)"
 -- >>> import Data.List
 
+
+-- * Haskell things reimplemented
+
 -- | Reify the @len@ measure defined in the @liquid-base@ specification into
 -- code and back into specifications.
 --
 -- prop> length xs == listLength xs
 {-@
-listLength :: xs:_ -> {n:Nat | n == len xs } @-}
+listLength :: xs:_ -> {v:Nat | v == len xs } @-}
 listLength :: [a] -> Int
 listLength [] = 0
 listLength (_x:xs) = 1 + listLength xs
@@ -38,6 +41,30 @@ listReplicate :: Int -> a -> [a]
 listReplicate n x
     | n <= 0    = []
     | otherwise = x:listReplicate (n-1) x
+
+{-@ reflect boolAnd @-}
+{-@ boolAnd :: a:Bool -> b:Bool -> {c:Bool | c <=> a && b} @-}
+boolAnd :: Bool -> Bool -> Bool
+boolAnd True True = True
+boolAnd _ _ = False
+
+-- | Implementation of 'map' lifted to specifications. Probably same as
+-- 'Prelude'.
+--
+-- prop> map f xs == listMap f xs
+{-@ reflect listMap @-}
+listMap :: (a -> b) -> [a] -> [b]
+listMap f (x:xs) = f x:listMap f xs
+listMap _ [] = []
+
+-- | Implementation of 'foldl' lifted to specifications. Probably same as
+-- 'Prelude'.
+--
+-- prop> foldl f acc xs == listFoldl f acc xs
+{-@ reflect listFoldl @-}
+listFoldl :: (b -> a -> b) -> b -> [a] -> b
+listFoldl f acc (x:xs) = listFoldl f (f acc x) xs
+listFoldl _ acc [] = acc
 
 -- | Implementation of 'reverse' lifted to specifications. Copied from
 -- 'Prelude'.
@@ -92,3 +119,39 @@ listElem x (y:ys) = x==y || listElem x ys
 {-@ impossibleConst :: a -> {v:b | false } -> a @-}
 impossibleConst :: a -> b -> a
 impossibleConst a _ = a
+
+
+-- * Agda things reimplemented
+
+-- | A list of fixed size.
+{-@ type Vec a V = {v:[a] | len v == V} @-}
+type Vec a = [a]
+
+-- | A member of a finite set of natural numbers.
+{-@ type Fin V = {v:Nat | v < V} @-}
+type Fin = Int
+
+-- | Generate the elements of a finite set @Fin n@.
+--
+-- >>> fin (-1)
+-- []
+-- >>> fin 0
+-- []
+-- >>> fin 1
+-- [0]
+-- >>> fin 2
+-- [1,0]
+--
+{-@ reflect fin @-}
+{-@ fin :: v:Nat -> {xs:[{x:Nat | x < v}]<{\a b -> a > b}> | len xs == v} @-}
+fin :: Int -> [Int]
+fin k = let k' = k - 1 in if 0 < k then k' : fin k' else []
+
+-- | Lookup an element of a non-empty list given a valid index. This is called
+-- "lookup" in agda and "!!" or "genericIndex" in haskell.
+{-@ reflect listIndex @-}
+{-@ listIndex :: xs:[a] -> {i:Nat | i < len xs } -> a @-}
+listIndex :: [a] -> Int -> a
+listIndex (x:xs) i
+    | i == 0    = x
+    | otherwise = listIndex xs (i-1)
