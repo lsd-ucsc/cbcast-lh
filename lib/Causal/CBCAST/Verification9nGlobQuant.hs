@@ -1,4 +1,0 @@
--- | Use universal and existential quantification over k to prove things
--- without iteration
---
--- Status: In progress
