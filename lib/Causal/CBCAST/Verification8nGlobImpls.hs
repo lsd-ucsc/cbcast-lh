@@ -123,31 +123,6 @@ causallyBefore m1 m2
     . listMap (causallyBeforeK m1 m2)
     . fin . listLength . messageVc $ m1
 
-{-@ ple deliverableImpliedBySpec @-}
-{-@
-deliverableImpliedBySpec
-    :: m:Message
-    -> p:Process
-    -> DeliverableProp m p
-    -> { _:Proof | deliverable m p}
-@-}
-deliverableImpliedBySpec :: Message -> Process -> DeliverableProp -> Proof
-deliverableImpliedBySpec _ _ _ = () *** Admit
-
-{-@ ple deliverableImpliesSpec @-}
-{-@
-deliverableImpliesSpec
-    :: m:Message
-    -> p:Process
-    -> { _:Proof | deliverable m p}
-    -> DeliverableProp m p
-@-}
-deliverableImpliesSpec :: Message -> Process -> Proof -> DeliverableProp
-deliverableImpliesSpec _ _ _ _ = () *** Admit
-
--- TODO: also proofs for causally-before
-
-
 
 -- * Agda things reimplemented
 
