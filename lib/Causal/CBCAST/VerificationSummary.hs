@@ -1,25 +1,18 @@
--- | Attempt to translate the safety proof Gan did in agda to LiquidHaskell,
--- more or less exactly, but use more liquid-haskell native representations of
--- specs.
---
--- Status: Safety proof of spec passes (same as Verification8); Proving
--- implementation matches spec is in progress
-module Causal.CBCAST.Verification8nGlobImpls where
+-- | Translation of Gan's original Agda proof to LiquidHaskell, using reflected
+-- functions instead of types, and  with minimal dependencies.
+module Causal.CBCAST.VerificationSummary where
 
 import Prelude hiding (lookup)
 import Language.Haskell.Liquid.ProofCombinators
 
--- $setup
--- >>> instance Show (a -> b) where show _ = "fun"
 
-
--- * Safety of spec
+-- * Safety proof
 
 -- | The LH specs are parameterized over n, but no value is given.
 {-@ measure n :: Nat @-}
 
 {-@ type VectorClock = Vec Nat n @-}
-type VectorClock = [Int]
+type VectorClock = Vec Int
 
 {-@ reflect bang @-}
 {-@ bang :: VectorClock -> Fin n -> Nat @-}
@@ -102,28 +95,6 @@ safety _p m1 m2 m1_d_p m1_before_m2 m2_d_p
             *** QED
 
 
--- * Safety of impl
-
-{-@ type MessageN = {m:Message | n == len (messageVc m)} @-}
-{-@ type ProcessN = {p:Process | n == len (procVc p)} @-}
-
-{-@ reflect deliverable @-}
-{-@ deliverable :: MessageN -> ProcessN -> Bool @-}
-deliverable :: Message -> Process -> Bool
-deliverable msg proc
-    = listFoldl boolAnd True
-    . listMap (deliverableK msg proc)
-    . fin . listLength . messageVc $ msg
-
-{-@ reflect causallyBefore @-}
-{-@ causallyBefore :: MessageN -> MessageN -> Bool @-}
-causallyBefore :: Message -> Message -> Bool
-causallyBefore m1 m2
-    = listFoldl boolAnd True
-    . listMap (causallyBeforeK m1 m2)
-    . fin . listLength . messageVc $ m1
-
-
 -- * Agda things reimplemented
 
 {-@ type Vec a V = {v:[a] | len v == V} @-}
@@ -132,67 +103,12 @@ type Vec a = [a]
 {-@ type Fin V = {v:Nat | v < V} @-}
 type Fin = Int
 
--- | Generate the elements of a finite set @Fin n@. I don't know if this is a
--- thing in agda or not.
---
--- >>> fin (-1)
--- []
--- >>> fin 0
--- []
--- >>> fin 1
--- [0]
--- >>> fin 2
--- [1,0]
---
-{-@ reflect fin @-}
-{-@ fin :: v:Nat -> {xs:[{x:Nat | x < v}]<{\a b -> a > b}> | len xs == v} @-}
-fin :: Int -> [Int]
-fin k = let k' = k - 1 in if 0 < k then k' : fin k' else []
-
 {-@ reflect lookup @-}
 {-@ lookup :: xs:[a] -> {i:Nat | i < len xs } -> a @-}
 lookup :: [a] -> Int -> a
 lookup (x:xs) i
     | i == 0    = x
     | otherwise = lookup xs (i-1)
-
-
--- * Haskell things reimplemented
-
-{-@ reflect boolAnd @-}
-{-@ boolAnd :: a:Bool -> b:Bool -> {c:Bool | c <=> a && b} @-}
-boolAnd :: Bool -> Bool -> Bool
-boolAnd True True = True
-boolAnd _ _ = False
-
--- | Reify the @len@ measure defined in the @liquid-base@ specification into
--- code and back into specifications.
---
--- prop> length xs == listLength xs
-{-@
-listLength :: xs:_ -> {n:Nat | n == len xs } @-}
-listLength :: [a] -> Int
-listLength [] = 0
-listLength (_x:xs) = 1 + listLength xs
-{-@ measure listLength @-}
-
--- | Implementation of 'map' lifted to specifications. Probably same as
--- 'Prelude'.
---
--- prop> map f xs == listMap f xs
-{-@ reflect listMap @-}
-listMap :: (a -> b) -> [a] -> [b]
-listMap f (x:xs) = f x:listMap f xs
-listMap _ [] = []
-
--- | Implementation of 'foldl' lifted to specifications. Probably same as
--- 'Prelude'.
---
--- prop> foldl f acc xs == listFoldl f acc xs
-{-@ reflect listFoldl @-}
-listFoldl :: (b -> a -> b) -> b -> [a] -> b
-listFoldl f acc (x:xs) = listFoldl f (f acc x) xs
-listFoldl _ acc [] = acc
 
 -- | Implementation of 'impossible' lifted to specifications. similar to the
 -- one in 'Language.Haskell.Liquid.ProofCombinators'.
