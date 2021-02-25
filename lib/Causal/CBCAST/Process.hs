@@ -1,11 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CBCAST.Process
-( module Causal.CBCAST.Process
-, module Redefined
-) where
+module Causal.CBCAST.Process where
 
 import Redefined
-import Causal.VectorClock
+import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 
@@ -22,7 +19,6 @@ import Causal.CBCAST.DelayQueue
 data FIFO [fSize]
           a = FIFO [a] @-}
 data FIFO a = FIFO [a]
--- FIXME (NEWTYPE_RESTRICTION)
 
 fSize :: FIFO a -> Int
 fSize (FIFO xs) = listLength xs
