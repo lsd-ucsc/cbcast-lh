@@ -48,8 +48,10 @@ fList (FIFO xs) = listReverse xs
 -- are ready to broadcast.
 {-@
 data Process [pSize]
-             r = Process { pID::PID, pVC::VC, pDQ::DQ r {pID}, pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
+             r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
 data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) }
+-- TODO: use invariant to enforce that outbox only contains messages with own sender id
+-- TODO: use invariant to enforce that DQ excludes messages with own sender id
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox

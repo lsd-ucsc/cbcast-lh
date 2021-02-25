@@ -13,10 +13,17 @@ import Causal.CBCAST.Message
 data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
 data DelayQueue r = DelayQueue [Message r]
 
--- | Alias for DelayQueues which exclude messages from the specified process.
-{-@
-type DQ r P = {dq:DelayQueue r | dqExcludes dq P} @-}
+-- FIXME somehow prove this is preserved through dqEnqueue/dqDequeue
+-- -- | Alias for DelayQueues which exclude messages from the specified process.
+-- {-@
+-- type DQ r P = {dq:DelayQueue r | dqExcludes dq P} @-}
 type DQ r = DelayQueue r
+
+-- TODO: make a generic priority-queue like structure?
+--  - List parameterized by content (enables invariants like "messages not sent by me")
+--  - List sorted by invariant function (can we define such an alias?)
+--  - Enqueue takes the invariant function to perform insert AFTER all True
+--  - Dequeue takes a selector function and returns first match
 
 
 -- * Logical predicates
@@ -28,10 +35,10 @@ dqSize (DelayQueue xs) = listLength xs
 
 {-@ reflect dqExcludes @-}
 {-@
-dqExcludes :: DelayQueue r -> PID -> Bool @-}
-dqExcludes :: DelayQueue r -> PID -> Bool
+dqExcludes :: DelayQueue r -> Proc -> Bool @-}
+dqExcludes :: DelayQueue r -> Proc -> Bool
 dqExcludes (DelayQueue []) _ = True
-dqExcludes (DelayQueue (x:xs)) p = mSender x /= p && dqExcludes (DelayQueue xs) p
+dqExcludes (DelayQueue (x:xs)) p = mSender x /= procId p && dqExcludes (DelayQueue xs) p
 
 
 -- * User API
