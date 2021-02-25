@@ -19,7 +19,7 @@ type Clock = Integer
 -- | LH specs are parameterized over @procCount@, but no value is given.
 {-@ measure procCount :: Nat @-}
 
--- | Vector clock is a list of clock values.
+-- | A vector clock is a list of clock values of some known length.
 {-@
 data VC = VC (Vec Clock {procCount}) @-}
 data VC = VC [Clock] deriving (Eq, Show)
@@ -29,7 +29,7 @@ data VC = VC [Clock] deriving (Eq, Show)
 type PID = Fin {procCount} @-}
 type PID = Fin
 
--- | Read the index in a vector clock.
+-- | Read an index in a vector clock.
 --
 -- >>> VC [9,8,7] `vcReadK` 0
 -- 9
@@ -52,12 +52,16 @@ vcReadK (VC xs) k = listIndex xs k
 vc ! p = vcReadK vc p
 infixl 9 !
 
+-- | Compare less-equal at a single index the vector clocks.
 {-@ reflect vcLessEqualK @-}
 {-@
 vcLessEqualK :: VC -> VC -> PID -> Bool @-}
 vcLessEqualK :: VC -> VC -> PID -> Bool
 vcLessEqualK a b k = a ! k <= b ! k
 
+-- | Compare less-equal at a single index the vector clocks. Vector clock less
+-- allows for equality at some indexes, but not all indexes, so this
+-- implementation must check that the clocks aren't equal.
 {-@ reflect vcLessK @-}
 {-@
 vcLessK :: VC -> VC -> PID -> Bool @-}
@@ -120,7 +124,7 @@ vectorClocksConsistentWithCausalityProof _ _ m1_before_m2 k = m1_before_m2 k
 {-@
 causallyBeforeKvcLessKAliasProof :: m1:Msg -> m2:Msg -> k:PID -> { _:Proof | causallyBeforeK m1 m2 k <=> vcLessK (mSent m1) (mSent m2) k } @-}
 causallyBeforeKvcLessKAliasProof :: Msg -> Msg -> PID -> Proof
-causallyBeforeKvcLessKAliasProof m1 m2 k = trivial
+causallyBeforeKvcLessKAliasProof _m1 _m2 _k = trivial
 
 
 -- * Processes and operations
@@ -220,7 +224,7 @@ safetyProof _p m1 m2 m1_d_p m1_before_m2 m2_d_p
             *** QED
 
 
--- * Implementations over all k
+-- * Implementations over all K
 
 -- | And the results of calling the function at each possible vector clock
 -- index.
@@ -275,17 +279,6 @@ vcLess a b = vcLessK a b `andAtEachK` vcSize a
 causallyBefore :: Msg -> Msg -> Bool @-}
 causallyBefore :: Msg -> Msg -> Bool
 causallyBefore m1 m2 = causallyBeforeK m1 m2 `andAtEachK` vcSize (mSent m1)
-
-{-@ ple causallyBeforevcLessAliasProof @-}
-{-@
-causallyBeforevcLessAliasProof :: m1:Msg -> m2:Msg -> k:PID -> { _:Proof | causallyBefore m1 m2 <=> vcLess (mSent m1) (mSent m2) } @-}
-causallyBeforevcLessAliasProof :: Msg -> Msg -> PID -> Proof
-causallyBeforevcLessAliasProof m1 m2 k
-    =   causallyBefore m1 m2
-    === causallyBeforeK m1 m2 `andAtEachK` vcSize (mSent m1)
-        ? causallyBeforeKvcLessKAliasProof m1 m2 k
---  === vcLessK (mSent m1) (mSent m2) `andAtEachK` vcSize (mSent m1)
-    *** Admit
 
 -- | @deliverable m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@.
