@@ -45,6 +45,11 @@ type CausallyBeforeProp = PID -> Proof
 type DeliverableProp M P = k:PID -> { _:Proof | deliverableK M P k } @-}
 type DeliverableProp = PID -> Proof
 
+-- | Property: The given property is false.
+{-@
+type Not t = t -> { _:Proof | false } @-}
+type Not t = t -> Proof
+
 -- | @processOrderAxiom@ says that every message sent by a given process has a
 -- unique VC value at the sender position. (This follows from the fact that
 -- events on a process have a total order.) This is enough to prove safety in
@@ -92,10 +97,9 @@ safetyProof
     ->  m2 : Message r
     ->  DeliverableProp m1 p
     ->  CausallyBeforeProp m1 m2
-    ->  DeliverableProp m2 p
-    ->  { _:Proof | false}
+    ->  Not (DeliverableProp m2 p)
 @-}
-safetyProof :: Proc -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> DeliverableProp -> Proof
+safetyProof :: Proc -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
 safetyProof _p m1 m2 m1_d_p m1_before_m2 m2_d_p
     | mSender m1 == mSender m2
         =   ()
