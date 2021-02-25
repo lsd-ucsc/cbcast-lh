@@ -280,7 +280,7 @@ causallyBefore :: Msg -> Msg -> Bool @-}
 causallyBefore :: Msg -> Msg -> Bool
 causallyBefore m1 m2 = causallyBeforeK m1 m2 `andAtEachK` vcSize (mSent m1)
 
--- | @deliverable m p@ computes whether a message sent by @mSender m@ at @mSent
+-- | @deliverableImpl m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable to @pNode p@ at @pTime p@.
 --
 --
@@ -313,16 +313,16 @@ causallyBefore m1 m2 = causallyBeforeK m1 m2 `andAtEachK` vcSize (mSent m1)
 -- p_i delays delivery".
 --
 -- >>> let p = Proc 0 $ VC [1,0]
--- >>> deliverable (Msg 0 $ VC [1,0]) p -- "hello" message
+-- >>> deliverableImpl (Msg 0 $ VC [1,0]) p -- "hello" message
 -- False
--- >>> deliverable (Msg 1 $ VC [1,1]) p -- "world" message
+-- >>> deliverableImpl (Msg 1 $ VC [1,1]) p -- "world" message
 -- True
 --
-{-@ reflect deliverable @-}
+{-@ reflect deliverableImpl @-}
 {-@
-deliverable :: Msg -> Proc -> Bool @-}
-deliverable :: Msg -> Proc -> Bool
-deliverable msg proc = deliverableK msg proc `andAtEachK` vcSize (mSent msg)
+deliverableImpl :: Msg -> Proc -> Bool @-}
+deliverableImpl :: Msg -> Proc -> Bool
+deliverableImpl msg proc = deliverableK msg proc `andAtEachK` vcSize (mSent msg)
 
 
 -- * Additional vector clock functions
