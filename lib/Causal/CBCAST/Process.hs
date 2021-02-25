@@ -48,20 +48,12 @@ fList (FIFO xs) = listReverse xs
 -- are ready to broadcast.
 {-@
 data Process [pSize]
-             r = Process { pProc::Proc, pDQ::DQ r {pProc}, pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
-data Process r = Process { pProc::Proc, pDQ::DQ r        , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) }
+             r = Process { pID::PID, pVC::VC, pDQ::DQ r {pID}, pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
+data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) }
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
 {-@ measure pSize @-}
-
-pID :: Process r -> PID
-pID Process{pProc=Proc{pNode=pid}} = pid
-{-@ measure pID @-}
-
-pVT :: Process r -> VC
-pVT Process{pProc=Proc{pTime=vc}} = vc
-{-@ measure pVT @-}
 
 -- | Alternate measure for the 'DelayQueue' of a 'Process'
 {-@
@@ -76,12 +68,14 @@ pdqSize Process{pDQ} = dqSize pDQ
 pNew :: PID -> ProcCount -> Process r @-}
 pNew :: PID -> Int -> Process r
 pNew pid pCount = Process
-    { pProc = Proc
-        { pNode = pid
-        , pTime = vcNew pCount
-        }
+    { pID = pid
+    , pVC = vcNew pCount
     , pDQ = dqNew
     , pInbox = fNew
     , pOutbox = fNew
     }
 {-@ inline pNew @-}
+
+{-@ measure pProc@-}
+pProc :: Process r -> Proc
+pProc Process{pID, pVC} = Proc{pNode=pID, pTime=pVC}

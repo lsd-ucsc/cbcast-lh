@@ -28,10 +28,10 @@ dqSize (DelayQueue xs) = listLength xs
 
 {-@ reflect dqExcludes @-}
 {-@
-dqExcludes :: DelayQueue r -> Proc -> Bool @-}
-dqExcludes :: DelayQueue r -> Proc -> Bool
+dqExcludes :: DelayQueue r -> PID -> Bool @-}
+dqExcludes :: DelayQueue r -> PID -> Bool
 dqExcludes (DelayQueue []) _ = True
-dqExcludes (DelayQueue (x:xs)) p = mSender x /= pNode p && dqExcludes (DelayQueue xs) p
+dqExcludes (DelayQueue (x:xs)) p = mSender x /= p && dqExcludes (DelayQueue xs) p
 
 
 -- * User API
