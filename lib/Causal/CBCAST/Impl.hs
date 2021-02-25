@@ -1,6 +1,6 @@
 module Causal.CBCAST.Impl where
 
-import Causal.VectorClock
+import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Process
