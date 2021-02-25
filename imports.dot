@@ -1,0 +1,22 @@
+digraph G {
+	 Impl -> VectorClock
+	 Impl -> Message
+	 Impl -> DelayQueue
+	 Impl -> Process
+	 Process -> Redefined
+	 Process -> VectorClock
+	 Process -> Message
+	 Process -> DelayQueue
+	 Verification -> ProofCombinators
+	 Verification -> Redefined
+	 Verification -> VectorClock
+	 Verification -> Message
+	 Message -> Redefined
+	 Message -> VectorClock
+	 VerificationSummary -> Prelude
+	 VerificationSummary -> ProofCombinators
+	 VectorClock -> Redefined
+	 DelayQueue -> Redefined
+	 DelayQueue -> VectorClock
+	 DelayQueue -> Message
+}
