@@ -1,5 +1,9 @@
 -- | Translation of Gan's original Agda proof to LiquidHaskell, using reflected
 -- functions instead of types, and  with minimal dependencies.
+--
+-- This file serves as a duplicated summary of the proof of our implementation.
+-- To read the implementation proof, start with VectorClock.hs, then
+-- Message.hs, then Verification.hs.
 module Causal.CBCAST.VerificationSummary where
 
 import Prelude hiding (lookup)

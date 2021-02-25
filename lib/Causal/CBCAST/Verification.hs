@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs Redefined to be imported for specs
 -- | Implementation of vector clocks and safety proof for deliverability
 -- predicate. Safety proof uses implementation components as part of the spec.
+--
+-- To follow the proof, start with VectorClock.hs, then Message.hs, then this
+-- file.
 module Causal.CBCAST.Verification where
 
 import Language.Haskell.Liquid.ProofCombinators

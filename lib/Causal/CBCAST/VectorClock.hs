@@ -1,4 +1,8 @@
 -- | Implementation of vector clocks as a list of integers.
+--
+-- To follow the proof, read this file until the operations at index K are
+-- defined (around line 80), then proceed to Message.hs, and finally
+-- Verification.hs.
 module Causal.CBCAST.VectorClock where
 
 import Redefined
@@ -77,6 +81,8 @@ vcLessEqualK a b k = a ! k <= b ! k
 vcLessK :: VC -> VC -> PID -> Bool @-}
 vcLessK :: VC -> VC -> PID -> Bool
 vcLessK a b k = vcLessEqualK a b k && a /= b
+
+-- The rest of this file is not important for reading the proof.
 
 
 -- * Operations over all K

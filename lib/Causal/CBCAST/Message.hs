@@ -1,4 +1,7 @@
 -- | CBCAST message type and definition of deliverability.
+--
+-- To follow the proof, read VectorClock.hs first, this file, then
+-- Verification.hs.
 module Causal.CBCAST.Message where
 
 import Redefined
