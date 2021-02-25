@@ -76,8 +76,8 @@ vcLessK a b k = vcLessEqualK a b k && a /= b
 -- * Messages and operations
 
 {-@
-data Msg = Msg { mSender :: PID, mSent :: VC } @-}
-data Msg = Msg { mSender :: PID, mSent :: VC }
+data Msg = Msg { senderId :: PID, messageVc :: VC } @-}
+data Msg = Msg { senderId :: PID, messageVc :: VC }
 
 -- | page 7/278:
 --
@@ -103,7 +103,7 @@ data Msg = Msg { mSender :: PID, mSent :: VC }
 {-@
 causallyBeforeK :: Msg -> Msg -> PID -> Bool @-}
 causallyBeforeK :: Msg -> Msg -> PID -> Bool
-causallyBeforeK m1 m2 k = vcLessK (mSent m1) (mSent m2) k
+causallyBeforeK m1 m2 k = vcLessK (messageVc m1) (messageVc m2) k
 
 -- | Property: 'causallyBeforeK' is true at all indexes.
 {-@
@@ -117,13 +117,13 @@ type CausallyBeforeProp = PID -> Proof
 --
 {-@ ple vectorClocksConsistentWithCausalityProof @-}
 {-@
-vectorClocksConsistentWithCausalityProof :: m1:Msg -> m2:Msg -> CausallyBeforeProp {m1} {m2} -> k:PID -> { _:Proof | vcLessK (mSent m1) (mSent m2) k } @-}
+vectorClocksConsistentWithCausalityProof :: m1:Msg -> m2:Msg -> CausallyBeforeProp {m1} {m2} -> k:PID -> { _:Proof | vcLessK (messageVc m1) (messageVc m2) k } @-}
 vectorClocksConsistentWithCausalityProof :: Msg -> Msg -> CausallyBeforeProp -> PID -> Proof
 vectorClocksConsistentWithCausalityProof _ _ m1_before_m2 k = m1_before_m2 k
 
 {-@ ple causallyBeforeKvcLessKAliasProof @-}
 {-@
-causallyBeforeKvcLessKAliasProof :: m1:Msg -> m2:Msg -> k:PID -> { _:Proof | causallyBeforeK m1 m2 k <=> vcLessK (mSent m1) (mSent m2) k } @-}
+causallyBeforeKvcLessKAliasProof :: m1:Msg -> m2:Msg -> k:PID -> { _:Proof | causallyBeforeK m1 m2 k <=> vcLessK (messageVc m1) (messageVc m2) k } @-}
 causallyBeforeKvcLessKAliasProof :: Msg -> Msg -> PID -> Proof
 causallyBeforeKvcLessKAliasProof _m1 _m2 _k = trivial
 
@@ -131,8 +131,8 @@ causallyBeforeKvcLessKAliasProof _m1 _m2 _k = trivial
 -- * Processes and operations
 
 {-@
-data Proc = Proc { pNode :: PID, pTime :: VC } @-}
-data Proc = Proc { pNode :: PID, pTime :: VC }
+data Proc = Proc { procId :: PID, procVc :: VC } @-}
+data Proc = Proc { procId :: PID, procVc :: VC }
 
 -- | page 10/281:
 --
@@ -147,8 +147,8 @@ data Proc = Proc { pNode :: PID, pTime :: VC }
 deliverableK :: Msg -> Proc -> PID -> Bool @-}
 deliverableK :: Msg -> Proc -> PID -> Bool
 deliverableK msg proc k
-    | k == mSender msg = mSent msg ! k == pTime proc ! k + 1
-    | k /= mSender msg = mSent msg ! k <= pTime proc ! k
+    | k == senderId msg = messageVc msg ! k == procVc proc ! k + 1
+    | k /= senderId msg = messageVc msg ! k <= procVc proc ! k
     | otherwise = impossibleConst False "all cases covered"
 
 -- | Property: 'deliverableK' is true at all indexes.
@@ -170,8 +170,8 @@ type DeliverableProp = PID -> Proof
 assume processOrderAxiom
     ::  m1 : Msg
     ->  m2 : Msg
-    ->  { _:Proof | mSender m1 == mSender m2 }
-    ->  { _:Proof | vcReadK (mSent m1) (mSender m1) != vcReadK (mSent m2) (mSender m2) }
+    ->  { _:Proof | senderId m1 == senderId m2 }
+    ->  { _:Proof | vcReadK (messageVc m1) (senderId m1) != vcReadK (messageVc m2) (senderId m2) }
 @-}
 processOrderAxiom :: Msg -> Msg -> Proof -> Proof
 processOrderAxiom _m1 _m2 _proof = ()
@@ -211,17 +211,17 @@ safetyProof
 @-}
 safetyProof :: Proc -> Msg -> Msg -> DeliverableProp -> CausallyBeforeProp -> DeliverableProp -> Proof
 safetyProof _p m1 m2 m1_d_p m1_before_m2 m2_d_p
-    | mSender m1 == mSender m2
+    | senderId m1 == senderId m2
         =   ()
-            ? m1_d_p (mSender m1)
-            ? m2_d_p (mSender m2)
+            ? m1_d_p (senderId m1)
+            ? m2_d_p (senderId m2)
             ? processOrderAxiom m1 m2 ()
             *** QED
     | otherwise
         =   ()
-            ? m1_before_m2 (mSender m1)
-            ? m1_d_p (mSender m1)
-            ? m2_d_p (mSender m1)
+            ? m1_before_m2 (senderId m1)
+            ? m1_d_p (senderId m1)
+            ? m2_d_p (senderId m1)
             *** QED
 
 
@@ -279,10 +279,10 @@ vcLess a b = vcLessK a b `andAtEachK` vcSize a
 {-@
 causallyBefore :: Msg -> Msg -> Bool @-}
 causallyBefore :: Msg -> Msg -> Bool
-causallyBefore m1 m2 = causallyBeforeK m1 m2 `andAtEachK` vcSize (mSent m1)
+causallyBefore m1 m2 = causallyBeforeK m1 m2 `andAtEachK` vcSize (messageVc m1)
 
--- | @deliverableImpl m p@ computes whether a message sent by @mSender m@ at @mSent
--- m@ is deliverable to @pNode p@ at @pTime p@.
+-- | @deliverableImpl m p@ computes whether a message sent by @senderId m@ at @messageVc
+-- m@ is deliverable to @procId p@ at @procVc p@.
 --
 --
 -- Example:
@@ -323,7 +323,7 @@ causallyBefore m1 m2 = causallyBeforeK m1 m2 `andAtEachK` vcSize (mSent m1)
 {-@
 deliverableImpl :: Msg -> Proc -> Bool @-}
 deliverableImpl :: Msg -> Proc -> Bool
-deliverableImpl msg proc = deliverableK msg proc `andAtEachK` vcSize (mSent msg)
+deliverableImpl msg proc = deliverableK msg proc `andAtEachK` vcSize (messageVc msg)
 
 
 -- * Additional vector clock functions

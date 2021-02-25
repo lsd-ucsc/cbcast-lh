@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- FIXME: remove this after we can delete the ProofCombinators import
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- | Indirection module
 module Causal.CBCAST.Message
@@ -23,7 +24,7 @@ import Causal.CBCAST.Verification as X
 --  , causallyBeforeKvcLessKAliasProof
 
     -- * Processes and operations
-    , Proc(Proc, pNode, pTime)
+    , Proc(Proc, procId, procVc)
 --  , deliverableK, DeliverableProp
 
 --  -- * Safety proof
@@ -49,16 +50,13 @@ import Language.Haskell.Liquid.ProofCombinators -- FIXME: LH is unhappy without 
 import Causal.CBCAST.Verification as Internal
 
 {-@
-data Message r = Message { mMsg :: Msg, mRaw :: r } @-}
-data Message r = Message { mMsg :: Msg, mRaw :: r }
+data Message r = Message { mSender::PID, mSent::VC, mRaw::r } @-}
+data Message r = Message { mSender::PID, mSent::VC, mRaw::r }
 
-{-@ measure mSender @-}
-mSender :: Message r -> PID
-mSender Message{mMsg=Msg{Internal.mSender=pid}} = pid
-
-{-@ measure mSent @-}
-mSent :: Message r -> VC
-mSent Message{mMsg=Msg{Internal.mSent=vc}} = vc
+-- | For calls into the Verification module's code.
+{-@ measure mMsg @-}
+mMsg :: Message r -> Msg
+mMsg Message{mSender, mSent} = Msg{senderId=mSender, messageVc=mSent}
 
 {-@ reflect deliverable @-}
 {-@
