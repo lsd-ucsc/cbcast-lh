@@ -41,7 +41,9 @@ import Causal.CBCAST.Verification as X
     , vcSize
     , vcNew
     , vcTick
+    , vcTickImpl        -- Required by LH
     , vcCombine
+    , vcCombineImpl     -- Required by LH
     )
 
 import Language.Haskell.Liquid.ProofCombinators -- FIXME: LH is unhappy without this

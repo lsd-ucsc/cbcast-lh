@@ -1,0 +1,29 @@
+digraph G {
+    internalSend [shape=box];
+    internalReceive [shape=box];
+    internalDeliver [shape=box];
+    internalDeliverReceived [shape=box];
+
+    internalSend -> pVC [label=updates, weight=0.1];
+    internalSend -> pOutbox [label=updates, weight=0.1];
+    internalSend -> internalReceive [label=calls, weight=10, penwidth=3];
+
+    internalReceive -> pDQ [label=updates, weight=0.1];
+    internalReceive -> internalDeliver [label=calls, weight=10, penwidth=3];
+
+    internalDeliver -> pVC [label=updates, weight=0.1];
+    internalDeliver -> pInbox [label=updates, weight=0.1];
+
+    internalDeliverReceived -> internalDeliver [label=calls, weight=10, penwidth=3];
+    internalDeliverReceived -> internalDeliverReceived [label=calls, weight=10, penwidth=3];
+    internalDeliverReceived -> pDQ [label=updates, weight=0.1];
+
+    send -> internalSend [label=calls, weight=10, penwidth=3];
+    send -> internalDeliverReceived [label=calls, weight=10, penwidth=3];
+
+    receive -> internalReceive [label=calls, weight=10, penwidth=3];
+    receive -> internalDeliverReceived [label=calls, weight=10, penwidth=3];
+
+    drainBroadcasts -> pOutbox [label=updates, weight=0.1]
+    drainDeliveries -> pIndox [label=updates, weight=0.1]
+}
