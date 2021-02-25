@@ -5,8 +5,8 @@ module Causal.CBCAST.Process
 ) where
 
 import Redefined
-
 import Causal.VectorClock
+import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 
 type DQ r = DelayQueue r
@@ -74,14 +74,14 @@ pdqSize Process{pDQ} = dqSize pDQ
 
 -- | New empty process using the given process ID.
 {-@
-pNew :: p:PID -> {n:Nat | p < n} -> Process r @-}
+pNew :: PID -> ProcCount -> Process r @-}
 pNew :: PID -> Int -> Process r
 pNew pid pCount = Process
     { pProc = Proc
         { pNode = pid
         , pTime = vcNew pCount
         }
-    , pDQ = dqNew pCount
+    , pDQ = dqNew
     , pInbox = fNew
     , pOutbox = fNew
     }

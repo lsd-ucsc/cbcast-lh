@@ -23,7 +23,7 @@ import Causal.CBCAST.Verification as X
 --  , causallyBeforeKvcLessKAliasProof
 
     -- * Processes and operations
-    , Proc(pTime)
+    , Proc(Proc, pNode, pTime)
 --  , deliverableK, DeliverableProp
 
 --  -- * Safety proof

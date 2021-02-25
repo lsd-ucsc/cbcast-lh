@@ -18,6 +18,7 @@ type Clock = Integer
 
 -- | LH specs are parameterized over @procCount@, but no value is given.
 {-@ measure procCount :: Nat @-}
+{-@ type ProcCount = {s:Nat | s == procCount} @-}
 
 -- | A vector clock is a list of clock values of some known length.
 {-@
@@ -354,7 +355,7 @@ vcSize (VC xs@(_:_)) = listLength xs
 
 {-@ reflect vcNew @-}
 {-@
-vcNew :: {s:Nat | s == procCount} -> VC @-}
+vcNew :: ProcCount -> VC @-}
 vcNew :: Int -> VC
 vcNew size = VC (listReplicate size 0)
 
