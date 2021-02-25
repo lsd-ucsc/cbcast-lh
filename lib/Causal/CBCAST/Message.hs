@@ -1,65 +1,82 @@
-{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- FIXME: remove this after we can delete the ProofCombinators import
-{-# LANGUAGE NamedFieldPuns #-}
+-- | CBCAST message type and definition of deliverability.
+module Causal.CBCAST.Message where
 
--- | Indirection module
-module Causal.CBCAST.Message
-( module X
-, module Causal.CBCAST.Message
-) where
+import Redefined
+import Causal.CBCAST.VectorClock
 
-import Causal.CBCAST.Verification as X
-    (
---  -- * Vector clocks
---    Clock
---  , VC
---  , PID
---  , vcReadK, (!)
---  , vcLessEqualK
---  , vcLessK
 
-    -- * Messages and operations
-      Msg
---  , causallyBeforeK, CausallyBeforeProp
---  , vectorClocksConsistentWithCausalityProof
---  , causallyBeforeKvcLessKAliasProof
+-- * Types
 
-    -- * Processes and operations
-    , Proc(Proc, procId, procVc)
---  , deliverableK, DeliverableProp
-
---  -- * Safety proof
---  , processOrderAxiom
---  , safetyProof
-
-    -- * Implementations over all K
-    , andAtEachK        -- Required by LH
---  , vcLessEqual
---  , vcLess
-    , causallyBefore
-    , deliverableImpl
-
---  -- * Additional vector clock functions
---  , vcIndependent
---  , vcSize
---  , vcNew
---  , vcTick
---  , vcCombine
-    )
-
-import Language.Haskell.Liquid.ProofCombinators -- FIXME: LH is unhappy without this
-import Causal.CBCAST.Verification as Internal
-
+-- | Message type used throughout implementation.
 {-@
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r } @-}
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r }
 
--- | For calls into the Verification module's code.
-{-@ measure mMsg @-}
-mMsg :: Message r -> Msg
-mMsg Message{mSender, mSent} = Msg{senderId=mSender, messageVc=mSent}
+-- | Process metadata used for deliverability, distinct from process state.
+{-@
+data Proc = Proc { procId :: PID, procVc :: VC } @-}
+data Proc = Proc { procId :: PID, procVc :: VC }
 
+
+-- * Deliverability
+
+-- | page 10/281:
+--
+--      "(2) On reception of message m sent by p_i and timestamped with VT(m),
+--      process p_j =/= p_i delays delivery of m until:
+--
+--          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
+--                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
+--
+{-@ reflect deliverableK @-}
+{-@
+deliverableK :: Message r -> Proc -> PID -> Bool @-}
+deliverableK :: Message r -> Proc -> PID -> Bool
+deliverableK m p k
+    | k == mSender m = mSent m ! k == procVc p ! k + 1
+    | k /= mSender m = mSent m ! k <= procVc p ! k
+    | otherwise = impossibleConst False "all cases covered"
+
+-- | @deliverable m p@ computes whether a message sent by @senderId m@ at @messageVc
+-- m@ is deliverable to @procId p@ at @procVc p@.
+--
+--
+-- Example:
+--
+-- P0 and P1 both start at [0,0].
+-- >    P0@[0,0]    P1@[0,0]
+--
+-- P0 sends "hello" causing it to increment its own vector clock and append
+-- that to the message.
+-- >    P0@[1,0]    P1@[0,0]
+--
+-- P1 receives the message from P0, delivers it, and applies the attached
+-- vector clock.
+-- >    P0@[1,0]    P1@[1,0]
+--
+-- P1 sends "world" causing it to increment its own vector clock and append
+-- that to the message.
+-- >    P0@[1,0]    P1@[1,1]
+--
+-- What does P0 think of the deliverability of both messages?
+--
+--      * The "hello"@[1,0] is not deliverable at P0.
+--      * The "world"@[1,1] is deliverable at P0.
+--
+-- From this we conclude that "Process p_j need not delay messages received
+-- from itself" means that it actually _cannot_ delay such messages, since they
+-- won't be considered deliverable. This interpretation is bolstered by the
+-- precondition in (2) "On reception of message m sent by p_i, process p_j =/=
+-- p_i delays delivery".
+--
+-- >>> let p = Proc 0 $ VC [1,0]
+-- >>> deliverable (Message 0 (VC [1,0]) "hello") p
+-- False
+-- >>> deliverable (Message 1 (VC [1,1]) "world") p
+-- True
+--
 {-@ reflect deliverable @-}
 {-@
-deliverable :: Proc -> Message r -> Bool @-}
-deliverable :: Proc -> Message r -> Bool
-deliverable p m = Internal.deliverableImpl (mMsg m) p
+deliverable :: Message r -> Proc -> Bool @-}
+deliverable :: Message r -> Proc -> Bool
+deliverable m p = deliverableK m p `andAtEachK` vcSize (mSent m)
