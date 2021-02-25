@@ -150,7 +150,7 @@ fin k = let k' = k - 1 in if 0 < k then k' : fin k' else []
 -- | Lookup an element of a non-empty list given a valid index. This is called
 -- "lookup" in agda and "!!" or "genericIndex" in haskell.
 {-@ reflect listIndex @-}
-{-@ listIndex :: xs:[a] -> {i:Nat | i < len xs } -> a @-}
+{-@ listIndex :: xs:[a] -> Fin {len xs} -> a @-}
 listIndex :: [a] -> Int -> a
 listIndex (x:xs) i
     | i == 0    = x
