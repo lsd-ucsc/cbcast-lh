@@ -4,26 +4,31 @@ digraph G {
     internalDeliver [shape=box];
     internalDeliverReceived [shape=box];
 
-    internalSend -> pVC [label=updates, weight=0.1];
-    internalSend -> pOutbox [label=updates, weight=0.1];
-    internalSend -> internalReceive [label=calls, weight=10, penwidth=3];
+    send [shape=octagon];
+    receive [shape=octagon];
+    drainBroadcasts [shape=octagon];
+    drainDeliveries [shape=octagon];
 
-    internalReceive -> pDQ [label=updates, weight=0.1];
-    internalReceive -> internalDeliver [label=calls, weight=10, penwidth=3];
+    internalSend -> pVC [label=updates, style=dotted];
+    internalSend -> pOutbox [label=updates, style=dotted];
+    internalSend -> internalReceive [label=calls, penwidth=3];
 
-    internalDeliver -> pVC [label=updates, weight=0.1];
-    internalDeliver -> pInbox [label=updates, weight=0.1];
+    internalReceive -> pDQ [label="updates\l¬own msg", style=dotted];
+    internalReceive -> internalDeliver [label="calls\lown msg", penwidth=3];
 
-    internalDeliverReceived -> internalDeliver [label=calls, weight=10, penwidth=3];
-    internalDeliverReceived -> internalDeliverReceived [label=calls, weight=10, penwidth=3];
-    internalDeliverReceived -> pDQ [label=updates, weight=0.1];
+    internalDeliver -> pVC [label=updates, style=dotted];
+    internalDeliver -> pInbox [label=updates, style=dotted];
 
-    send -> internalSend [label=calls, weight=10, penwidth=3];
-    send -> internalDeliverReceived [label=calls, weight=10, penwidth=3];
+    internalDeliverReceived -> internalDeliver [label=calls, penwidth=3];
+    internalDeliverReceived -> internalDeliverReceived [label=calls, penwidth=3];
+    internalDeliverReceived -> pDQ [label=updates, style=dotted];
 
-    receive -> internalReceive [label=calls, weight=10, penwidth=3];
-    receive -> internalDeliverReceived [label=calls, weight=10, penwidth=3];
+    send -> internalSend [label=calls, penwidth=3];
+    send -> internalDeliverReceived [label=calls, penwidth=3];
 
-    drainBroadcasts -> pOutbox [label=updates, weight=0.1]
-    drainDeliveries -> pIndox [label=updates, weight=0.1]
+    receive -> internalReceive [label=calls, penwidth=3];
+    receive -> internalDeliverReceived [label=calls, penwidth=3];
+
+    drainBroadcasts -> pOutbox [label=updates, style=dotted]
+    drainDeliveries -> pInbox [label=updates, style=dotted]
 }
