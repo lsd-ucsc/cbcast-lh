@@ -128,7 +128,7 @@ impossibleConst a _ = a
 type Vec a = [a]
 
 -- | A member of a finite set of natural numbers.
-{-@ type Fin V = {v:Nat | v < V} @-}
+{-@ type Fin V = {k:Nat | k < V} @-}
 type Fin = Int
 
 -- | Generate the elements of a finite set @Fin n@.
@@ -143,12 +143,14 @@ type Fin = Int
 -- [1,0]
 --
 {-@ reflect fin @-}
-{-@ fin :: v:Nat -> {xs:[{x:Nat | x < v}]<{\a b -> a > b}> | len xs == v} @-}
+{-@ fin :: v:Nat -> {xs:[Fin {v}]<{\a b -> a > b}> | len xs == v} @-}
 fin :: Int -> [Int]
 fin k = let k' = k - 1 in if 0 < k then k' : fin k' else []
 
 -- | Lookup an element of a non-empty list given a valid index. This is called
 -- "lookup" in agda and "!!" or "genericIndex" in haskell.
+--
+-- prop> xs !! i == listIndex xs i
 {-@ reflect listIndex @-}
 {-@ listIndex :: xs:[a] -> Fin {len xs} -> a @-}
 listIndex :: [a] -> Int -> a
