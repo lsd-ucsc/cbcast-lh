@@ -9,8 +9,6 @@ import Causal.VectorClock
 import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 
-type DQ r = DelayQueue r
-
 
 -- * FIFO
 
@@ -50,8 +48,8 @@ fList (FIFO xs) = listReverse xs
 -- are ready to broadcast.
 {-@
 data Process [pSize]
-             r = Process { pProc :: Proc, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) } @-}
-data Process r = Process { pProc :: Proc, pDQ :: DQ r, pInbox :: FIFO (Message r), pOutbox :: FIFO (Message r) }
+             r = Process { pProc::Proc, pDQ::DQ r {pProc}, pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
+data Process r = Process { pProc::Proc, pDQ::DQ r        , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) }
 
 pSize :: Process r -> Int
 pSize Process{pDQ, pInbox, pOutbox} = dqSize pDQ + fSize pInbox + fSize pOutbox
@@ -73,6 +71,7 @@ pdqSize Process{pDQ} = dqSize pDQ
 {-@ measure pdqSize @-}
 
 -- | New empty process using the given process ID.
+{-@ ple pNew @-}
 {-@
 pNew :: PID -> ProcCount -> Process r @-}
 pNew :: PID -> Int -> Process r

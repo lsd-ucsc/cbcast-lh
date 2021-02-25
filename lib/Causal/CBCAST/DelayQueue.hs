@@ -9,15 +9,29 @@ import Causal.CBCAST.Message
 
 -- TODO: sortedness invariant
 -- FIXME (NEWTYPE_RESTRICTION)
+{-@
+data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
 data DelayQueue r = DelayQueue [Message r]
+
+-- | Alias for DelayQueues which exclude messages from the specified process.
+{-@
+type DQ r P = {dq:DelayQueue r | dqExcludes dq P} @-}
+type DQ r = DelayQueue r
 
 
 -- * Logical predicates
 
 {-@ measure dqSize @-}
-{-@ dqSize :: _ -> Nat @-}
+{-@ dqSize :: DelayQueue r -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
+
+{-@ reflect dqExcludes @-}
+{-@
+dqExcludes :: DelayQueue r -> Proc -> Bool @-}
+dqExcludes :: DelayQueue r -> Proc -> Bool
+dqExcludes (DelayQueue []) _ = True
+dqExcludes (DelayQueue (x:xs)) p = mSender x /= pNode p && dqExcludes (DelayQueue xs) p
 
 
 -- * User API
