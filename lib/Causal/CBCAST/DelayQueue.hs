@@ -1,22 +1,15 @@
 module Causal.CBCAST.DelayQueue where
 
 import Redefined
-import Causal.VectorClock
+import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 
 
 -- * Types
 
--- TODO: sortedness invariant
--- FIXME (NEWTYPE_RESTRICTION)
 {-@
 data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
 data DelayQueue r = DelayQueue [Message r]
-
--- FIXME somehow prove this is preserved through dqEnqueue/dqDequeue
--- -- | Alias for DelayQueues which exclude messages from the specified process.
--- {-@
--- type DQ r P = {dq:DelayQueue r | dqExcludes dq P} @-}
 type DQ r = DelayQueue r
 
 -- TODO: make a generic priority-queue like structure?
@@ -32,13 +25,6 @@ type DQ r = DelayQueue r
 {-@ dqSize :: DelayQueue r -> Nat @-}
 dqSize :: DelayQueue r -> Int
 dqSize (DelayQueue xs) = listLength xs
-
-{-@ reflect dqExcludes @-}
-{-@
-dqExcludes :: DelayQueue r -> Proc -> Bool @-}
-dqExcludes :: DelayQueue r -> Proc -> Bool
-dqExcludes (DelayQueue []) _ = True
-dqExcludes (DelayQueue (x:xs)) p = mSender x /= procId p && dqExcludes (DelayQueue xs) p
 
 
 -- * User API
@@ -91,7 +77,7 @@ dqDequeue
     -> xs:DelayQueue r
     -> Maybe
         ( {ys:DelayQueue r | dqSize xs - 1 == dqSize ys}
-        , {m:Message r | deliverable p m}
+        , {m:Message r | deliverable m p}
         )
 @-}
 dqDequeue :: Proc -> DelayQueue r -> Maybe (DelayQueue r, Message r)
@@ -106,13 +92,13 @@ dqDequeueImpl
     -> xs:[Message r]
     -> Maybe
         ( {ys:[Message r] | listLength xs - 1 == listLength ys}
-        , {m:Message r | deliverable p m}
+        , {m:Message r | deliverable m p}
         )
 @-}
 dqDequeueImpl :: Proc -> [Message r] -> Maybe ([Message r], Message r)
 dqDequeueImpl _ [] = Nothing
 dqDequeueImpl p (x:xs)
-    | deliverable p x = Just (xs, x)
+    | deliverable x p = Just (xs, x)
     | otherwise = case dqDequeueImpl p xs of
         Nothing -> Nothing
         Just (ys, y) -> Just (x:ys, y)
