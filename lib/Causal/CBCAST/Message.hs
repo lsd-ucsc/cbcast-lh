@@ -2,10 +2,7 @@
 --
 -- To follow the proof, read VectorClock.hs first, this file, then
 -- Verification.hs.
-{-# LANGUAGE DeriveGeneric #-}
 module Causal.CBCAST.Message where
-
-import GHC.Generics (Generic)
 
 import Redefined
 import Causal.CBCAST.VectorClock
@@ -17,7 +14,6 @@ import Causal.CBCAST.VectorClock
 {-@
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r } @-}
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r }
-    deriving (Generic)
 
 -- | Process metadata used for deliverability, distinct from process state.
 {-@
