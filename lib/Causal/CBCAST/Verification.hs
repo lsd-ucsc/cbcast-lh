@@ -102,14 +102,14 @@ processOrderAxiom _m1 _m2 _proof = ()
 --
 -- In the first case, if we apply the `DeliverableProp m1 p` function
 -- to `mSender m1`, we see that `m1`'s VC entry in the sender position
--- is OK for deliverability, so it must be one greater than `p`'s VC in the sender position.
--- Likewise, if we apply our `DeliverableProp m2 p` function to
--- `msender m2`, we see that `m2`'s VC entry in its sender position
--- (which is the same as `m1`'s sender) is OK for deliverability, so
--- it must also be one greater than `p`'s VC.  But this is a
--- contradiction, because `processOrderAxiom` says that these entries
--- in message from the same sender must be distinct, so we're able to
--- prove false, as needed.
+-- is OK for deliverability, so it must be one greater than `p`'s VC
+-- in the sender position.  Likewise, if we apply our `DeliverableProp
+-- m2 p` function to `msender m2`, we see that `m2`'s VC entry in its
+-- sender position (which is the same as `m1`'s sender) is OK for
+-- deliverability, so it must also be one greater than `p`'s VC.  But
+-- this is a contradiction, because `processOrderAxiom` says that
+-- these entries in message from the same sender must be distinct, so
+-- we're able to prove false, as needed.
 --
 -- In the second case, if we apply the `CausallyBeforeProp m1 m2`
 -- function to `mSender m1` we see that `m1`'s VC is less than or
