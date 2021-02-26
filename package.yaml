@@ -11,7 +11,7 @@ dependencies:
 
 ghc-options:
     - -Wall
-    - -fno-warn-incomplete-patterns
+    - -fno-warn-incomplete-patterns # liquidhaskell aready does this for us
     - -fplugin=LiquidHaskell
     - -fplugin-opt=LiquidHaskell:--exact-data # fix an error where a function that matched a `[]` pattern had "Unbound symbol is$GHC.Types[]"
     - -fplugin-opt=LiquidHaskell:--exact-data-cons # make reflect able to handle functions with custom data structures
@@ -26,8 +26,26 @@ library:
 
 executables:
     example:
-        main: Example.hs
+        main: ExampleKvServer.hs
         ghc-options: -threaded -rtsopts -with-rtsopts=-N
+        dependencies:
+            - cbcast-lh
+            - HTTP
+            - aeson
+            - bytestring
+            - containers
+            - http-client
+            - http-types
+            - mtl
+            - network-uri
+            - servant
+            - servant-client
+            - servant-server
+            - text
+            - unordered-containers
+            - vector
+            - wai
+            - warp
 
 tests:
     doctest:
