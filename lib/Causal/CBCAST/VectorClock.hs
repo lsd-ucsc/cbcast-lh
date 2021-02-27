@@ -2,7 +2,7 @@
 --
 -- To follow the proof, read this file until the operations at index K are
 -- defined (around line 80), then proceed to Message.hs, and finally
--- Verification.hs.
+-- Safety.hs.
 module Causal.CBCAST.VectorClock where
 
 import Redefined
