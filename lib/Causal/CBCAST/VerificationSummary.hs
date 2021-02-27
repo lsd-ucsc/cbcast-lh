@@ -36,9 +36,8 @@ data Process = Process { procId :: Fin  , procVc :: VectorClock }
 deliverableK :: Message -> Process -> Fin n -> Bool @-}
 deliverableK :: Message -> Process -> Fin -> Bool
 deliverableK msg proc k
-    | k == senderId msg     = bang (messageVc msg) k == bang (procVc proc) k + 1
-    | k /= senderId msg     = bang (messageVc msg) k <= bang (procVc proc) k
-    | otherwise = impossibleConst False "all cases covered"
+    | k == senderId msg = bang (messageVc msg) k == bang (procVc proc) k + 1
+    | otherwise         = bang (messageVc msg) k <= bang (procVc proc) k
 
 {-@ type DeliverableProp M P = k:Fin n -> { _:Proof | deliverableK M P k } @-}
 type DeliverableProp = Fin -> Proof
@@ -113,10 +112,3 @@ lookup :: [a] -> Int -> a
 lookup (x:xs) i
     | i == 0    = x
     | otherwise = lookup xs (i-1)
-
--- | Implementation of 'impossible' lifted to specifications. similar to the
--- one in 'Language.Haskell.Liquid.ProofCombinators'.
-{-@ inline impossibleConst @-}
-{-@ impossibleConst :: a -> {v:b | false } -> a @-}
-impossibleConst :: a -> b -> a
-impossibleConst a _ = a
