@@ -3,7 +3,7 @@
 --
 -- This file serves as a duplicated summary of the proof of our implementation.
 -- To read the implementation proof, start with VectorClock.hs, then
--- Message.hs, then Verification.hs.
+-- Message.hs, then Safety.hs.
 module Causal.CBCAST.VerificationSummary where
 
 import Prelude hiding (lookup)

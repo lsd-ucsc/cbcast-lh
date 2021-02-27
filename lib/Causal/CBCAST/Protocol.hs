@@ -1,4 +1,4 @@
-module Causal.CBCAST.Impl where
+module Causal.CBCAST.Protocol where
 
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
@@ -103,7 +103,7 @@ internalDeliver m p = p
 internalDeliverReceived :: p:Process r -> Process r / [pdqSize p] @-}
 internalDeliverReceived :: Process r -> Process r
 internalDeliverReceived p =
-    case dqDequeue (pProc p) (pDQ p) of
+    case dqDequeue (pVC p) (pDQ p) of
         Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
         Nothing -> p
 

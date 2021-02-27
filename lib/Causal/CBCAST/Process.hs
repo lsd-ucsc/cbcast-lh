@@ -73,8 +73,3 @@ pNew pid pCount = Process
     , pOutbox = fNew
     }
 {-@ inline pNew @-}
-
--- | For calls into the Verification module's code.
-{-@ measure pProc@-}
-pProc :: Process r -> Proc
-pProc Process{pID, pVC} = Proc{procId=pID, procVc=pVC}

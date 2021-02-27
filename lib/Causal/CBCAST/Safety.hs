@@ -4,7 +4,7 @@
 --
 -- To follow the proof, start with VectorClock.hs, then Message.hs, then this
 -- file.
-module Causal.CBCAST.Verification where
+module Causal.CBCAST.Safety where
 
 import Language.Haskell.Liquid.ProofCombinators
 
@@ -140,17 +140,15 @@ processOrderAxiom _m1 _m2 _proof = ()
 {-@ ple safetyProof @-}
 {-@
 safetyProof
-    ::  p : Proc
+    ::  procVc : VC
     ->  m1 : Message r
     ->  m2 : Message r
-    ->  DeliverableProp m1 p
+    ->  DeliverableProp m1 procVc
     ->  CausallyBeforeProp m1 m2
-    ->  Not (DeliverableProp m2 p)
+    ->  Not (DeliverableProp m2 procVc)
 @-}
-
-
-safetyProof :: Proc -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
-safetyProof _p m1 m2 m1_d_p m1_before_m2 m2_d_p
+safetyProof :: VC -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
+safetyProof _procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
     | mSender m1 == mSender m2
         =   ()
             ? m1_d_p (mSender m1)
