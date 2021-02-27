@@ -1,4 +1,4 @@
-module Causal.CBCAST.Impl where
+module Causal.CBCAST.Protocol where
 
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
