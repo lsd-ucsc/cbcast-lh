@@ -126,7 +126,7 @@ receive m p = internalDeliverReceived $ internalReceive m p
 -- TODO: receive any kind of message here, or return an error for messages with our own sender id?
 
 -- | Remove and return all sent messages so the application can broadcast them
--- (in sent-order, eg, with 'mapM_').
+-- (in sent-order, eg, with 'mapM_' or 'foldl'').
 {-@ reflect drainBroadcasts @-}
 drainBroadcasts :: Process r -> (Process r, [Message r])
 drainBroadcasts p =
@@ -135,7 +135,7 @@ drainBroadcasts p =
     )
 
 -- | Remove and return all delivered messages so the application can process
--- them (in delivered-order, eg, with 'fmap').
+-- them (in delivered-order, eg, with 'mapM_' or 'foldl'').
 {-@ reflect drainDeliveries @-}
 drainDeliveries :: Process r -> (Process r, [Message r])
 drainDeliveries p =
