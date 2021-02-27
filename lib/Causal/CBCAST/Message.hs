@@ -15,11 +15,6 @@ import Causal.CBCAST.VectorClock
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r } @-}
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r }
 
--- | Process metadata used for deliverability, distinct from process state.
-{-@
-data Proc = Proc { procId :: PID, procVc :: VC } @-}
-data Proc = Proc { procId :: PID, procVc :: VC }
-
 
 -- * Deliverability
 
@@ -31,17 +26,21 @@ data Proc = Proc { procId :: PID, procVc :: VC }
 --          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
 --                           { VT(m)[k] <= VT(p_j)[k]     otherwise"
 --
+-- @deliverableK m procVc k@ computes whether the @k@th offsets into the
+-- message send-time @mSent m@ and the local-time @procVc@ allow for the
+-- message to be delivered. Delivery is only allowed when @deliverableK m
+-- procVc@ is true for all @k@.
 {-@ reflect deliverableK @-}
 {-@
-deliverableK :: Message r -> Proc -> PID -> Bool @-}
-deliverableK :: Message r -> Proc -> PID -> Bool
-deliverableK m p k
-    | k == mSender m = mSent m ! k == procVc p ! k + 1
-    | k /= mSender m = mSent m ! k <= procVc p ! k
+deliverableK :: Message r -> VC -> PID -> Bool @-}
+deliverableK :: Message r -> VC -> PID -> Bool
+deliverableK m procVc k
+    | k == mSender m = mSent m ! k == procVc ! k + 1
+    | k /= mSender m = mSent m ! k <= procVc ! k
     | otherwise = impossibleConst False "all cases covered"
 
--- | @deliverable m p@ computes whether a message sent by @senderId m@ at @messageVc
--- m@ is deliverable to @procId p@ at @procVc p@.
+-- | @deliverable m p@ computes whether a message sent by @mSender m@ at @mSent
+-- m@ is deliverable at local-time @procVc@.
 --
 --
 -- Example:
@@ -72,14 +71,14 @@ deliverableK m p k
 -- precondition in (2) "On reception of message m sent by p_i, process p_j =/=
 -- p_i delays delivery".
 --
--- >>> let p = Proc 0 $ VC [1,0]
--- >>> deliverable (Message 0 (VC [1,0]) "hello") p
+-- >>> let procVc = VC [1,0]
+-- >>> deliverable (Message 0 (VC [1,0]) "hello") procVc
 -- False
--- >>> deliverable (Message 1 (VC [1,1]) "world") p
+-- >>> deliverable (Message 1 (VC [1,1]) "world") procVc
 -- True
 --
 {-@ reflect deliverable @-}
 {-@
-deliverable :: Message r -> Proc -> Bool @-}
-deliverable :: Message r -> Proc -> Bool
-deliverable m p = deliverableK m p `andAtEachK` vcSize (mSent m)
+deliverable :: Message r -> VC -> Bool @-}
+deliverable :: Message r -> VC -> Bool
+deliverable m procVc = deliverableK m procVc `andAtEachK` vcSize (mSent m)
