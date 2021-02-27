@@ -35,9 +35,8 @@ data Message r = Message { mSender::PID, mSent::VC, mRaw::r }
 deliverableK :: Message r -> VC -> PID -> Bool @-}
 deliverableK :: Message r -> VC -> PID -> Bool
 deliverableK m procVc k
-    | k == mSender m = mSent m ! k == procVc ! k + 1
-    | k /= mSender m = mSent m ! k <= procVc ! k
-    | otherwise = impossibleConst False "all cases covered"
+    | k == mSender m = mSent m ! k == (procVc ! k) + 1
+    | otherwise      = mSent m ! k <= procVc ! k
 
 -- | @deliverable m p@ computes whether a message sent by @mSender m@ at @mSent
 -- m@ is deliverable at local-time @procVc@.
