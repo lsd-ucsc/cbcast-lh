@@ -73,32 +73,32 @@ dqEnqueueImpl m (x:xs)
 {-@ reflect dqDequeue @-}
 {-@
 dqDequeue
-    :: p:Proc
+    :: procVc:VC
     -> xs:DelayQueue r
     -> Maybe
         ( {ys:DelayQueue r | dqSize xs - 1 == dqSize ys}
-        , {m:Message r | deliverable m p}
+        , {m:Message r | deliverable m procVc}
         )
 @-}
-dqDequeue :: Proc -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue p (DelayQueue xs) = case dqDequeueImpl p xs of
+dqDequeue :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
+dqDequeue procVc (DelayQueue xs) = case dqDequeueImpl procVc xs of
     Nothing -> Nothing
     Just (ys, y) -> Just (DelayQueue ys, y)
 
 {-@ reflect dqDequeueImpl @-}
 {-@
 dqDequeueImpl
-    :: p:Proc
+    :: procVc:VC
     -> xs:[Message r]
     -> Maybe
         ( {ys:[Message r] | listLength xs - 1 == listLength ys}
-        , {m:Message r | deliverable m p}
+        , {m:Message r | deliverable m procVc}
         )
 @-}
-dqDequeueImpl :: Proc -> [Message r] -> Maybe ([Message r], Message r)
+dqDequeueImpl :: VC -> [Message r] -> Maybe ([Message r], Message r)
 dqDequeueImpl _ [] = Nothing
-dqDequeueImpl p (x:xs)
-    | deliverable x p = Just (xs, x)
-    | otherwise = case dqDequeueImpl p xs of
+dqDequeueImpl procVc (x:xs)
+    | deliverable x procVc = Just (xs, x)
+    | otherwise = case dqDequeueImpl procVc xs of
         Nothing -> Nothing
         Just (ys, y) -> Just (x:ys, y)
