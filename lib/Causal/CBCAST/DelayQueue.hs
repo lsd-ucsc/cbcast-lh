@@ -10,8 +10,9 @@ import Causal.CBCAST.Message
 {-@
 data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
 data DelayQueue r = DelayQueue [Message r]
-type DQ r = DelayQueue r
+    deriving (Eq, Show)
 
+type DQ r = DelayQueue r
 -- TODO: make a generic priority-queue like structure?
 --  - List parameterized by content (enables invariants like "messages not sent by me")
 --  - List sorted by invariant function (can we define such an alias?)

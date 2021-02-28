@@ -1,15 +1,12 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs listInitLast in scope
 module Causal.CBCAST.Protocol where
 
+import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue
 import Causal.CBCAST.Process
 
-
--- * Implementation
-
-
--- ** Internal operations
 
 -- | Prepare to send a message (from this process to be broadcast on the
 -- network). Return new process state.
@@ -17,28 +14,31 @@ import Causal.CBCAST.Process
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
--- The copy of the message sent to ourself is delivered by a call to
--- 'internalReceive' without passing through network (which would incur unbound
--- delay) or DQ (which would be an incorrect use).
+-- The copy of the message destined for delivery to the current process is
+-- conveyed by a call to 'receive' here without passing through the network
+-- (which would incur unbound delay) or the delay queue (which would be an
+-- incorrect use).
 --
--- Since this modifies the vector clock, it could change the deliverability of
--- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
--- after this.
 --
-{-@ reflect internalSend @-}
-internalSend :: r -> Process r -> Process r
-internalSend r p
+-- >>> pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+--
+-- >>> send "hello" $ pNew 0 2
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [], pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO [...VC [1,0]...]}
+--
+{-@ reflect send @-}
+send :: r -> Process r -> Process r
+send r p
     = let
         vc = vcTick (pID p) (pVC p)
         m = Message{mSender=pID p, mSent=vc, mRaw=r}
-    in internalReceive m $ p
+    in receive m $ p
         { pVC = vc
-        , pOutbox = fPush (pOutbox p) m
+        , pToNetwork = fPush (pToNetwork p) m
         }
 
--- | Receive a message (from the network to this process). Delay its delivery
--- or deliver it immediately. The "until" part is handled by
--- 'internalDeliverReceived'. Return new process state.
+-- | Receive a message (from the network to this process). Potentially delay
+-- its delivery. Return new process state.
 --
 --      "(2) On reception of message m sent by p_i and timestamped with VT(m),
 --      process p_j =/= p_i delays delivery of m until:
@@ -52,15 +52,30 @@ internalSend r p
 --      time of receipt (however, the queue order will not be used until later
 --      in the paper)."
 --
--- Since this modifies the vector clock in one case and the delay queue in the
--- other, it could change the deliverability of messages in the delay queue.
--- Therefore 'internalDeliverReceived' must be run after this.
+-- If the message was sent by the current process is it is put in a buffer for
+-- immediate delivery.
 --
-{-@ reflect internalReceive @-}
-internalReceive :: Message r -> Process r -> Process r
-internalReceive m p
+--
+-- >>> pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+--
+-- Receive from self:
+--
+-- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
+-- >>> receive msgSelf $ pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO []}
+--
+-- Receive from other:
+--
+-- >>> let msgOther = Message 1 (VC [0,1]) "world"
+-- >>> receive msgOther $ pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [...VC [0,1]...], pToSelf = FIFO [], pToNetwork = FIFO []}
+--
+{-@ reflect receive @-}
+receive :: Message r -> Process r -> Process r
+receive m p
     -- "Process p_j need not delay messages received from itself."
-    | mSender m == pID p = internalDeliver m p -- This should only happen after 'internalSend'.
+    | mSender m == pID p = p{pToSelf=fPush (pToSelf p) m}
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
@@ -78,67 +93,78 @@ internalReceive m p
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
--- Since this modifies the vector clock, it could change the deliverability of
--- messages in the delay queue. Therefore 'internalDeliverReceived' must be run
--- after this.
+-- There's more to delivering messages though, so this function is marked
+-- internal.
 --
 {-@ reflect internalDeliver @-}
-{-@
-internalDeliver :: Message r -> p:Process r -> {p':Process r | pdqSize p == pdqSize p' } @-}
 internalDeliver :: Message r -> Process r -> Process r
 internalDeliver m p = p
     { pVC = vcCombine (pVC p) (mSent m)
-    , pInbox = fPush (pInbox p) m
     }
 
--- | Deliver messages until there are none ready.
+-- | Return the next message ready for delivery by checking first for messages
+-- sent by the current process and second for deliverable messages in the delay
+-- queue.
 --
--- This algorithm delivers full groups of deliverable messages before checking
--- deliverability again. While this can't make anything undeliverable or break
--- causal order of deliveries, it does produce a slightly different delivery
--- order than an algorithm which checks deliverability after every delivery.
+-- >>> pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
 --
-{-@ reflect internalDeliverReceived @-}
-{-@
-internalDeliverReceived :: p:Process r -> Process r / [pdqSize p] @-}
-internalDeliverReceived :: Process r -> Process r
-internalDeliverReceived p =
-    case dqDequeue (pVC p) (pDQ p) of
-        Just (dq, m) -> internalDeliverReceived (internalDeliver m p{pDQ=dq})
-        Nothing -> p
-
-
--- ** External API
-
--- | Prepare a message for sending, possibly triggering the delivery of
--- messages in the delay queue.
-{-@ reflect send @-}
-send :: r -> Process r -> Process r
-send r p = internalDeliverReceived $ internalSend r p
-
--- | Receive a message, possibly triggering the delivery of messages in the
--- delay queue.
-{-@ reflect receive @-}
-{-@
-receive :: Message r -> Process r -> Process r @-}
-receive :: Message r -> Process r -> Process r
-receive m p = internalDeliverReceived $ internalReceive m p
--- TODO: receive any kind of message here, or return an error for messages with our own sender id?
+-- >>> let (p, m) = deliver $ pNew 0 2
+-- >>> p == pNew 0 2 && m == Nothing
+-- True
+--
+-- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
+-- >>> let msgOther = Message 1 (VC [0,1]) "world"
+-- >>> receive msgOther . receive msgSelf $ pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [...], pToSelf = FIFO [...], pToNetwork = FIFO []}
+--
+-- Deliver once: Messages from self take priority. VC is updated.
+--
+-- >>> let (p, m) = deliver . receive msgOther . receive msgSelf $ pNew 0 2
+-- >>> p
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [...], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- >>> m == Just msgSelf
+-- True
+--
+-- Deliver twice: Messages from other may be delivered. VC is updated.
+--
+-- >>> let (p, m) = deliver . fst . deliver . receive msgOther . receive msgSelf $ pNew 0 2
+-- >>> p
+-- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- >>> m == Just msgOther
+-- True
+--
+-- Deliver when others' message not deliverable:
+--
+-- >>> let (p, m) = deliver . receive (Message 1 (VC [0,1,1]) "future") $ pNew 0 3
+-- >>> p
+-- Process {pID = 0, pVC = VC [0,0,0], pDQ = DelayQueue [...], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- >>> m == Nothing
+-- True
+--
+{-@ reflect deliver @-}
+deliver :: Process r -> (Process r, Maybe (Message r))
+deliver p = case fPop (pToSelf p) of
+    Just (m, inbox) -> (internalDeliver m p{pToSelf=inbox}, Just m)
+    Nothing -> case dqDequeue (pVC p) (pDQ p) of
+        Just (dq, m) -> (internalDeliver m p{pDQ=dq}, Just m)
+        Nothing -> (p, Nothing)
 
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_' or 'foldl'').
+--
+-- >>> send "hello" $ pNew 0 2
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [], pToSelf = FIFO [...], pToNetwork = FIFO [...]}
+--
+-- >>> let (p, ms) = drainBroadcasts . send "hello" $ pNew 0 2
+-- >>> p
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [], pToSelf = FIFO [...], pToNetwork = FIFO []}
+-- >>> ms
+-- [Message {mSender = 0, mSent = VC [1,0], mRaw = "hello"}]
+--
 {-@ reflect drainBroadcasts @-}
 drainBroadcasts :: Process r -> (Process r, [Message r])
 drainBroadcasts p =
-    ( p{pOutbox=fNew}
-    , fList (pOutbox p)
-    )
-
--- | Remove and return all delivered messages so the application can process
--- them (in delivered-order, eg, with 'mapM_' or 'foldl'').
-{-@ reflect drainDeliveries @-}
-drainDeliveries :: Process r -> (Process r, [Message r])
-drainDeliveries p =
-    ( p{pInbox=fNew}
-    , fList (pInbox p)
+    ( p{pToNetwork=fNew}
+    , fList (pToNetwork p)
     )

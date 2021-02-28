@@ -1,9 +1,9 @@
--- | Translation of Gan's original Agda proof to LiquidHaskell, using reflected
--- functions instead of types, and  with minimal dependencies.
---
--- This file serves as a duplicated summary of the proof of our implementation.
--- To read the implementation proof, start with VectorClock.hs, then
+-- | This file serves as a short, self-contained summary of the main
+-- ideas of our proof development.  It is not connnected to the
+-- running implementation.  For the real safety proof that connects
+-- with the implementation, start with VectorClock.hs, then
 -- Message.hs, then Safety.hs.
+
 module Causal.CBCAST.VerificationSummary where
 
 import Prelude hiding (lookup)
@@ -36,9 +36,8 @@ data Process = Process { procId :: Fin  , procVc :: VectorClock }
 deliverableK :: Message -> Process -> Fin n -> Bool @-}
 deliverableK :: Message -> Process -> Fin -> Bool
 deliverableK msg proc k
-    | k == senderId msg     = bang (messageVc msg) k == bang (procVc proc) k + 1
-    | k /= senderId msg     = bang (messageVc msg) k <= bang (procVc proc) k
-    | otherwise = impossibleConst False "all cases covered"
+    | k == senderId msg = bang (messageVc msg) k == bang (procVc proc) k + 1
+    | otherwise         = bang (messageVc msg) k <= bang (procVc proc) k
 
 {-@ type DeliverableProp M P = k:Fin n -> { _:Proof | deliverableK M P k } @-}
 type DeliverableProp = Fin -> Proof
@@ -113,10 +112,3 @@ lookup :: [a] -> Int -> a
 lookup (x:xs) i
     | i == 0    = x
     | otherwise = lookup xs (i-1)
-
--- | Implementation of 'impossible' lifted to specifications. similar to the
--- one in 'Language.Haskell.Liquid.ProofCombinators'.
-{-@ inline impossibleConst @-}
-{-@ impossibleConst :: a -> {v:b | false } -> a @-}
-impossibleConst :: a -> b -> a
-impossibleConst a _ = a

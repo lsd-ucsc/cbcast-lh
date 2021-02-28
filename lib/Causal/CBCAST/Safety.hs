@@ -94,52 +94,10 @@ processOrderAxiom _m1 _m2 _proof = ()
 --
 -- The actual property we're proving, however, is the "causal safety
 -- of delivery" property about our deliverable predicate.
---
--- Here's an explanation of what is going on in the proof.  Note that
--- `Not (DeliverableProp m2 p)` expands out to `DeliverableProp m2 p
--- -> { _:Proof | false }`.  `m2_d_p` is the proof that
--- `DeliverableProp m2 p`, which will let us prove false.
---
--- In the first case, if we apply the `DeliverableProp m1 p` function
--- to `mSender m1`, we see that `m1`'s VC entry in the sender position
--- is OK for deliverability, so it must be one greater than `p`'s VC
--- in the sender position.  Likewise, if we apply our `DeliverableProp
--- m2 p` function to `msender m2`, we see that `m2`'s VC entry in its
--- sender position (which is the same as `m1`'s sender) is OK for
--- deliverability, so it must also be one greater than `p`'s VC.  But
--- this is a contradiction, because `processOrderAxiom` says that
--- these entries in message from the same sender must be distinct, so
--- we're able to prove false, as needed.
---
--- In the second case, if we apply the `CausallyBeforeProp m1 m2`
--- function to `mSender m1` we see that `m1`'s VC is less than or
--- equal to `m2`'s VC in the position of `m1`'s sender, call it k.  We
--- also have that `m1` is deliverable, so applying the
--- `DeliverableProp m1 p` function to k, we see that `m1`'s VC entry
--- in the k-th position is OK for deliverability, so it must be one
--- greater than `p`'s VC in position k.  Applying the `DeliverableProp
--- m2 p` function to k, we see that `m2`'s VC entry in the k-th
--- position is OK for deliverability, so (since `m2` was not sent by
--- process k) its k-th entry must be less than or equal to `p`'s VC in
--- position k.
---
--- Putting together these facts about the k-th position (m1's sender's
--- position), we have:
---
---   - m1's VC[k] <= m2's VC[k]  (via causal order of m1 and m2)
---   - m1's VC[k] = (process VC[k]) + 1 (via deliverability of m1)
---   - m2's VC[k] <= process VC[k] (via deliverability of m2)
---
--- So:
---   m1's VC[k] <= m2's VC[k] <= process VC[k] <
---   (process VC[k]) + 1 = m1's VC[k]
---
--- which is a contradiction because we've just said that m1's VC in
--- position k is less than itself, letting us prove false, as needed.
 
-{-@ ple safetyProof @-}
+{-@ ple safety @-}
 {-@
-safetyProof
+safety
     ::  procVc : VC
     ->  m1 : Message r
     ->  m2 : Message r
@@ -147,8 +105,8 @@ safetyProof
     ->  CausallyBeforeProp m1 m2
     ->  Not (DeliverableProp m2 procVc)
 @-}
-safetyProof :: VC -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
-safetyProof _procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
+safety :: VC -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
+safety _procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
     | mSender m1 == mSender m2
         =   ()
             ? m1_d_p (mSender m1)
