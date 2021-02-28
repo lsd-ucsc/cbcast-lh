@@ -38,13 +38,15 @@ executables:
             - aeson
             - cereal
             - bytestring
-            - containers
             - http-client
             - http-types
             - mtl
+            - async
             - network-uri
             - servant
+            - stm
             - servant-client
+            - servant-client-core
             - servant-server
             - scientific
             - text
