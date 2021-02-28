@@ -18,8 +18,8 @@ import Causal.CBCAST.DelayQueue
 -- "abc"
 --
 -- >>> import Control.Arrow (second)
--- >>> second fList $ fPop $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
--- ('a',"bc")
+-- >>> fmap (second fList) . fPop $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
+-- Just ('a',"bc")
 {-@
 data FIFO [fSize]
           a = FIFO [a] @-}
@@ -42,9 +42,9 @@ fList (FIFO xs) = listReverse xs
 {-@ inline fList @-}
 
 -- | Pops the first item pushed.
-{-@ fPop :: {xs:FIFO a | 0 < fSize xs} -> (a, FIFO a) @-}
-fPop :: FIFO a -> (a, FIFO a)
-fPop (FIFO xs) = let (ys, y) = listInitLast xs in (y, FIFO ys)
+fPop :: FIFO a -> Maybe (a, FIFO a)
+fPop (FIFO []) = Nothing
+fPop (FIFO xs) = Just $ let (ys, y) = listInitLast xs in (y, FIFO ys)
 {-@ inline fPop @-}
 
 
