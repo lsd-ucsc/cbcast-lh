@@ -113,6 +113,15 @@ listElem _ []     = False
 listElem x (y:ys) = x==y || listElem x ys
 {-@ reflect listElem @-}
 
+-- | Implementation of 'init' combined with 'last' lifted to specifications.
+--
+-- prop> not (null xs) ==> (init xs, last xs) == listInitLast xs
+{-@ reflect listInitLast @-}
+{-@ listInitLast :: {xs:[a] | 0 < len xs} -> ([a], a) @-}
+listInitLast :: [a] -> ([a], a)
+listInitLast [x] = ([], x)
+listInitLast (a:b:cs) = let (xs, x) = listInitLast (b:cs) in (a:xs, x)
+
 -- | Implementation of 'impossible' lifted to specifications. similar to the
 -- one in 'Language.Haskell.Liquid.ProofCombinators'.
 {-@ inline impossibleConst @-}

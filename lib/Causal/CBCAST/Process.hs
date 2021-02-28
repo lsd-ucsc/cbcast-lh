@@ -11,10 +11,15 @@ import Causal.CBCAST.DelayQueue
 
 -- | Trivial fifo. Appended to it with 'fPush'. Dump it out with 'fList' and
 -- map over the result in fifo order. Replace it after dumping with 'fNew'.
+--
 -- >>> fList $ fPush (fPush (fPush fNew 'a') 'b') 'c'
 -- "abc"
 -- >>> fList $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
 -- "abc"
+--
+-- >>> import Control.Arrow (second)
+-- >>> second fList $ fPop $ fNew `fPush` 'a' `fPush` 'b' `fPush` 'c'
+-- ('a',"bc")
 {-@
 data FIFO [fSize]
           a = FIFO [a] @-}
@@ -35,6 +40,12 @@ fPush (FIFO xs) x = FIFO (x:xs)
 fList :: FIFO a -> [a]
 fList (FIFO xs) = listReverse xs
 {-@ inline fList @-}
+
+-- | Pops the first item pushed.
+{-@ fPop :: {xs:FIFO a | 0 < fSize xs} -> (a, FIFO a) @-}
+fPop :: FIFO a -> (a, FIFO a)
+fPop (FIFO xs) = let (ys, y) = listInitLast xs in (y, FIFO ys)
+{-@ inline fPop @-}
 
 
 -- * Process
