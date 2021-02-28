@@ -53,13 +53,11 @@ fPop (FIFO xs) = Just $ let (ys, y) = listInitLast xs in (y, FIFO ys)
 
 -- | CBCAST process state with ID, logical clock, and delay queue.
 --
--- The inbox and outbox store messages which were sent by the current process.
--- The inbox contains messages from the current process which are destined for
--- delivery to the current process. The outbox contains messages from the
--- current process which are ready to broadcast to the network.
+-- 'pToSelf' and 'pToNetwork' store copies of messages which were sent by the
+-- current process, for the named purposes.
 {-@
-data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
-data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) }
+data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r, pToSelf::FIFO (Message r), pToNetwork::FIFO (Message r) } @-}
+data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r, pToSelf::FIFO (Message r), pToNetwork::FIFO (Message r) }
     deriving (Eq, Show)
 -- TODO: use invariant to enforce that outbox only contains messages with own sender id
 -- TODO: use invariant to enforce that DQ excludes messages with own sender id
@@ -73,7 +71,7 @@ pNew pid pCount = Process
     { pID = pid
     , pVC = vcNew pCount
     , pDQ = dqNew
-    , pInbox = fNew
-    , pOutbox = fNew
+    , pToSelf = fNew
+    , pToNetwork = fNew
     }
 {-@ inline pNew @-}

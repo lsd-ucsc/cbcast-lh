@@ -27,7 +27,7 @@ send r p
         m = Message{mSender=pID p, mSent=vc, mRaw=r}
     in receive m $ p
         { pVC = vc
-        , pOutbox = fPush (pOutbox p) m
+        , pToNetwork = fPush (pToNetwork p) m
         }
 
 -- | Receive a message (from the network to this process). Potentially delay
@@ -52,7 +52,7 @@ send r p
 receive :: Message r -> Process r -> Process r
 receive m p
     -- "Process p_j need not delay messages received from itself."
-    | mSender m == pID p = p{pInbox=fPush (pInbox p) m}
+    | mSender m == pID p = p{pToSelf=fPush (pToSelf p) m}
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
@@ -76,22 +76,22 @@ internalDeliver m p = p
     { pVC = vcCombine (pVC p) (mSent m)
     }
 
--- | Remove and return all sent messages so the application can broadcast them
--- (in sent-order, eg, with 'foldl'' or 'mapM_').
-{-@ reflect drainBroadcasts @-}
-drainBroadcasts :: Process r -> (Process r, [Message r])
-drainBroadcasts p =
-    ( p{pOutbox=fNew}
-    , fList (pOutbox p)
-    )
-
 -- | Return the next message ready for delivery by checking first for messages
 -- sent by the current process and second for deliverable messages in the delay
 -- queue.
 {-@ reflect deliver @-}
 deliver :: Process r -> (Process r, Maybe (Message r))
-deliver p = case fPop (pInbox p) of
-    Just (m, inbox) -> (internalDeliver m p{pInbox=inbox}, Just m)
+deliver p = case fPop (pToSelf p) of
+    Just (m, inbox) -> (internalDeliver m p{pToSelf=inbox}, Just m)
     Nothing -> case dqDequeue (pVC p) (pDQ p) of
         Just (dq, m) -> (internalDeliver m p{pDQ=dq}, Just m)
         Nothing -> (p, Nothing)
+
+-- | Remove and return all sent messages so the application can broadcast them
+-- (in sent-order, eg, with 'foldl'' or 'mapM_').
+{-@ reflect drainBroadcasts @-}
+drainBroadcasts :: Process r -> (Process r, [Message r])
+drainBroadcasts p =
+    ( p{pToNetwork=fNew}
+    , fList (pToNetwork p)
+    )
