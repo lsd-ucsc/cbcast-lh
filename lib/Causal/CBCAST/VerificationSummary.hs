@@ -1,9 +1,9 @@
--- | Translation of Gan's original Agda proof to LiquidHaskell, using reflected
--- functions instead of types, and  with minimal dependencies.
---
--- This file serves as a duplicated summary of the proof of our implementation.
--- To read the implementation proof, start with VectorClock.hs, then
+-- | This file serves as a short, self-contained summary of the main
+-- ideas of our proof development.  It is not connnected to the
+-- running implementation.  For the real safety proof that connects
+-- with the implementation, start with VectorClock.hs, then
 -- Message.hs, then Safety.hs.
+
 module Causal.CBCAST.VerificationSummary where
 
 import Prelude hiding (lookup)
