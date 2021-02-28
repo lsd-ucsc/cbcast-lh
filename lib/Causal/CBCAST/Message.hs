@@ -4,7 +4,6 @@
 -- Safety.hs.
 module Causal.CBCAST.Message where
 
-import Redefined
 import Causal.CBCAST.VectorClock
 
 
@@ -14,6 +13,7 @@ import Causal.CBCAST.VectorClock
 {-@
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r } @-}
 data Message r = Message { mSender::PID, mSent::VC, mRaw::r }
+    deriving (Eq, Show)
 
 
 -- * Deliverability

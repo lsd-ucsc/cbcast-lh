@@ -24,6 +24,7 @@ import Causal.CBCAST.DelayQueue
 data FIFO [fSize]
           a = FIFO [a] @-}
 data FIFO a = FIFO [a]
+    deriving (Eq, Show)
 
 fSize :: FIFO a -> Int
 fSize (FIFO xs) = listLength xs
@@ -59,6 +60,7 @@ fPop (FIFO xs) = Just $ let (ys, y) = listInitLast xs in (y, FIFO ys)
 {-@
 data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) } @-}
 data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r      , pInbox::FIFO (Message r), pOutbox::FIFO (Message r) }
+    deriving (Eq, Show)
 -- TODO: use invariant to enforce that outbox only contains messages with own sender id
 -- TODO: use invariant to enforce that DQ excludes messages with own sender id
 
