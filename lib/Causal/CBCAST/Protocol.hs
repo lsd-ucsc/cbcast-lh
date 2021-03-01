@@ -134,16 +134,12 @@ receive m p
 deliver :: Process r -> (Process r, Maybe (Message r))
 deliver p = case fPop (pToSelf p) of
     Just (m, inbox) ->
-        ( p { pToSelf = inbox
-            , pVC = vcCombine (pVC p) (mSent m)
-            }
+        ( p{pToSelf=inbox, pVC=vcCombine (pVC p) (mSent m)}
         , Just m
         )
     Nothing -> case dqDequeue (pVC p) (pDQ p) of
         Just (dq, m) ->
-            ( p { pDQ = dq
-                , pVC = vcCombine (pVC p) (mSent m)
-                }
+            ( p{pDQ=dq, pVC=vcCombine (pVC p) (mSent m)}
             , Just m
             )
         Nothing -> (p, Nothing)
