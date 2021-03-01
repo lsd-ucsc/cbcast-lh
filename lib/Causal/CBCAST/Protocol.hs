@@ -21,10 +21,10 @@ import Causal.CBCAST.Process
 --
 --
 -- >>> pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
 -- >>> send "hello" $ pNew 0 2
--- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [], pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO [...VC [1,0]...]}
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO [...VC [1,0]...]}
 --
 {-@ reflect send @-}
 send :: r -> Process r -> Process r
@@ -57,19 +57,19 @@ send r p
 --
 --
 -- >>> pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
 -- Receive from self:
 --
 -- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
 -- >>> receive msgSelf $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO []}
 --
 -- Receive from other:
 --
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
 -- >>> receive msgOther $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [...VC [0,1]...], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = [...VC [0,1]...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
 {-@ reflect receive @-}
 receive :: Message r -> Process r -> Process r
@@ -104,7 +104,7 @@ internalDeliver m p = p
 -- queue.
 --
 -- >>> pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
 -- >>> let (p, m) = deliver $ pNew 0 2
 -- >>> p == pNew 0 2 && m == Nothing
@@ -113,13 +113,13 @@ internalDeliver m p = p
 -- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
 -- >>> receive msgOther . receive msgSelf $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue [...], pToSelf = FIFO [...], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [...], pToNetwork = FIFO []}
 --
 -- Deliver once: Messages from self take priority. VC is updated.
 --
 -- >>> let (p, m) = deliver . receive msgOther . receive msgSelf $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [...], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
 -- >>> m == Just msgSelf
 -- True
 --
@@ -127,7 +127,7 @@ internalDeliver m p = p
 --
 -- >>> let (p, m) = deliver . fst . deliver . receive msgOther . receive msgSelf $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue [], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 -- >>> m == Just msgOther
 -- True
 --
@@ -135,7 +135,7 @@ internalDeliver m p = p
 --
 -- >>> let (p, m) = deliver . receive (Message 1 (VC [0,1,1]) "future") $ pNew 0 3
 -- >>> p
--- Process {pID = 0, pVC = VC [0,0,0], pDQ = DelayQueue [...], pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [0,0,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
 -- >>> m == Nothing
 -- True
 --
@@ -151,11 +151,11 @@ deliver p = case fPop (pToSelf p) of
 -- (in sent-order, eg, with 'foldl'' or 'mapM_').
 --
 -- >>> send "hello" $ pNew 0 2
--- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [], pToSelf = FIFO [...], pToNetwork = FIFO [...]}
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...], pToNetwork = FIFO [...]}
 --
 -- >>> let (p, ms) = drainBroadcasts . send "hello" $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue [], pToSelf = FIFO [...], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...], pToNetwork = FIFO []}
 -- >>> ms
 -- [Message {mSender = 0, mSent = VC [1,0], mRaw = "hello"}]
 --
