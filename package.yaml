@@ -34,25 +34,14 @@ executables:
             - -with-rtsopts=-N
         dependencies:
             - cbcast-lh
-            - HTTP
             - aeson
-            - cereal
-            - bytestring
-            - http-client
-            - http-types
-            - mtl
             - async
-            - network-uri
+            - http-client
             - servant
-            - stm
             - servant-client
             - servant-client-core
             - servant-server
-            - scientific
-            - text
-            - unordered-containers
-            - vector
-            - wai
+            - stm
             - warp
 
 tests:
