@@ -79,13 +79,12 @@ dqDequeue
         )
 @-}
 dqDequeue :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue procVc dq1 = case dqList dq1 of
-    [] -> Nothing
-    m1:rest
-        | deliverable m1 procVc -> Just (dq1{dqList=rest}, m1)
-        | otherwise -> case dqDequeue procVc dq1{dqList=rest} of
-            Just (dq2, m2) -> Just (dq2{dqList=m1:dqList dq2}, m2)
-            Nothing -> Nothing
+dqDequeue _ DelayQueue{dqList=[]} = Nothing
+dqDequeue procVc dq@DelayQueue{dqList=x:xs}
+    | deliverable x procVc = Just (dq{dqList=xs}, x)
+    | otherwise = case dqDequeue procVc dq{dqList=xs} of
+        Just (DelayQueue{dqList=ys}, y) -> Just (dq{dqList=x:ys}, y)
+        Nothing -> Nothing
 
 -- * Implementation
 
