@@ -10,4 +10,5 @@ main = do
         [ "./lib/"
         , "./ExampleKvServer.hs"
         , "-hide-package=base"
+        , "-hide-package=containers"
         ] ++ args
