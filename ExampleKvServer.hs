@@ -64,7 +64,7 @@ type Broadcast = CBCAST.Message KvCommand
 type NodeState = CBCAST.Process KvCommand
 
 data PeerRoutes mode = PeerRoutes
-    { cbcast :: mode :- "receive-cbcast" :> ReqBody '[JSON] Broadcast :> PostNoContent
+    { cbcast :: mode :- "cbcast" :> ReqBody '[JSON] Broadcast :> PostNoContent
     }
     deriving (Generic)
 
