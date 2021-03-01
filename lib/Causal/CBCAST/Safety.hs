@@ -131,7 +131,7 @@ tickSameAsCombine
     -> DeliverableProp m procVc
     -> { _:Proof | vcTick (mSender m) procVc == vcCombine procVc (mSent m) } @-}
 tickSameAsCombine :: VC  -> Message r -> DeliverableProp -> Proof
-tickSameAsCombine (VC xs) (Message senderId (VC ys) _) m_d_p = helper (length xs) xs ys senderId
+tickSameAsCombine procVc (Message senderId senderVc _) m_d_p = helper (vcSize procVc) (vcList procVc) (vcList senderVc) senderId
     where
         -- generalize to list of length n for induction, unfold the definition of vcTick and vcCombine as well
         {-@

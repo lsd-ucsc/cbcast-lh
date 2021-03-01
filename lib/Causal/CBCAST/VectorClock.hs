@@ -27,8 +27,13 @@ type PID = Fin
 
 -- | A vector clock is a list of clock values of some uninterpreted length.
 {-@
-data VC [vcSize] = VC (Vec Clock {procCount}) @-}
-data VC = VC [Clock]
+data VC [vcSize] = VC
+    { vcList :: (Vec Clock {procCount})
+    }
+@-}
+data VC = VC
+    { vcList :: [Clock]
+    }
     deriving (Eq, Show)
 
 {-@ measure vcSize @-}
