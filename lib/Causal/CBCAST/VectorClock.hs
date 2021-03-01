@@ -33,7 +33,7 @@ data VC = VC [Clock]
 
 {-@ measure vcSize @-}
 {-@
-vcSize :: VC -> {s:Nat | s == procCount} @-}
+vcSize :: VC -> ProcCount @-}
 vcSize :: VC -> Int
 vcSize (VC []) = 0
 vcSize (VC xs@(_:_)) = listLength xs
