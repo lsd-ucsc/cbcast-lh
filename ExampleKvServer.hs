@@ -188,7 +188,7 @@ main = Env.getArgs >>= \argv -> case argv of
     (num:urls) -> do
         peers <- mapM Servant.parseBaseUrl urls
         pid <- either fail return $ parsePID num peers
-        let port = (Servant.baseUrlPort $ peers !! pid) -- Warning
+        let port = Servant.baseUrlPort $ peers !! pid
         printf "Starting KV server P%d on port %d with peer list: %s\n" pid port (unwords $ Servant.showBaseUrl <$> peers)
         nodeState <- STM.newTVarIO $ CBCAST.pNew pid (length peers)
         kvState <- STM.newTVarIO $ Map.empty
@@ -198,7 +198,9 @@ main = Env.getArgs >>= \argv -> case argv of
             =<< Async.waitAnyCatchCancel
             =<< mapM Async.async
             [ Monad.forever . STM.atomically $ readMail nodeState kvState
+            -- Note: sendMailThread does not receive the url of the current process.
             , sendMailThread (removeIndex pid peers) nodeState
+            -- Note: Server listens on the port specified in the peer list.
             , Warp.run port $ handlers nodeState kvState
             ]
 
