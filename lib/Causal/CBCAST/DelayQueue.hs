@@ -58,7 +58,7 @@ dqNew dqSelf = DelayQueue{dqSelf, dqList=[]}
 dqEnqueue
     :: m:Message r
     -> {xs:DelayQueue r | mSender m /= dqSelf xs}
-    -> {ys:DelayQueue r | dqSize xs + 1 == dqSize ys}
+    -> {ys:DelayQueue r | dqSize xs + 1 == dqSize ys && dqSelf xs == dqSelf ys}
 @-}
 dqEnqueue :: Message r -> DelayQueue r -> DelayQueue r
 dqEnqueue m dq = dq{dqList=insertAfterBy mSentLessEqual m (dqList dq)}
@@ -74,7 +74,7 @@ dqDequeue
     :: procVc:VC
     -> xs:DelayQueue r
     -> Maybe
-        ( {ys:DelayQueue r | dqSize xs - 1 == dqSize ys}
+        ( {ys:DelayQueue r | dqSize xs - 1 == dqSize ys && dqSelf xs == dqSelf ys}
         , {m:Message r | funFlip deliverable procVc m}
         )
 @-}
