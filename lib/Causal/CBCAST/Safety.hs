@@ -119,3 +119,14 @@ safety _procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
             ? m1_d_p (mSender m1)
             ? m2_d_p (mSender m1)
             *** QED
+
+{-@ ple tickSameAsCombine @-}
+{-@
+tickSameAsCombine
+    :: procVc : VC
+    -> m : Message r
+    -> DeliverableProp m procVc
+    -> { _:Proof | vcTick (mSender m) procVc == vcCombine (mSent m) procVc } @-}
+tickSameAsCombine :: VC  -> Message r -> DeliverableProp -> Proof
+tickSameAsCombine (VC [])     (Message mSender (VC [])     _) m_d_p = ()
+tickSameAsCombine (VC (x:xs)) (Message mSender (VC (y:ys)) _) m_d_p = ()
