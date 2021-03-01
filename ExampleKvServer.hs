@@ -106,7 +106,9 @@ handlers nodeState kvState = serve
 
 -- ** Deliver messages
 
--- | Pop a deliverable message and apply it to application state.
+-- | Pop a deliverable message and apply it to application state. Blocks until
+-- there is a deliverable message to apply and then returns.
+--
 -- TODO tests
 readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
 readMail nodeState kvState = do
@@ -116,7 +118,7 @@ readMail nodeState kvState = do
 
 -- ** Broadcast messages
 
--- | Drain broadcast messages and send them to peers. Does not return.
+-- | Drain broadcast messages and send them to peers, forever. Does not return.
 sendMailThread :: Peers -> STM.TVar NodeState -> IO ()
 sendMailThread peers nodeState = do
     printf "sendMailThread will deliver to peers: %s\n" (unwords $ Servant.showBaseUrl <$> peers)
@@ -132,17 +134,21 @@ sendMailThread peers nodeState = do
         : (sendToPeer <$> zip clientEnvs peerQueues)
         )
 
--- | Copy all node broadcasts to all peer queues.
+-- | Copy node broadcasts to all peer queues. Blocks until there are some
+-- broadcasts to copy, and then returns.
+--
 -- TODO tests
 feedPeerQueues :: STM.TVar NodeState -> [STM.TQueue (Int, Broadcast)] -> IO ()
 feedPeerQueues nodeState peerQueues = STM.atomically $ do
     messages <- STM.stateTVar nodeState $ swap . CBCAST.drainBroadcasts
-    STM.check . not $ null messages -- TODO Check if we clock without this
+    STM.check . not $ null messages
     Monad.forM_ peerQueues $ \q ->
         Monad.forM_ messages $ \m ->
             STM.writeTQueue q (0, m)
 
--- | Send a message from a queue to a peer.
+-- | Send a message from a queue to a peer. On failure, backoff and put the
+-- message back on the queue and note failure. Return.
+--
 -- TODO tests
 sendToPeer :: (Servant.ClientEnv, STM.TQueue (Int, Broadcast)) -> IO ()
 sendToPeer (env, queue) = do
