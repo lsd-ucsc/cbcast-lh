@@ -75,14 +75,13 @@ dqDequeue
     -> xs:DelayQueue r
     -> Maybe
         ( {ys:DelayQueue r | dqSize xs - 1 == dqSize ys && dqSelf xs == dqSelf ys}
-        , {m:Message r | funFlip deliverable procVc m}
+        , {m:Message r | deliverable m procVc}
         )
 @-}
 dqDequeue :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
 dqDequeue procVc dq = case popFirstBy (funFlip deliverable procVc) (dqList dq) of
-    Just (ys, y) -> Just (dq{dqList=ys}, y)
+    Just (ys, y) -> Just (dq{dqList=ys}, y) `proofConst` funFlip deliverable procVc y
     Nothing -> Nothing
--- FIXME: refinement type shouldn't contain funFlip
 
 
 -- * Implementation
