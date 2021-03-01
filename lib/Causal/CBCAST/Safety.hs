@@ -120,13 +120,26 @@ safety _procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
             ? m2_d_p (mSender m1)
             *** QED
 
+oops :: String
+oops = "lists have same length"
+
 {-@ ple tickSameAsCombine @-}
 {-@
 tickSameAsCombine
     :: procVc : VC
     -> m : Message r
     -> DeliverableProp m procVc
-    -> { _:Proof | vcTick (mSender m) procVc == vcCombine (mSent m) procVc } @-}
+    -> { _:Proof | vcTick (mSender m) procVc == vcCombine procVc (mSent m) } @-}
 tickSameAsCombine :: VC  -> Message r -> DeliverableProp -> Proof
-tickSameAsCombine (VC [])     (Message mSender (VC [])     _) m_d_p = ()
-tickSameAsCombine (VC (x:xs)) (Message mSender (VC (y:ys)) _) m_d_p = ()
+tickSameAsCombine (VC xs) (Message senderId (VC ys) _) m_d_p = helper (length xs) xs ys senderId
+    where
+        -- generalize to list of length n for induction, unfold the definition of vcTick and vcCombine as well
+        {-@
+        helper
+            :: n : Nat
+            -> xs : { v:[Clock] | len v == n }
+            -> ys : { v:[Clock] | len v == n }
+            -> idx : Fin n
+            -> { _:Proof | VC (vcTickImpl idx xs) == VC (vcCombineImpl xs ys) } @-}
+        helper :: Int -> [Clock] -> [Clock] -> Int -> Proof
+        helper n xs ys idx = () *** Admit
