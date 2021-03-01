@@ -56,8 +56,21 @@ fPop (FIFO xs) = Just $ let (ys, y) = listInitLast xs in (y, FIFO ys)
 -- 'pToSelf' and 'pToNetwork' store copies of messages which were sent by the
 -- current process, for the named purposes.
 {-@
-data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r, pToSelf::FIFO (Message r), pToNetwork::FIFO (Message r) } @-}
-data Process r = Process { pID::PID, pVC::VC, pDQ::DQ r, pToSelf::FIFO (Message r), pToNetwork::FIFO (Message r) }
+data Process r = Process
+    { pID :: PID
+    , pVC :: VC
+    , pDQ :: DQ r {pID}
+    , pToSelf :: FIFO ({m:Message r | pID == mSender m})
+    , pToNetwork :: FIFO ({m:Message r | pID == mSender m})
+    }
+@-}
+data Process r = Process
+    { pID :: PID
+    , pVC :: VC
+    , pDQ :: DQ r
+    , pToSelf :: FIFO (Message r)
+    , pToNetwork :: FIFO (Message r)
+    }
     deriving (Eq, Show)
 -- TODO: use invariant to enforce that outbox only contains messages with own sender id
 -- TODO: use invariant to enforce that DQ excludes messages with own sender id
@@ -70,7 +83,7 @@ pNew :: PID -> Int -> Process r
 pNew pid pCount = Process
     { pID = pid
     , pVC = vcNew pCount
-    , pDQ = dqNew
+    , pDQ = dqNew pid
     , pToSelf = fNew
     , pToNetwork = fNew
     }
