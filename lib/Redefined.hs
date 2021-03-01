@@ -122,6 +122,14 @@ listInitLast :: [a] -> ([a], a)
 listInitLast [x] = ([], x)
 listInitLast (a:b:cs) = let (xs, x) = listInitLast (b:cs) in (a:xs, x)
 
+-- | Implementation of 'flip' lifted to specifications. Probably same as
+-- 'Prelude'.
+--
+-- prop> f a b == flip f b a && flip f b a == funFlip f b a
+{-@ reflect funFlip @-}
+funFlip :: (a -> b -> c) -> b -> a -> c
+funFlip f b a = f a b
+
 -- | Implementation of 'impossible' lifted to specifications. similar to the
 -- one in 'Language.Haskell.Liquid.ProofCombinators'.
 {-@ inline impossibleConst @-}

@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Causal.CBCAST.DelayQueue where
 
 import Redefined
@@ -7,17 +8,22 @@ import Causal.CBCAST.Message
 
 -- * Types
 
+-- | A delay queue excludes the messages from the current process.
 {-@
-data DelayQueue [dqSize] r = DelayQueue [Message r] @-}
-data DelayQueue r = DelayQueue [Message r]
+data DelayQueue [dqSize] r = DelayQueue
+    { dqSelf :: PID
+    , dqList :: [{m:Message r | mSender m /= dqSelf}]
+    }
+@-}
+data DelayQueue r = DelayQueue
+    { dqSelf :: PID
+    , dqList :: [Message r]
+    }
     deriving (Eq, Show)
 
+{-@
+type DQ r PID = {dq:DelayQueue r | dqSelf dq == PID} @-}
 type DQ r = DelayQueue r
--- TODO: make a generic priority-queue like structure?
---  - List parameterized by content (enables invariants like "messages not sent by me")
---  - List sorted by invariant function (can we define such an alias?)
---  - Enqueue takes the invariant function to perform insert AFTER all True
---  - Dequeue takes a selector function and returns first match
 
 
 -- * Logical predicates
@@ -25,16 +31,16 @@ type DQ r = DelayQueue r
 {-@ measure dqSize @-}
 {-@ dqSize :: DelayQueue r -> Nat @-}
 dqSize :: DelayQueue r -> Int
-dqSize (DelayQueue xs) = listLength xs
+dqSize DelayQueue{dqList} = listLength dqList
 
 
 -- * User API
 
 -- | Make a new empty delay-queue.
 {-@ reflect dqNew @-}
-{-@ dqNew :: DelayQueue r @-}
-dqNew :: DelayQueue r
-dqNew = DelayQueue []
+{-@ dqNew :: p:PID -> DQ r {p} @-}
+dqNew :: PID -> DelayQueue r
+dqNew dqSelf = DelayQueue{dqSelf, dqList=[]}
 
 -- | Insert a message into the delay-queue.
 --
@@ -50,25 +56,16 @@ dqNew = DelayQueue []
 {-@ reflect dqEnqueue @-}
 {-@
 dqEnqueue
-    :: Message r
-    -> xs:DelayQueue r
+    :: m:Message r
+    -> {xs:DelayQueue r | mSender m /= dqSelf xs}
     -> {ys:DelayQueue r | dqSize xs + 1 == dqSize ys}
 @-}
 dqEnqueue :: Message r -> DelayQueue r -> DelayQueue r
-dqEnqueue m (DelayQueue xs) = DelayQueue (dqEnqueueImpl m xs)
+dqEnqueue m dq = dq{dqList=insertAfterBy mSentLessEqual m (dqList dq)}
 
-{-@ reflect dqEnqueueImpl @-}
-{-@
-dqEnqueueImpl
-    :: Message r
-    -> xs:[Message r]
-    -> {ys:[Message r] | listLength xs + 1 == listLength ys}
-@-}
-dqEnqueueImpl :: Message r -> [Message r] -> [Message r]
-dqEnqueueImpl m [] = [m]
-dqEnqueueImpl m (x:xs)
-    | mSent x `vcLessEqual` mSent m = x : dqEnqueueImpl m xs
-    | otherwise = m : x:xs
+{-@ reflect mSentLessEqual @-}
+mSentLessEqual :: Message r -> Message r -> Bool
+mSentLessEqual m1 m2 = mSent m1 `vcLessEqual` mSent m2
 
 -- | Pop the first deliverable message from the delay-queue, if any.
 {-@ reflect dqDequeue @-}
@@ -78,28 +75,78 @@ dqDequeue
     -> xs:DelayQueue r
     -> Maybe
         ( {ys:DelayQueue r | dqSize xs - 1 == dqSize ys}
-        , {m:Message r | deliverable m procVc}
+        , {m:Message r | funFlip deliverable procVc m}
         )
 @-}
 dqDequeue :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue procVc (DelayQueue xs) = case dqDequeueImpl procVc xs of
+dqDequeue procVc dq = case popFirstBy (funFlip deliverable procVc) (dqList dq) of
+    Just (ys, y) -> Just (dq{dqList=ys}, y)
     Nothing -> Nothing
-    Just (ys, y) -> Just (DelayQueue ys, y)
+-- FIXME: refinement type shouldn't contain funFlip
 
-{-@ reflect dqDequeueImpl @-}
+
+-- * Implementation
+
+-- TODO: sort by invariant
+-- {-@ type TODO a LT = [a]<\x -> { _:({y:a | LT x y}) | true }> @-}
+-- {-@ type TODO a LT = [a]<\x y -> LT x y> @-}
+
+-- | @insertAfterBy lt a xs@ inserts @a@ into @xs@ /after/ the values from @xs@
+-- for which @`lt` a@ is satisfied.
+--
+-- >>> insertAfterBy (\(a, _) (b, _) -> a <= b) ('b',-10) [('a',0),('b',1),('c',2)]
+-- [('a',0),('b',1),('b',-10),('c',2)]
+--
+-- As distinct from 'insert' and 'insertBy', which insert into the first position:
+--
+-- >>> import Data.List
+-- >>> insert ('b',-10) [('a',0),('b',1),('c',2)]
+-- [('a',0),('b',-10),('b',1),('c',2)]
+-- >>> insertBy (\(a, _) (b, _) -> compare a b) ('b',-10) [('a',0),('b',1),('c',2)]
+-- [('a',0),('b',-10),('b',1),('c',2)]
+--
+-- We can simulate that too by comparing more strictly:
+--
+-- >>> insertAfterBy (\(a, _) (b, _) -> a < b) ('b',-10) [('a',0),('b',1),('c',2)]
+-- [('a',0),('b',-10),('b',1),('c',2)]
+--
+{-@ reflect insertAfterBy @-}
 {-@
-dqDequeueImpl
-    :: procVc:VC
-    -> xs:[Message r]
+insertAfterBy
+    :: lt:(a -> a -> Bool)
+    -> a
+    -> xs:[a]
+    -> {ys:[a] | listLength xs + 1 == listLength ys}
+@-}
+insertAfterBy :: (a -> a -> Bool) -> a -> [a] -> [a]
+insertAfterBy _ a [] = [a]
+insertAfterBy lt a (x:xs)
+    | x `lt` a = x : insertAfterBy lt a xs
+    | otherwise = a : x:xs
+
+-- | @popFirstBy ready xs@ removes and returns the first element of @xs@ which
+-- satisfies the predicate @ready@, as well as the modified list.
+--
+-- >>> popFirstBy (> 2) [0..5]
+-- Just ([0,1,2,4,5],3)
+--
+-- >>> popFirstBy (> 20) [0..5]
+-- Nothing
+--
+{-@ reflect popFirstBy @-}
+{-@
+popFirstBy
+    :: ready:(a -> Bool)
+    -> xs:[a]
     -> Maybe
-        ( {ys:[Message r] | listLength xs - 1 == listLength ys}
-        , {m:Message r | deliverable m procVc}
+        ( {ys:[a] | listLength xs - 1 == listLength ys}
+        , {x:a | ready x}
         )
 @-}
-dqDequeueImpl :: VC -> [Message r] -> Maybe ([Message r], Message r)
-dqDequeueImpl _ [] = Nothing
-dqDequeueImpl procVc (x:xs)
-    | deliverable x procVc = Just (xs, x)
-    | otherwise = case dqDequeueImpl procVc xs of
-        Nothing -> Nothing
+popFirstBy :: (a -> Bool) -> [a] -> Maybe ([a], a)
+popFirstBy _ [] = Nothing
+popFirstBy ready (x:xs)
+    | ready x = Just (xs, x)
+    | otherwise = case popFirstBy ready xs of
         Just (ys, y) -> Just (x:ys, y)
+        Nothing -> Nothing
