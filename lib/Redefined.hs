@@ -137,7 +137,7 @@ funFlip f b a = f a b
 impossibleConst :: a -> b -> a
 impossibleConst a _ = a
 
-{-@ reflect proofConst @-}
+{-@ inline proofConst @-}
 proofConst :: a -> b -> a
 proofConst x _ = x
 
