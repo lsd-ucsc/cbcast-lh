@@ -79,8 +79,9 @@ receive m p
     -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
--- | Deliver a message (from this process to the application). Return new
--- process state.
+-- | Return the next message ready for delivery by checking first for messages
+-- sent by the current process and second for deliverable messages in the delay
+-- queue.
 --
 --      "(3) When a message m is delivered, VT(p_j) is updated in accordance
 --      with the vector time protocol from Section 4.3."
@@ -92,16 +93,6 @@ receive m p
 --      following manner:
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
---
-{-@ reflect internalDeliver @-}
-internalDeliver :: Message r -> Process r -> Process r
-internalDeliver m p = p
-    { pVC = vcCombine (pVC p) (mSent m)
-    }
-
--- | Return the next message ready for delivery by checking first for messages
--- sent by the current process and second for deliverable messages in the delay
--- queue.
 --
 -- >>> pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
@@ -142,9 +133,19 @@ internalDeliver m p = p
 {-@ reflect deliver @-}
 deliver :: Process r -> (Process r, Maybe (Message r))
 deliver p = case fPop (pToSelf p) of
-    Just (m, inbox) -> (internalDeliver m p{pToSelf=inbox}, Just m)
+    Just (m, inbox) ->
+        ( p { pToSelf = inbox
+            , pVC = vcCombine (pVC p) (mSent m)
+            }
+        , Just m
+        )
     Nothing -> case dqDequeue (pVC p) (pDQ p) of
-        Just (dq, m) -> (internalDeliver m p{pDQ=dq}, Just m)
+        Just (dq, m) ->
+            ( p { pDQ = dq
+                , pVC = vcCombine (pVC p) (mSent m)
+                }
+            , Just m
+            )
         Nothing -> (p, Nothing)
 
 -- | Remove and return all sent messages so the application can broadcast them
