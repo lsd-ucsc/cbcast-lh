@@ -165,3 +165,119 @@ drainBroadcasts p =
     ( p{pToNetwork=fNew}
     , fList (pToNetwork p)
     )
+
+-- | Extended example from Fig 4 of the paper (the corrected Alice/Bob/Carol
+-- executions).
+--
+--
+-- LEFT example:
+--
+-- >>> import Data.IORef
+-- >>> alice <- newIORef (pNew 0 3 :: Process String)
+-- >>> bob   <- newIORef (pNew 1 3 :: Process String)
+-- >>> carol <- newIORef (pNew 2 3 :: Process String)
+--
+-- >>> modifyIORef alice $ send "I lost my wallet..."
+-- >>> pVC <$> readIORef alice
+-- VC [1,0,0]
+-- >>> aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef bob
+-- VC [1,0,0]
+--
+-- >>> modifyIORef alice $ send "Found it!"
+-- >>> pVC <$> readIORef alice
+-- VC [2,0,0]
+-- >>> aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> -- Carol receives but the message is buffered
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef carol deliver
+-- Nothing
+--
+-- >>> -- This stanza isn't really important for the example
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef bob
+-- VC [2,0,0]
+--
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef carol
+-- VC [1,0,0]
+--
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef carol
+-- VC [2,0,0]
+--
+--
+-- RIGHT example:
+--
+-- >>> alice <- newIORef (pNew 0 3 :: Process String)
+-- >>> bob   <- newIORef (pNew 1 3 :: Process String)
+-- >>> carol <- newIORef (pNew 2 3 :: Process String)
+--
+-- >>> modifyIORef alice $ send "I lost my wallet..."
+-- >>> pVC <$> readIORef alice
+-- VC [1,0,0]
+-- >>> aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef bob
+-- VC [1,0,0]
+--
+-- >>> modifyIORef alice $ send "Found it!"
+-- >>> pVC <$> readIORef alice
+-- VC [2,0,0]
+-- >>> aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef bob
+-- VC [2,0,0]
+--
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef carol
+-- VC [1,0,0]
+--
+-- >>> modifyIORef bob $ send "Glad to hear it!"
+-- >>> pVC <$> readIORef bob
+-- VC [2,1,0]
+-- >>> bobBcastGlad <- atomicModifyIORef bob drainBroadcasts
+--
+-- >>> modifyIORef alice $ \p -> foldr receive p bobBcastGlad
+-- >>> atomicModifyIORef alice deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> atomicModifyIORef alice deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> atomicModifyIORef alice deliver
+-- Just (Message {...[2,1,0]..."Glad to hear it!"})
+-- >>> pVC <$> readIORef alice
+-- VC [2,1,0]
+--
+-- >>> -- Carol receives but the message is buffered
+-- >>> modifyIORef carol $ \p -> foldr receive p bobBcastGlad
+-- >>> atomicModifyIORef carol deliver
+-- Nothing
+--
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef carol
+-- VC [2,0,0]
+--
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[2,1,0]..."Glad to hear it!"})
+-- >>> pVC <$> readIORef carol
+-- VC [2,1,0]
