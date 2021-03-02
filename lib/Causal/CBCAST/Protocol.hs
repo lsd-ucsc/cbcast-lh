@@ -32,9 +32,10 @@ send r p
     = let
         vc = vcTick (pID p) (pVC p)
         m = Message{mSender=pID p, mSent=vc, mRaw=r}
-    in receive m $ p
+    in p
         { pVC = vc
         , pToNetwork = fPush (pToNetwork p) m
+        , pToSelf = fPush (pToSelf p) m
         }
 
 -- | Receive a message (from the network to this process). Potentially delay
@@ -74,9 +75,7 @@ send r p
 {-@ reflect receive @-}
 receive :: Message r -> Process r -> Process r
 receive m p
-    -- "Process p_j need not delay messages received from itself."
-    | mSender m == pID p = p{pToSelf=fPush (pToSelf p) m}
-    -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
+    | mSender m == pID p = p -- Messages sent by this process are ignored.
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
 -- | Return the next message ready for delivery by checking first for messages
