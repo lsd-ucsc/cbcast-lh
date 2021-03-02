@@ -79,10 +79,12 @@ dqDequeue
         )
 @-}
 dqDequeue :: VC -> DelayQueue r -> Maybe (DelayQueue r, Message r)
-dqDequeue procVc dq = case popFirstBy (funFlip deliverable procVc) (dqList dq) of
-    Just (ys, y) -> Just (dq{dqList=ys}, y) `proofConst` funFlip deliverable procVc y
-    Nothing -> Nothing
-
+dqDequeue _ DelayQueue{dqList=[]} = Nothing
+dqDequeue procVc dq@DelayQueue{dqList=x:xs}
+    | deliverable x procVc = Just (dq{dqList=xs}, x)
+    | otherwise = case dqDequeue procVc dq{dqList=xs} of
+        Just (DelayQueue{dqList=ys}, y) -> Just (dq{dqList=x:ys}, y)
+        Nothing -> Nothing
 
 -- * Implementation
 

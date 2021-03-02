@@ -169,9 +169,11 @@ vcNew size = VC (listReplicate size 0)
 -- VC [9,8,8]
 --
 -- >>> vcTick (-1) (VC [9,8,7])
--- VC [9,8,7]
+-- ...Exception...
+-- ...
 -- >>> vcTick 3 (VC [9,8,7])
--- VC [9,8,7]
+-- ...Exception...
+-- ...
 --
 {-@ reflect vcTick @-}
 {-@
@@ -182,7 +184,6 @@ vcTick p (VC xs) = VC $ vcTickImpl p xs
 {-@
 vcTickImpl :: i:Nat -> {xs:[Clock] | i < len xs} -> {ys:[Clock] | len xs == len ys} @-}
 vcTickImpl :: Int -> [Clock] -> [Clock]
-vcTickImpl _ [] = impossibleConst [] "index is less than list length"
 vcTickImpl p (c:cs)
     | p == 0    = (c+1):cs
     | otherwise = c:vcTickImpl (p-1) cs
@@ -210,4 +211,3 @@ vcCombineImpl :: xs:[Clock] -> {ys:[Clock] | len xs == len ys} -> {zs:[Clock] | 
 vcCombineImpl :: [Clock] -> [Clock] -> [Clock]
 vcCombineImpl (x:xs) (y:ys) = (if x < y then y else x) : vcCombineImpl xs ys
 vcCombineImpl [] [] = []
-vcCombineImpl _ _ = impossibleConst [] "lists have same length"

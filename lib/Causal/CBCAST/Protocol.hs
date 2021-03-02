@@ -14,10 +14,12 @@ import Causal.CBCAST.Process
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
--- The copy of the message destined for delivery to the current process is
--- conveyed by a call to 'receive' here without passing through the network
--- (which would incur unbound delay) or the delay queue (which would be an
--- incorrect use).
+-- The sent message is pushed into 'pToSelf' and 'pToNetwork' to be delivered
+-- to this process and to external peers.
+--
+-- The copy destined for this process doesn't pass through the network (which
+-- would incur unbound delay) or the delay queue (which would be an incorrect
+-- use).
 --
 --
 -- >>> pNew 0 2
@@ -32,60 +34,43 @@ send r p
     = let
         vc = vcTick (pID p) (pVC p)
         m = Message{mSender=pID p, mSent=vc, mRaw=r}
-    in receive m $ p
+    in p
         { pVC = vc
         , pToNetwork = fPush (pToNetwork p) m
+        , pToSelf = fPush (pToSelf p) m
         }
 
--- | Receive a message (from the network to this process). Potentially delay
--- its delivery. Return new process state.
+-- | Receive a message (from the network to this process). Delay the message's
+-- delivery via the delay queue. Return new process state.
 --
---      "(2) On reception of message m sent by p_i and timestamped with VT(m),
---      process p_j =/= p_i delays delivery of m until:
---
---          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
---                           { VT(m)[k] <= VT(p_j)[k]     otherwise
---
---      Process p_j need not delay messages received from itself. Delayed
---      messages are maintained on a queue, the CBCAST _delay queue_. This
---      queue is sorted by vector time, with concurrent messages ordered by
---      time of receipt (however, the queue order will not be used until later
---      in the paper)."
---
--- If the message was sent by the current process is it is put in a buffer for
--- immediate delivery.
+-- Only messages from other processes may be received; messages sent by this
+-- process will be ignored.
 --
 --
 -- >>> pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
--- Receive from self:
---
--- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
--- >>> receive msgSelf $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO []}
---
--- Receive from other:
+-- Receive from other (added to delay queue):
 --
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
 -- >>> receive msgOther $ pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = [...VC [0,1]...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
+-- Receive from self (ignored):
+--
+-- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
+-- >>> receive msgSelf $ pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
+--
 {-@ reflect receive @-}
 receive :: Message r -> Process r -> Process r
 receive m p
-    -- "Process p_j need not delay messages received from itself."
-    | mSender m == pID p = p{pToSelf=fPush (pToSelf p) m}
-    -- "Delayed messages are maintained on a queue, the CBCAST _delay queue_."
+    | mSender m == pID p = p -- Messages sent by this process are ignored.
     | otherwise = p{pDQ=dqEnqueue m (pDQ p)}
 
--- | Deliver a message (from this process to the application). Return new
--- process state.
---
---      "(3) When a message m is delivered, VT(p_j) is updated in accordance
---      with the vector time protocol from Section 4.3."
---
--- The relevant part of section 4.3 is:
+-- | Return the next message ready for delivery by checking first for messages
+-- sent by the current process and second for deliverable messages in the delay
+-- queue.
 --
 --      "(4) When process p_j delivers a message m from process p_i
 --      containing VT(m), p_j modifies its vector clock in the
@@ -93,18 +78,6 @@ receive m p
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
 --
--- There's more to delivering messages though, so this function is marked
--- internal.
---
-{-@ reflect internalDeliver @-}
-internalDeliver :: Message r -> Process r -> Process r
-internalDeliver m p = p
-    { pVC = vcCombine (pVC p) (mSent m)
-    }
-
--- | Return the next message ready for delivery by checking first for messages
--- sent by the current process and second for deliverable messages in the delay
--- queue.
 --
 -- >>> pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
@@ -115,22 +88,22 @@ internalDeliver m p = p
 --
 -- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
--- >>> receive msgOther . receive msgSelf $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [...], pToNetwork = FIFO []}
+-- >>> receive msgOther . send "hello" $ pNew 0 2
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [...], pToNetwork = FIFO [...]}
 --
 -- Deliver once: Messages from self take priority. VC is updated.
 --
--- >>> let (p, m) = deliver . receive msgOther . receive msgSelf $ pNew 0 2
+-- >>> let (p, m) = deliver . receive msgOther . send "hello" $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO [...]}
 -- >>> m == Just msgSelf
 -- True
 --
 -- Deliver twice: Messages from other may be delivered. VC is updated.
 --
--- >>> let (p, m) = deliver . fst . deliver . receive msgOther . receive msgSelf $ pNew 0 2
+-- >>> let (p, m) = deliver . fst . deliver . receive msgOther . send "hello" $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO [...]}
 -- >>> m == Just msgOther
 -- True
 --
@@ -145,9 +118,15 @@ internalDeliver m p = p
 {-@ reflect deliver @-}
 deliver :: Process r -> (Process r, Maybe (Message r))
 deliver p = case fPop (pToSelf p) of
-    Just (m, inbox) -> (internalDeliver m p{pToSelf=inbox}, Just m)
+    Just (m, toSelf) ->
+        ( p{pToSelf=toSelf, pVC=vcCombine (pVC p) (mSent m)}
+        , Just m
+        )
     Nothing -> case dqDequeue (pVC p) (pDQ p) of
-        Just (dq, m) -> (internalDeliver m p{pDQ=dq}, Just m)
+        Just (dq, m) ->
+            ( p{pDQ=dq, pVC=vcCombine (pVC p) (mSent m)}
+            , Just m
+            )
         Nothing -> (p, Nothing)
 
 -- | Remove and return all sent messages so the application can broadcast them
@@ -168,3 +147,119 @@ drainBroadcasts p =
     ( p{pToNetwork=fNew}
     , fList (pToNetwork p)
     )
+
+-- | Extended example from Fig 4 of the paper (the corrected Alice/Bob/Carol
+-- executions).
+--
+--
+-- LEFT example:
+--
+-- >>> import Data.IORef
+-- >>> alice <- newIORef (pNew 0 3 :: Process String)
+-- >>> bob   <- newIORef (pNew 1 3 :: Process String)
+-- >>> carol <- newIORef (pNew 2 3 :: Process String)
+--
+-- >>> modifyIORef alice $ send "I lost my wallet..."
+-- >>> pVC <$> readIORef alice
+-- VC [1,0,0]
+-- >>> aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef bob
+-- VC [1,0,0]
+--
+-- >>> modifyIORef alice $ send "Found it!"
+-- >>> pVC <$> readIORef alice
+-- VC [2,0,0]
+-- >>> aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> -- Carol receives but the message is buffered
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef carol deliver
+-- Nothing
+--
+-- >>> -- This stanza isn't really important for the example
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef bob
+-- VC [2,0,0]
+--
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef carol
+-- VC [1,0,0]
+--
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef carol
+-- VC [2,0,0]
+--
+--
+-- RIGHT example:
+--
+-- >>> alice <- newIORef (pNew 0 3 :: Process String)
+-- >>> bob   <- newIORef (pNew 1 3 :: Process String)
+-- >>> carol <- newIORef (pNew 2 3 :: Process String)
+--
+-- >>> modifyIORef alice $ send "I lost my wallet..."
+-- >>> pVC <$> readIORef alice
+-- VC [1,0,0]
+-- >>> aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef bob
+-- VC [1,0,0]
+--
+-- >>> modifyIORef alice $ send "Found it!"
+-- >>> pVC <$> readIORef alice
+-- VC [2,0,0]
+-- >>> aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+--
+-- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef bob deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef bob
+-- VC [2,0,0]
+--
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastLost
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> pVC <$> readIORef carol
+-- VC [1,0,0]
+--
+-- >>> modifyIORef bob $ send "Glad to hear it!"
+-- >>> pVC <$> readIORef bob
+-- VC [2,1,0]
+-- >>> bobBcastGlad <- atomicModifyIORef bob drainBroadcasts
+--
+-- >>> modifyIORef alice $ \p -> foldr receive p bobBcastGlad
+-- >>> atomicModifyIORef alice deliver
+-- Just (Message {...[1,0,0]..."I lost my wallet..."})
+-- >>> atomicModifyIORef alice deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> atomicModifyIORef alice deliver
+-- Just (Message {...[2,1,0]..."Glad to hear it!"})
+-- >>> pVC <$> readIORef alice
+-- VC [2,1,0]
+--
+-- >>> -- Carol receives but the message is buffered
+-- >>> modifyIORef carol $ \p -> foldr receive p bobBcastGlad
+-- >>> atomicModifyIORef carol deliver
+-- Nothing
+--
+-- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastFound
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[2,0,0]..."Found it!"})
+-- >>> pVC <$> readIORef carol
+-- VC [2,0,0]
+--
+-- >>> atomicModifyIORef carol deliver
+-- Just (Message {...[2,1,0]..."Glad to hear it!"})
+-- >>> pVC <$> readIORef carol
+-- VC [2,1,0]
