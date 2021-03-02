@@ -9,6 +9,7 @@ main = do
     Test.DocTest.doctest $
         [ "./lib/"
         , "./ExampleKvServer.hs"
+        , "./Listing.hs"
         , "-hide-package=base"
         , "-hide-package=containers"
         ] ++ args

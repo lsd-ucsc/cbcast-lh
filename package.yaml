@@ -26,6 +26,10 @@ library:
         - -fplugin-opt=LiquidHaskell:--counter-examples
 
 executables:
+    listing:
+        main: Listing.hs
+        dependencies:
+            - cbcast-lh
     example:
         main: ExampleKvServer.hs
         ghc-options:
