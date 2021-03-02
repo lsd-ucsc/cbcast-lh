@@ -60,17 +60,17 @@ send r p
 -- >>> pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
--- Receive from self:
---
--- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
--- >>> receive msgSelf $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO []}
---
--- Receive from other:
+-- Receive from other (added to delay queue):
 --
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
 -- >>> receive msgOther $ pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = [...VC [0,1]...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
+--
+-- Receive from self (ignored):
+--
+-- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
+-- >>> receive msgSelf $ pNew 0 2
+-- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
 {-@ reflect receive @-}
 receive :: Message r -> Process r -> Process r
@@ -102,22 +102,22 @@ receive m p
 --
 -- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
--- >>> receive msgOther . receive msgSelf $ pNew 0 2
--- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [...], pToNetwork = FIFO []}
+-- >>> receive msgOther . send "hello" $ pNew 0 2
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [...], pToNetwork = FIFO [...]}
 --
 -- Deliver once: Messages from self take priority. VC is updated.
 --
--- >>> let (p, m) = deliver . receive msgOther . receive msgSelf $ pNew 0 2
+-- >>> let (p, m) = deliver . receive msgOther . send "hello" $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO [...]}
 -- >>> m == Just msgSelf
 -- True
 --
 -- Deliver twice: Messages from other may be delivered. VC is updated.
 --
--- >>> let (p, m) = deliver . fst . deliver . receive msgOther . receive msgSelf $ pNew 0 2
+-- >>> let (p, m) = deliver . fst . deliver . receive msgOther . send "hello" $ pNew 0 2
 -- >>> p
--- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
+-- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO [...]}
 -- >>> m == Just msgOther
 -- True
 --
