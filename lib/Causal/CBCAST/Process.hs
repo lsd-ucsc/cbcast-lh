@@ -72,8 +72,6 @@ data Process r = Process
     , pToNetwork :: FIFO (Message r)
     }
     deriving (Eq, Show)
--- TODO: use invariant to enforce that outbox only contains messages with own sender id
--- TODO: use invariant to enforce that DQ excludes messages with own sender id
 
 -- | New empty process using the given process ID.
 {-@ ple pNew @-}

@@ -14,10 +14,12 @@ import Causal.CBCAST.Process
 --      "(1) Before sending m, process p_i increments VT(p_i)[i] and timestamps
 --      m."
 --
--- The copy of the message destined for delivery to the current process is
--- conveyed by a call to 'receive' here without passing through the network
--- (which would incur unbound delay) or the delay queue (which would be an
--- incorrect use).
+-- The sent message is pushed into 'pToSelf' and 'pToNetwork' to be delivered
+-- to this process and to external peers.
+--
+-- The copy destined for this process doesn't pass through the network (which
+-- would incur unbound delay) or the delay queue (which would be an incorrect
+-- use).
 --
 --
 -- >>> pNew 0 2
@@ -38,23 +40,11 @@ send r p
         , pToSelf = fPush (pToSelf p) m
         }
 
--- | Receive a message (from the network to this process). Potentially delay
--- its delivery. Return new process state.
+-- | Receive a message (from the network to this process). Delay the message's
+-- delivery via the delay queue. Return new process state.
 --
---      "(2) On reception of message m sent by p_i and timestamped with VT(m),
---      process p_j =/= p_i delays delivery of m until:
---
---          for-all k: 1...n { VT(m)[k] == VT(p_j)[k] + 1 if k == i
---                           { VT(m)[k] <= VT(p_j)[k]     otherwise
---
---      Process p_j need not delay messages received from itself. Delayed
---      messages are maintained on a queue, the CBCAST _delay queue_. This
---      queue is sorted by vector time, with concurrent messages ordered by
---      time of receipt (however, the queue order will not be used until later
---      in the paper)."
---
--- If the message was sent by the current process is it is put in a buffer for
--- immediate delivery.
+-- Only messages from other processes may be received; messages sent by this
+-- process will be ignored.
 --
 --
 -- >>> pNew 0 2
@@ -82,16 +72,12 @@ receive m p
 -- sent by the current process and second for deliverable messages in the delay
 -- queue.
 --
---      "(3) When a message m is delivered, VT(p_j) is updated in accordance
---      with the vector time protocol from Section 4.3."
---
--- The relevant part of section 4.3 is:
---
 --      "(4) When process p_j delivers a message m from process p_i
 --      containing VT(m), p_j modifies its vector clock in the
 --      following manner:
 --
 --          for-all k element-of 1...n: VT(p_j)[k] = max(VT(p_j)[k], VT(m)[k])"
+--
 --
 -- >>> pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
