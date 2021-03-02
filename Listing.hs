@@ -55,17 +55,15 @@ rightExample = do
     modifyIORef alice $ send "I lost my wallet..."
     aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
 
-    -- Bob receives 'lost' and delivers it, updating their VC to [1,0,0].
-    modifyIORef bob $ \p -> foldr receive p aliceBcastLost
-    Just (Message{mRaw="I lost my wallet..."}) <- atomicModifyIORef bob deliver
-
     -- Alice sends 'found' and their VC increments to [2,0,0].
     -- Alice's message is conveyed by transport.
     modifyIORef alice $ send "Found it!"
     aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
 
-    -- Bob receives 'found' and delivers it, updating their VC to [2,0,0].
-    modifyIORef bob $ \p -> foldr receive p aliceBcastFound
+    -- Bob receives both 'lost' and 'found' and delivers them in causal order,
+    -- updating their VC to [2,0,0].
+    modifyIORef bob $ \p -> foldr receive p (aliceBcastLost ++ aliceBcastFound)
+    Just (Message{mRaw="I lost my wallet..."}) <- atomicModifyIORef bob deliver
     Just (Message{mRaw="Found it!"}) <- atomicModifyIORef bob deliver
 
     -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
