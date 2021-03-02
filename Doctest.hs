@@ -8,5 +8,7 @@ main = do
     args <- System.Environment.getArgs
     Test.DocTest.doctest $
         [ "./lib/"
+        , "./ExampleKvServer.hs"
         , "-hide-package=base"
+        , "-hide-package=containers"
         ] ++ args

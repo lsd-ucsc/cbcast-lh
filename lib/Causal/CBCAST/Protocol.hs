@@ -130,7 +130,7 @@ deliver p = case fPop (pToSelf p) of
         Nothing -> (p, Nothing)
 
 -- | Remove and return all sent messages so the application can broadcast them
--- (in sent-order, eg, with 'foldl'' or 'mapM_').
+-- (in sent-order, eg, with 'mapM_' or 'foldl'').
 --
 -- >>> send "hello" $ pNew 0 2
 -- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...], pToNetwork = FIFO [...]}
