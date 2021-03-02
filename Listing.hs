@@ -1,5 +1,6 @@
 import Data.IORef
 
+import Causal.CBCAST.Message
 import Causal.CBCAST.Process
 import Causal.CBCAST.Protocol
 
@@ -16,17 +17,12 @@ leftExample :: IO ()
 leftExample = do
     -- Three causal broadcast processes which send String messages.
     alice <- newIORef (pNew 0 3 :: Process String)
-    bob   <- newIORef (pNew 1 3 :: Process String)
     carol <- newIORef (pNew 2 3 :: Process String)
 
     -- Alice sends 'lost' and their VC increments to [1,0,0].
     -- Alice's message is conveyed by transport.
     modifyIORef alice $ send "I lost my wallet..."
     aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
-
-    -- Bob receives 'lost' and delivers it, updating their VC to [1,0,0].
-    modifyIORef bob $ \p -> foldr receive p aliceBcastLost
-    Just _lost <- atomicModifyIORef bob deliver -- Message ... "I lost my wallet..."
 
     -- Alice sends 'found' and their VC increments to [2,0,0].
     -- Alice's message is conveyed by transport.
@@ -39,12 +35,12 @@ leftExample = do
 
     -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastLost
-    Just _lost <- atomicModifyIORef carol deliver -- Message ... "I lost my wallet..."
+    Just (Message{mRaw="I lost my wallet..."}) <- atomicModifyIORef carol deliver
 
     -- Carol delivers 'found', updating their VC to [2,0,0]
-    Just found <- atomicModifyIORef carol deliver -- Message ... "Found it!"
+    Just (Message{mRaw="Found it!"}) <- atomicModifyIORef carol deliver
 
-    print found
+    return ()
 
 
 rightExample :: IO ()
@@ -61,7 +57,7 @@ rightExample = do
 
     -- Bob receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastLost
-    Just _lost <- atomicModifyIORef bob deliver -- Message ... "I lost my wallet..."
+    Just (Message{mRaw="I lost my wallet..."}) <- atomicModifyIORef bob deliver
 
     -- Alice sends 'found' and their VC increments to [2,0,0].
     -- Alice's message is conveyed by transport.
@@ -70,11 +66,11 @@ rightExample = do
 
     -- Bob receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastFound
-    Just _found <- atomicModifyIORef bob deliver -- Message ... "Found it!"
+    Just (Message{mRaw="Found it!"}) <- atomicModifyIORef bob deliver
 
     -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastLost
-    Just _lost <- atomicModifyIORef carol deliver -- Message ... "I lost my wallet..."
+    Just (Message{mRaw="I lost my wallet..."}) <- atomicModifyIORef carol deliver
 
     -- Bob sends 'glad' and their VC increments to [2,1,0].
     -- Bob's message is conveyed by transport.
@@ -87,9 +83,9 @@ rightExample = do
 
     -- Carol receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastFound
-    Just _found <- atomicModifyIORef carol deliver -- Message ... "Found it!"
+    Just (Message{mRaw="Found it!"}) <- atomicModifyIORef carol deliver
 
     -- Carol delivers 'glad', updating their VC to [2,1,0].
-    Just glad <- atomicModifyIORef carol deliver -- Message ... "Glad to hear it!"
+    Just (Message{mRaw="Glad to hear it!"}) <- atomicModifyIORef carol deliver
 
-    print glad
+    return ()
