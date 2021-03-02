@@ -37,10 +37,6 @@ leftExample = do
     modifyIORef carol $ \p -> foldr receive p aliceBcastFound
     Nothing <- atomicModifyIORef carol deliver
 
---  -- Bob receives 'found' and delivers it, updating their VC to [2,0,0].
---  modifyIORef bob $ \p -> foldr receive p aliceBcastFound
---  Just _found <- atomicModifyIORef bob deliver -- Message ... "Found it!"
-
     -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastLost
     Just _lost <- atomicModifyIORef carol deliver -- Message ... "I lost my wallet..."
@@ -62,8 +58,6 @@ rightExample = do
     -- Alice's message is conveyed by transport.
     modifyIORef alice $ send "I lost my wallet..."
     aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
---  -- Alice delivers their own message and their VC is not changed.
---  Just _lost <- atomicModifyIORef alice deliver -- Message ... "I lost my wallet..."
 
     -- Bob receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastLost
@@ -73,8 +67,6 @@ rightExample = do
     -- Alice's message is conveyed by transport.
     modifyIORef alice $ send "Found it!"
     aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
---  -- Alice delivers their own message and their VC is not changed.
---  Just _found <- atomicModifyIORef alice deliver -- Message ... "Found it!"
 
     -- Bob receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastFound
@@ -88,10 +80,6 @@ rightExample = do
     -- Bob's message is conveyed by transport.
     modifyIORef bob $ send "Glad to hear it!"
     bobBcastGlad <- atomicModifyIORef bob drainBroadcasts
-
---  -- Alice receives 'glad' and delivers it, updating their VC to [2,1,0].
---  modifyIORef alice $ \p -> foldr receive p bobBcastGlad
---  Just _glad <- atomicModifyIORef alice deliver -- Message ... "Glad to hear it!"
 
     -- Carol receives 'glad' and delays it because it depends on 'found'.
     modifyIORef carol $ \p -> foldr receive p bobBcastGlad
