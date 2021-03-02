@@ -1,5 +1,6 @@
 -- | Extended example from Fig 4 of the paper (the corrected Alice/Bob/Carol
 -- executions).
+module Main where
 
 import Data.IORef
 
@@ -16,96 +17,102 @@ main = do
 
 leftExample :: IO ()
 leftExample = do
+    -- Three causal broadcast processes which send String messages.
     alice <- newIORef (pNew 0 3 :: Process String)
     bob   <- newIORef (pNew 1 3 :: Process String)
     carol <- newIORef (pNew 2 3 :: Process String)
 
-    putStrLn "Alice sends 'lost'"
+    -- Alice sends 'lost' and their VC increments to [1,0,0].
+    -- Alice's message is conveyed by transport.
     modifyIORef alice $ send "I lost my wallet..."
-    print =<< pVC <$> readIORef alice
     aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
 
-    putStrLn "Bob receives 'lost'"
+    -- Bob receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastLost
-    print =<< atomicModifyIORef bob deliver
-    print =<< pVC <$> readIORef bob
+    Just message <- atomicModifyIORef bob deliver -- Message ... "I lost my wallet..."
+    print message
 
-    putStrLn "Alice sends 'found'"
+    -- Alice sends 'found' and their VC increments to [2,0,0].
+    -- Alice's message is conveyed by transport.
     modifyIORef alice $ send "Found it!"
-    print =<< pVC <$> readIORef alice
     aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
 
-    putStrLn "Carol receives 'found'"
+    -- Carol receives 'found' and delays it because it depends on 'lost'.
     modifyIORef carol $ \p -> foldr receive p aliceBcastFound
-    print =<< atomicModifyIORef carol deliver
+    Nothing <- atomicModifyIORef carol deliver
 
-    putStrLn "Bob receives 'found'"
+    -- Bob receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastFound
-    print =<< atomicModifyIORef bob deliver
-    print =<< pVC <$> readIORef bob
+    Just message <- atomicModifyIORef bob deliver -- Message ... "Found it!"
+    print message
 
-    putStrLn "Carol receives 'lost'"
+    -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastLost
-    print =<< atomicModifyIORef carol deliver
-    print =<< pVC <$> readIORef carol
+    Just message <- atomicModifyIORef carol deliver -- Message ... "I lost my wallet..."
+    print message
 
-    putStrLn "Carol delivers 'found'"
-    print =<< atomicModifyIORef carol deliver
-    print =<< pVC <$> readIORef carol
+    -- Carol delivers 'found', updating their VC to [2,0,0]
+    Just message <- atomicModifyIORef carol deliver -- Message ... "Found it!"
+    print message
 
 
 rightExample :: IO ()
 rightExample = do
+    -- Three causal broadcast processes which send String messages.
     alice <- newIORef (pNew 0 3 :: Process String)
     bob   <- newIORef (pNew 1 3 :: Process String)
     carol <- newIORef (pNew 2 3 :: Process String)
 
-    putStrLn "Alice sends 'lost'"
+    -- Alice sends 'lost' and their VC increments to [1,0,0].
+    -- Alice's message is conveyed by transport.
+    -- Alice delivers their own message and their VC is not changed.
     modifyIORef alice $ send "I lost my wallet..."
-    print =<< pVC <$> readIORef alice
     aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+    Just message <- atomicModifyIORef alice deliver -- Message ... "I lost my wallet..."
+    print message
 
-    putStrLn "Bob receives 'lost'"
+    -- Bob receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastLost
-    print =<< atomicModifyIORef bob deliver
-    print =<< pVC <$> readIORef bob
+    Just message <- atomicModifyIORef bob deliver -- Message ... "I lost my wallet..."
+    print message
 
-    putStrLn "Alice sends 'found'"
+    -- Alice sends 'found' and their VC increments to [2,0,0].
+    -- Alice's message is conveyed by transport.
+    -- Alice delivers their own message and their VC is not changed.
     modifyIORef alice $ send "Found it!"
-    print =<< pVC <$> readIORef alice
     aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+    Just message <- atomicModifyIORef alice deliver -- Message ... "Found it!"
+    print message
 
-    putStrLn "Bob receives 'found'"
+    -- Bob receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef bob $ \p -> foldr receive p aliceBcastFound
-    print =<< atomicModifyIORef bob deliver
-    print =<< pVC <$> readIORef bob
+    Just message <- atomicModifyIORef bob deliver -- Message ... "Found it!"
+    print message
 
-    putStrLn "Carol receives ' lost'"
+    -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastLost
-    print =<< atomicModifyIORef carol deliver
-    print =<< pVC <$> readIORef carol
+    Just message <- atomicModifyIORef carol deliver -- Message ... "I lost my wallet..."
+    print message
 
-    putStrLn "Bob sends 'glad'"
+    -- Bob sends 'glad' and their VC increments to [2,1,0].
+    -- Bob's message is conveyed by transport.
     modifyIORef bob $ send "Glad to hear it!"
-    print =<< pVC <$> readIORef bob
     bobBcastGlad <- atomicModifyIORef bob drainBroadcasts
 
-    putStrLn "Alice receives 'glad'"
+    -- Alice receives 'glad' and delivers it, updating their VC to [2,1,0].
     modifyIORef alice $ \p -> foldr receive p bobBcastGlad
-    print =<< atomicModifyIORef alice deliver
-    print =<< atomicModifyIORef alice deliver
-    print =<< atomicModifyIORef alice deliver
-    print =<< pVC <$> readIORef alice
+    Just message <- atomicModifyIORef alice deliver -- Message ... "Glad to hear it!"
+    print message
 
-    putStrLn "Carol receives 'glad'"
+    -- Carol receives 'glad' and delays it because it depends on 'found'.
     modifyIORef carol $ \p -> foldr receive p bobBcastGlad
-    print =<< atomicModifyIORef carol deliver
+    Nothing <- atomicModifyIORef carol deliver
 
-    putStrLn "Carol receives 'found'"
+    -- Carol receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef carol $ \p -> foldr receive p aliceBcastFound
-    print =<< atomicModifyIORef carol deliver
-    print =<< pVC <$> readIORef carol
+    Just message <- atomicModifyIORef carol deliver -- Message ... "Found it!"
+    print message
 
-    putStrLn "Carol delivers 'glad'"
-    print =<< atomicModifyIORef carol deliver
-    print =<< pVC <$> readIORef carol
+    -- Carol delivers 'glad', updating their VC to [2,1,0].
+    Just message <- atomicModifyIORef carol deliver
+    print message
