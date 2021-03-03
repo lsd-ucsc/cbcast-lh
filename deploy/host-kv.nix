@@ -7,16 +7,17 @@
   # sshd config, necessary for ssh/nixops administration
   services.openssh = {
     enable = true;
-    ports = [ 7722 ];
     challengeResponseAuthentication = false;
     passwordAuthentication = false;
     forwardX11 = false;
     permitRootLogin = "prohibit-password";
   };
 
-  # run a message relay server
+  # use less obvious ports
+  services.openssh.ports = [ 7722 ];
   networking.firewall.allowedTCPPorts = [ 7780 ];
 
+  # run a kv store service
   systemd.services."kv-store" = {
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
