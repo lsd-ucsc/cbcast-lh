@@ -1,11 +1,11 @@
 let
+  args = {
+    node-count = 2;
+    clients-per-node = 3;
+    skip-build = true;
+  };
   lib = (import <nixpkgs> { }).lib;
-  nodes = import ./cluster.nix
-    {
-      node-count = 2;
-      skip-build = true;
-    }
-    lib;
+  nodes = import ./cluster.nix args lib;
 in
 {
   network.description = "machines on virtualbox";
