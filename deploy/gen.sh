@@ -1,4 +1,5 @@
-#!/usr/bin/env
+#!/usr/bin/env bash
+set -x
 
 ./spit.py 192.168.56.131 7780 --mut > kv-store-6.sh
 ./spit.py 192.168.56.128 7780 --mut > kv-store-7.sh
