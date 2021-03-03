@@ -1,10 +1,8 @@
 let
-  cbcast = import ../. { mkEnv = false; };
   args = {
-    node-count = 8;
+    node-count = 2;
     clients-per-node = 3;
-    skip-build = false;
-    inherit cbcast;
+    skip-build = true;
   };
   lib = (import <nixpkgs> { }).lib;
   nodes = import ./cluster.nix args lib;

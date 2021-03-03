@@ -1,6 +1,5 @@
 let
-  cbcast = import ../. { mkEnv = false; };
-  pkgs = (import <nixpkgs> { });
+  pkgs = import <nixpkgs> { };
 in
 pkgs.mkShell {
   # make sure the shell environment uses the pinned nixpkgs
