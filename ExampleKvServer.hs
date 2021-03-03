@@ -117,7 +117,7 @@ readMail nodeState kvState = do
     message <- STM.stateTVar nodeState $ swap . CBCAST.deliver
     dq <- CBCAST.pDQ <$> STM.readTVar nodeState
     maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw)
-        . maybe (traceShow dq Nothing) Just
+        -- . maybe (traceShow dq Nothing) Just
         $ message
 
 
