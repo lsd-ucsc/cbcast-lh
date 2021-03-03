@@ -1,15 +1,17 @@
+let
+  lib = (import <nixpkgs> { }).lib;
+  nodes = import ./cluster.nix { node-count = 2; } lib;
+in
 {
   network.description = "machines on virtualbox";
 
-  kv-server_test2 = args@{ pkgs, lib, ... }:
-    (import ./host-kv.nix args)
-    // {
-      # tell nixops where to deploy
-      deployment.targetEnv = "virtualbox";
-      deployment.virtualbox.headless = true;
+  defaults = {
+    # tell nixops where to deploy
+    deployment.targetEnv = "virtualbox";
+    deployment.virtualbox.headless = true;
 
-      # virtualbox target doesn't work for alternate ports
-      services.openssh.ports = [ 22 ];
-    };
-
+    # virtualbox target doesn't work for alternate ports
+    services.openssh.ports = lib.mkForce [ 22 ];
+  };
 }
+  // nodes
