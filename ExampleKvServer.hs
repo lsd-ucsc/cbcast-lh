@@ -19,6 +19,7 @@ import qualified Network.HTTP.Client as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified System.Environment as Env
 import qualified System.IO as IO
+import Debug.Trace
 
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
@@ -114,7 +115,10 @@ handlers nodeState kvState = serve
 readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
 readMail nodeState kvState = do
     message <- STM.stateTVar nodeState $ swap . CBCAST.deliver
-    maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw) message
+    dq <- CBCAST.pDQ <$> STM.readTVar nodeState
+    maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw)
+        . maybe (traceShow dq Nothing) Just
+        $ message
 
 
 -- ** Broadcast messages

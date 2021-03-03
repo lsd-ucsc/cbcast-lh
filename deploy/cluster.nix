@@ -1,6 +1,7 @@
 { node-count ? 1
 , clients-per-node ? 0
 , skip-build ? false
+, cbcast
 }:
 
 lib:
@@ -18,6 +19,7 @@ let
     inherit kv-store-port;
     inherit node-prefix;
     inherit skip-build;
+    inherit cbcast;
   };
   mkClientFun = kv-store-id: import ./host-client.nix {
     target-kv-store = "${node-prefix}${toString kv-store-id}:${toString kv-store-port}";
