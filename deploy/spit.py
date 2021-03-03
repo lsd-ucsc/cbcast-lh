@@ -33,9 +33,9 @@ def randdata(fuel):
     else:
         return None
 
-get    = lambda ip,port,key,val: f'''curl {ip}:{port}/kv/{key}'''
-delete = lambda ip,port,key,val: f'''curl -X DELETE {ip}:{port}/kv/{key}'''
-put    = lambda ip,port,key,val: f'''curl -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {ip}:{port}/kv/{key}'''
+get    = lambda ip,port,key,val: f'''curl --silent {ip}:{port}/kv/{key}'''
+delete = lambda ip,port,key,val: f'''curl --silent -X DELETE {ip}:{port}/kv/{key}'''
+put    = lambda ip,port,key,val: f'''curl --silent -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {ip}:{port}/kv/{key}'''
 
 if __name__ == '__main__':
 
@@ -49,4 +49,4 @@ if __name__ == '__main__':
     for n in range(round(1e5)):
         req = random.choice([get,delete,put]) if ns.mut else get
         cmd = req(ns.ip,ns.port,random.choice(string.ascii_lowercase),randdata(5))
-        print(cmd)
+        print(cmd + ' > /dev/null')
