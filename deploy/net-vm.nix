@@ -1,10 +1,10 @@
 let
+  lib = (import <nixpkgs> { }).lib;
   args = {
     node-count = 2;
     clients-per-node = 3;
     skip-build = true;
   };
-  lib = (import <nixpkgs> { }).lib;
   nodes = import ./cluster.nix args lib;
 in
 {
