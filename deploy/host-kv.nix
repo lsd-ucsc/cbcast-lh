@@ -24,8 +24,8 @@ in
     serviceConfig = {
       ExecStart =
         if skip-build
-        then "${pkgs.bash}/bin/bash -c 'echo ${kv-store-args}'"
-        else "${import ../. { mkEnv = false; }}/bin/example ${kv-store-args}";
+        then "${pkgs.bash}/bin/bash -c 'echo example ${kv-store-args}'"
+        else "${pkgs.haskellPackages.cbcast-lh}/bin/example ${kv-store-args}";
     };
   };
 

@@ -9,6 +9,7 @@ let
   node-prefix = "kv-store-";
 
   mergeNAttrs = xs: lib.foldr lib.mergeAttrs { } xs;
+  indexes = n: if n < 1 then [ ] else lib.range 0 (n - 1);
   mkIds = n: if n < 1 then throw "id-count must be 1 or greater" else lib.range 0 (n - 1);
 
   # client named with both node and client id; targets the node
@@ -31,8 +32,8 @@ let
     };
   };
 
-  node-ids = mkIds node-count;
-  client-ids = mkIds clients-per-node;
+  node-ids = indexes node-count;
+  client-ids = indexes clients-per-node;
 
   nodes = map mkNodeFragment node-ids;
   clients = lib.crossLists mkClientFragment [ node-ids client-ids ];

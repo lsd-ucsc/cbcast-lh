@@ -13,8 +13,8 @@
     serviceConfig = {
       ExecStart =
         if skip-build
-        then "${pkgs.bash}/bin/bash -c 'echo ${target-kv-store}'"
-        else "${import ../. { mkEnv = false; }}/bin/example ${target-kv-store}";
+        then "${pkgs.bash}/bin/bash -c 'echo example ${target-kv-store}'"
+        else "${pkgs.haskellPackages.cbcast-lh}/bin/example ${target-kv-store}";
     };
   };
 
