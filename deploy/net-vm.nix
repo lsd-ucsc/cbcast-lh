@@ -1,6 +1,11 @@
 let
   lib = (import <nixpkgs> { }).lib;
-  nodes = import ./cluster.nix { node-count = 2; } lib;
+  nodes = import ./cluster.nix
+    {
+      node-count = 2;
+      skip-build = true;
+    }
+    lib;
 in
 {
   network.description = "machines on virtualbox";

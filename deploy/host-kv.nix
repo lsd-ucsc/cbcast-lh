@@ -1,6 +1,7 @@
 { kv-store-id
-, kv-store-port ? 7780
+, kv-store-port
 , node-prefix
+, skip-build ? false
 }:
 
 { pkgs, lib, nodes, ... }:
@@ -12,21 +13,8 @@ let
   kv-store-args = "${toString kv-store-id} ${builtins.concatStringsSep " " node-addrs}";
 in
 {
-  # users are static (vm target requires a password or a pubkey)
-  users.mutableUsers = false;
-  users.users."root".password = "trivial plaintext password which will never be used";
+  imports = [ ./common.nix ];
 
-  # sshd config, necessary for ssh/nixops administration
-  services.openssh = {
-    enable = true;
-    challengeResponseAuthentication = false;
-    passwordAuthentication = false;
-    forwardX11 = false;
-    permitRootLogin = "prohibit-password";
-  };
-
-  # use less obvious ports
-  services.openssh.ports = [ 7722 ];
   networking.firewall.allowedTCPPorts = [ kv-store-port ];
 
   # run a kv store service
@@ -34,8 +22,10 @@ in
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
     serviceConfig = {
-      #ExecStart = "${pkgs.bash}/bin/bash -c 'echo ${kv-store-args}'";
-      ExecStart = "${import ../. { mkEnv = false; }}/bin/example ${kv-store-args}";
+      ExecStart =
+        if skip-build
+        then "${pkgs.bash}/bin/bash -c 'echo ${kv-store-args}'"
+        else "${import ../. { mkEnv = false; }}/bin/example ${kv-store-args}";
     };
   };
 
