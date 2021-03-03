@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified System.Environment as Env
+import qualified System.IO as IO
 
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
@@ -192,6 +193,8 @@ main = Env.getArgs >>= \argv -> case argv of
         printf "Starting KV client sticky to server: %s\n" $ Servant.showBaseUrl server
         putStrLn "not implemented"
     (num:urls) -> do
+        -- Note: Ensure buffering is set so that stdout goes to syslog.
+        IO.hSetBuffering IO.stdout IO.LineBuffering
         peers <- mapM Servant.parseBaseUrl urls
         pid <- either fail return $ parsePID num peers
         let port = Servant.baseUrlPort $ peers !! pid

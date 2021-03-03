@@ -1,4 +1,7 @@
-{ config ? { allowBroken = true; }, ... }:
+{ mkEnv ? null
+, config ? { allowBroken = true; }
+, ...
+}:
 let
   # get pinned/overridden haskellPackages containing LH
   lh-source = (import <nixpkgs> { }).fetchFromGitHub {
@@ -37,4 +40,6 @@ let
   env = (drv.envFunc { /*withHoogle = true;*/ }).overrideAttrs
     (old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.ghcid ]; });
 in
-if nixpkgs.lib.inNixShell then env else drv
+if (mkEnv != null && mkEnv) || (mkEnv == null && nixpkgs.lib.inNixShell)
+then env
+else drv
