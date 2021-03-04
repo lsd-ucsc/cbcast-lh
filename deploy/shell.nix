@@ -1,5 +1,7 @@
 let
-  pkgs = import <nixpkgs> { };
+  # import cbcast-lh and access nixpkgs & haskellPackages in the passthru
+  elsewhere = import ../. { mkEnv = false; };
+  pkgs = elsewhere.passthru.nixpkgs;
 in
 pkgs.mkShell {
   # make sure the shell environment uses the pinned nixpkgs
