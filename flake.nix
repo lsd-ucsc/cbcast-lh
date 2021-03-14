@@ -52,7 +52,7 @@
                       in
                         overrideCabal drv (
                           old: {
-                            buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ];
+                            buildTools = old.buildTools or [] ++ [ final.z3 ];
                           }
                         );
                   }
