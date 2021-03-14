@@ -26,6 +26,19 @@
         {
 
           overlays = {
+            upgradeServant = final: prev: haskellPackagesOverlay ghc final prev (
+              self: super:
+                let
+                  callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
+                in
+                  with prev.haskell.lib; {
+                    http-media = doJailbreak super.http-media;
+                    servant = self.callHackage "servant" "0.18.2" {};
+                    servant-client = self.callHackage "servant-client" "0.18.2" {};
+                    servant-client-core = self.callHackage "servant-client-core" "0.18.2" {};
+                    servant-server = self.callHackage "servant-server" "0.18.2" {};
+                  }
+            );
             addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (
               self: super:
                 let
@@ -43,6 +56,7 @@
 
           overlay = composeOverlays [
             liquidhaskell.overlay.${system}
+            self.overlays.${system}.upgradeServant
             self.overlays.${system}.addCBCASTLH
           ];
 
