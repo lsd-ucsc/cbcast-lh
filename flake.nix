@@ -48,8 +48,13 @@
                     cbcast-lh =
                       let
                         src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "*.cabal" ] ./.;
+                        drv = callCabal2nix "cbcast-lh" src {};
                       in
-                        callCabal2nix "cbcast-lh" src {};
+                        overrideCabal drv (
+                          old: {
+                            buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ];
+                          }
+                        );
                   }
             );
           };
