@@ -52,6 +52,7 @@
                       in
                         overrideCabal drv (
                           old: {
+                            enableLibraryProfiling = false;
                             buildTools = old.buildTools or [] ++ [ final.z3 ];
                           }
                         );
