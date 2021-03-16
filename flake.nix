@@ -63,7 +63,7 @@
 
         defaultPackage = self.packages.${system}.cbcast-lh;
 
-        devShell = self.defaultPackage.${system};
+        devShell = self.defaultPackage.${system}.env;
       };
     in
     flake-utils.lib.eachDefaultSystem mkOutputs;
