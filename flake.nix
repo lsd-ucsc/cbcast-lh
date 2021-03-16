@@ -13,7 +13,7 @@
 
   outputs = { self, nixpkgs, flake-utils, liquidhaskell }:
     let
-      composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: {}) funs;
+      composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
       haskellPackagesOverlay = compiler: final: prev: overrides: {
         haskell = prev.haskell // {
           packages = prev.haskell.packages // {
@@ -22,61 +22,50 @@
         };
       };
       ghc = "ghc8102";
-      mkOutputs = system:
-        {
+      mkOutputs = system: {
 
-          overlays = {
-            upgradeServant = final: prev: haskellPackagesOverlay ghc final prev (
-              self: super:
+        overlays = {
+          upgradeServant = final: prev: haskellPackagesOverlay ghc final prev (self: super:
+            # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
+            let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
+            with prev.haskell.lib; {
+              http-media = doJailbreak super.http-media;
+              servant = self.callHackage "servant" "0.18.2" { };
+              servant-client = self.callHackage "servant-client" "0.18.2" { };
+              servant-client-core = self.callHackage "servant-client-core" "0.18.2" { };
+              servant-server = self.callHackage "servant-server" "0.18.2" { };
+            });
+          addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (self: super:
+            # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
+            let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
+            with prev.haskell.lib; {
+              cbcast-lh =
                 let
-                  callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
+                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "*.cabal" ] ./.;
+                  drv = callCabal2nix "cbcast-lh" src { };
                 in
-                  with prev.haskell.lib; {
-                    http-media = doJailbreak super.http-media;
-                    servant = self.callHackage "servant" "0.18.2" {};
-                    servant-client = self.callHackage "servant-client" "0.18.2" {};
-                    servant-client-core = self.callHackage "servant-client-core" "0.18.2" {};
-                    servant-server = self.callHackage "servant-server" "0.18.2" {};
-                  }
-            );
-            addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (
-              self: super:
-                let
-                  callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
-                in
-                  with prev.haskell.lib; {
-                    cbcast-lh =
-                      let
-                        src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "*.cabal" ] ./.;
-                        drv = callCabal2nix "cbcast-lh" src {};
-                      in
-                        overrideCabal drv (
-                          old: {
-                            enableLibraryProfiling = false;
-                            buildTools = old.buildTools or [] ++ [ final.z3 ];
-                          }
-                        );
-                  }
-            );
-          };
-
-          overlay = composeOverlays [
-            liquidhaskell.overlay.${system}
-            self.overlays.${system}.upgradeServant
-            self.overlays.${system}.addCBCASTLH
-          ];
-
-          packages =
-            let
-              pkgs = import nixpkgs { inherit system; overlays = [ self.overlay.${system} ]; };
-            in
-              { cbcast-lh = pkgs.haskell.packages.${ghc}.cbcast-lh; };
-
-          defaultPackage = self.packages.${system}.cbcast-lh;
-
-          devShell = self.defaultPackage.${system};
+                overrideCabal drv (old: {
+                  enableLibraryProfiling = false;
+                  buildTools = old.buildTools or [ ] ++ [ final.z3 ];
+                });
+            });
         };
+
+        overlay = composeOverlays [
+          liquidhaskell.overlay.${system}
+          self.overlays.${system}.upgradeServant
+          self.overlays.${system}.addCBCASTLH
+        ];
+
+        packages =
+          let pkgs = import nixpkgs { inherit system; overlays = [ self.overlay.${system} ]; };
+          in { cbcast-lh = pkgs.haskell.packages.${ghc}.cbcast-lh; };
+
+        defaultPackage = self.packages.${system}.cbcast-lh;
+
+        devShell = self.defaultPackage.${system};
+      };
     in
-      flake-utils.lib.eachDefaultSystem mkOutputs;
+    flake-utils.lib.eachDefaultSystem mkOutputs;
 
 }
