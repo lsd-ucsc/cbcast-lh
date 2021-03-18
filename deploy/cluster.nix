@@ -1,4 +1,4 @@
-{ node-count ? 1
+{ node-regions ? [ ] # one kv-store will be deployed to each region
 , clients-per-node ? 0
 , skip-build ? false
 }:
@@ -32,10 +32,9 @@ let
     };
   };
 
-  node-ids = indexes node-count;
   client-ids = indexes clients-per-node;
 
-  nodes = map mkNodeFragment node-ids;
-  clients = lib.crossLists mkClientFragment [ node-ids client-ids ];
+  nodes = map mkNodeFragment node-regions;
+  clients = lib.crossLists mkClientFragment [ node-regions client-ids ];
 in
 mergeNAttrs (nodes ++ clients)
