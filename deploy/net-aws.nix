@@ -3,6 +3,7 @@ let
     node-regions = [ "us-west-1" "us-west-2" "us-east-1" ];
     clients-per-node = 2;
     skip-build = false;
+    cbcast-pkg = import ./cbcast-pkg.nix;
   };
 in
 {

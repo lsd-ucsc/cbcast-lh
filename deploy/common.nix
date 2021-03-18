@@ -1,9 +1,4 @@
 {
-  # use cbcast overlay
-  nixpkgs.overlays = [
-    (import ../default.nix).overlay.${builtins.currentSystem}
-  ];
-
   # users are static (vm target requires a password or a pubkey)
   users.mutableUsers = false;
   users.users."root".password = "trivial plaintext password which will never be used";

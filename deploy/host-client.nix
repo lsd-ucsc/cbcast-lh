@@ -1,12 +1,10 @@
 { target-kv-store
 , skip-build ? false
+, cbcast-pkg
 , modules ? [ ]
 }:
 
 { pkgs, lib, nodes, ... }:
-let
-  ghc = "ghc8102"; # FIXME obtain this from nixpkgs config
-in
 {
   imports = modules;
 
@@ -18,7 +16,7 @@ in
       ExecStart =
         if skip-build
         then "${pkgs.bash}/bin/bash -c 'echo example ${target-kv-store}'"
-        else "${pkgs.haskell.packages.${ghc}.cbcast-lh}/bin/example ${target-kv-store}";
+        else "${cbcast-pkg}/bin/example ${target-kv-store}";
     };
   };
 

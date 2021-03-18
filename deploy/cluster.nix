@@ -1,6 +1,7 @@
 { node-regions ? [ ] # one kv-store will be deployed to each region
 , clients-per-node ? 0
 , skip-build ? false
+, cbcast-pkg
 }:
 let
   lib = (import <nixpkgs> { }).lib;
@@ -25,6 +26,7 @@ let
     ${client-hostname node-spec client-id} = import ./host-client.nix {
       target-kv-store = "${node-hostname node-spec}:${toString node-port}";
       inherit skip-build;
+      inherit cbcast-pkg;
       modules = [{ deployment.ec2.region = node-region; }];
     };
   };
@@ -38,6 +40,7 @@ let
       kv-store-port = node-port;
       inherit node-prefix;
       inherit skip-build;
+      inherit cbcast-pkg;
       modules = [{ deployment.ec2.region = node-region; }];
     };
   };
