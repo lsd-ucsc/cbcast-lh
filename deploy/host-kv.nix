@@ -2,6 +2,7 @@
 , kv-store-port
 , node-prefix
 , skip-build ? false
+, modules ? [ ]
 }:
 
 { pkgs, lib, nodes, ... }:
@@ -14,7 +15,7 @@ let
   kv-store-args = "${toString kv-store-id} ${builtins.concatStringsSep " " node-addrs}";
 in
 {
-  imports = [ ./common.nix ];
+  imports = [ ./common.nix ] ++ modules;
 
   networking.firewall.allowedTCPPorts = [ kv-store-port ];
 

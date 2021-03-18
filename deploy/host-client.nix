@@ -1,5 +1,6 @@
 { target-kv-store
 , skip-build ? false
+, modules ? [ ]
 }:
 
 { pkgs, lib, nodes, ... }:
@@ -7,7 +8,7 @@ let
   ghc = "ghc8102"; # FIXME obtain this from nixpkgs config
 in
 {
-  imports = [ ./common.nix ];
+  imports = [ ./common.nix ] ++ modules;
 
   # run a client service
   systemd.services."kv-client" = {
