@@ -1,10 +1,8 @@
-{ ... }:
-let
-  cbcast-lh = import ../.;
-in
 {
   # use cbcast overlay
-  nixpkgs.overlays = [ cbcast-lh.overlay.${builtins.currentSystem} ];
+  nixpkgs.overlays = [
+    (import ../default.nix).overlay.${builtins.currentSystem}
+  ];
 
   # users are static (vm target requires a password or a pubkey)
   users.mutableUsers = false;

@@ -1,6 +1,6 @@
 let
-  cbcast-lh = import ../.;
-  pkgs = cbcast-lh.inputs.nixpkgs.legacyPackages.${builtins.currentSystem};
+  # use cbcast pinned nixpkgs
+  pkgs = (import ../default.nix).inputs.nixpkgs.legacyPackages.${builtins.currentSystem};
 in
 pkgs.mkShell {
   # make sure the shell environment uses the pinned nixpkgs
