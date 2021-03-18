@@ -1,8 +1,8 @@
 let
   lib = (import <nixpkgs> { }).lib;
   args = {
-    #node-count = 2;
-    #clients-per-node = 3;
+    node-regions = [ "apples" "oranges" ];
+    clients-per-node = 3;
     skip-build = false;
   };
   nodes = import ./cluster.nix args lib;
