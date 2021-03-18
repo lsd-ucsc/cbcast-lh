@@ -8,7 +8,7 @@ in
 {
   network.description = "machines on aws";
 
-  defaults = {
+  defaults = (import ./common.nix) // {
     # tell nixops where to deploy
     deployment.targetEnv = "ec2";
     deployment.ec2.instanceType = "t3.micro";

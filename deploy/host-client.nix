@@ -8,7 +8,7 @@ let
   ghc = "ghc8102"; # FIXME obtain this from nixpkgs config
 in
 {
-  imports = [ ./common.nix ] ++ modules;
+  imports = modules;
 
   # run a client service
   systemd.services."kv-client" = {

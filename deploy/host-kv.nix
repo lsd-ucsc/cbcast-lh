@@ -15,7 +15,7 @@ let
   kv-store-args = "${toString kv-store-offset} ${builtins.concatStringsSep " " node-addrs}";
 in
 {
-  imports = [ ./common.nix ] ++ modules;
+  imports = modules;
 
   networking.firewall.allowedTCPPorts = [ kv-store-port ];
 

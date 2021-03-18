@@ -9,7 +9,7 @@ in
 {
   network.description = "machines on virtualbox";
 
-  defaults = {
+  defaults = (import ./common.nix) // {
     # tell nixops where to deploy
     deployment.targetEnv = "virtualbox";
     deployment.virtualbox.headless = true;
