@@ -2,9 +2,8 @@
 , clients-per-node ? 0
 , skip-build ? false
 }:
-
-lib:
 let
+  lib = (import <nixpkgs> { }).lib;
   node-port = 7780;
   node-prefix = "kv-store-";
   node-hostname = { node-id, node-region }: "${node-prefix}${toString node-id}_${node-region}";

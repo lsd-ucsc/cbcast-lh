@@ -1,11 +1,9 @@
 let
-  lib = (import <nixpkgs> { }).lib;
-  args = {
+  nodes = import ./cluster.nix {
     node-regions = [ "us-west-1" "us-west-2" "us-east-1" ];
     clients-per-node = 2;
     skip-build = false;
   };
-  nodes = import ./cluster.nix args lib;
 in
 {
   network.description = "machines on aws";
