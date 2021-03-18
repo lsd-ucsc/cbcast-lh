@@ -4,7 +4,6 @@ let
     #node-regions = [ "apples" "oranges" ];
     #clients-per-node = 3;
     skip-build = false;
-    cbcast-pkg = import ./cbcast-pkg.nix;
   };
 in
 {

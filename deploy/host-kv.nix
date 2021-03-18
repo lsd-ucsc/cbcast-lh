@@ -2,7 +2,6 @@
 , kv-store-port
 , node-prefix
 , skip-build ? false
-, cbcast-pkg
 , modules ? [ ]
 }:
 
@@ -27,7 +26,7 @@ in
       ExecStart =
         if skip-build
         then "${pkgs.bash}/bin/bash -c 'echo example ${kv-store-args}'"
-        else "${cbcast-pkg}/bin/example ${kv-store-args}";
+        else "${import ./cbcast-pkg.nix}/bin/example ${kv-store-args}";
     };
   };
 
