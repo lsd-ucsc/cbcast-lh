@@ -3,6 +3,9 @@
 }:
 
 { pkgs, lib, nodes, ... }:
+let
+  ghc = "ghc8102"; # FIXME obtain this from nixpkgs config
+in
 {
   imports = [ ./common.nix ];
 
@@ -14,7 +17,7 @@
       ExecStart =
         if skip-build
         then "${pkgs.bash}/bin/bash -c 'echo example ${target-kv-store}'"
-        else "${pkgs.haskellPackages.cbcast-lh}/bin/example ${target-kv-store}";
+        else "${pkgs.haskell.packages.${ghc}.cbcast-lh}/bin/example ${target-kv-store}";
     };
   };
 

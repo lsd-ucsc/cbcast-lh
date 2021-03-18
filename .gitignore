@@ -1,6 +1,3 @@
-*.nix
-result
-
 *.cabal
 *.svg
 *.swp
