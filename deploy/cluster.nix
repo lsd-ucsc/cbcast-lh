@@ -7,34 +7,46 @@ lib:
 let
   node-port = 7780;
   node-prefix = "kv-store-";
+  node-hostname = { node-id, node-region }: "${node-prefix}${toString node-id}_${node-region}";
+  client-hostname = node-spec: client-id: "kv-client-${toString client-id}_for_${node-hostname node-spec}";
 
   mergeNAttrs = xs: lib.foldr lib.mergeAttrs { } xs;
+  #nix-repl> mergeNAttrs [ {foo=3; bar=4;} {bar=0; baz=0;} ]
+  #{ bar = 0; baz = 0; foo = 3; }
   indexes = n: if n < 1 then [ ] else lib.range 0 (n - 1);
-  mkIds = n: if n < 1 then throw "id-count must be 1 or greater" else lib.range 0 (n - 1);
+  # nix-repl> indexes 3
+  # [ 0 1 2 ]
+  genNodeIds = regions: map ({ fst, snd }: { node-id = fst; node-region = snd; }) (lib.zipLists (indexes (builtins.length regions)) regions);
+  # nix-repl> :p genNodeIds ["us-east-1" "us-west-1" "us-west-2"]
+  # [ { node-id = 0; node-region = "us-east-1"; } { node-id = 1; node-region = "us-west-1"; } { node-id = 2; node-region = "us-west-2"; } ]
 
-  # client named with both node and client id; targets the node
-  mkClientFragment = node-id: client-id: {
-    "kv-client-${toString node-id}-${toString client-id}" = import ./host-client.nix {
-      target-kv-store = "${node-prefix}${toString node-id}:${toString node-port}";
+
+  # client named with both node info and client id; targets the node
+  mkClientFragment = node-spec@{ node-id, node-region }: client-id: {
+    ${client-hostname node-spec client-id} = import ./host-client.nix {
+      target-kv-store = "${node-hostname node-spec}:${toString node-port}";
       inherit skip-build;
+      modules = [{ deployment.ec2.region = node-region; }];
     };
   };
 
-  # node named with node-prefix and id
-  mkNodeFragment = node-id: {
+  # node named with node info
+  mkNodeFragment = node-spec@{ node-id, node-region }: {
     # only the first argument to ./host-kv.nix is passed here the {pkgs, ... }
     # argument is passed by nixops
-    "${node-prefix}${toString node-id}" = import ./host-kv.nix {
-      kv-store-id = node-id;
+    ${node-hostname node-spec} = import ./host-kv.nix {
+      kv-store-offset = node-id;
       kv-store-port = node-port;
       inherit node-prefix;
       inherit skip-build;
+      modules = [{ deployment.ec2.region = node-region; }];
     };
   };
 
+  node-specs = genNodeIds node-regions;
   client-ids = indexes clients-per-node;
 
-  nodes = map mkNodeFragment node-regions;
-  clients = lib.crossLists mkClientFragment [ node-regions client-ids ];
+  nodes = map mkNodeFragment node-specs;
+  clients = lib.crossLists mkClientFragment [ node-specs client-ids ];
 in
 mergeNAttrs (nodes ++ clients)

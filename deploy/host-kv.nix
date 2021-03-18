@@ -1,4 +1,4 @@
-{ kv-store-id
+{ kv-store-offset
 , kv-store-port
 , node-prefix
 , skip-build ? false
@@ -12,7 +12,7 @@ let
   #get-ip = config: if config.networking.publicIPv4 == null then config.networking.privateIPv4 else config.networking.publicIPv4;
   #node-addrs = map (nn: nodes.${nn}.config.networking.privateIPv4) node-names;
   node-addrs = map (nn: "${nn}:${toString kv-store-port}") node-names; # nixops populates the hosts file with hostnames
-  kv-store-args = "${toString kv-store-id} ${builtins.concatStringsSep " " node-addrs}";
+  kv-store-args = "${toString kv-store-offset} ${builtins.concatStringsSep " " node-addrs}";
 in
 {
   imports = [ ./common.nix ] ++ modules;
