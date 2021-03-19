@@ -14,9 +14,9 @@ let
   lib = (import <nixpkgs> { }).lib;
 
   node-port = 7780;
-  node-prefix = "kv";
+  node-prefix = "kv"; # XXX nodes use the prefix to figure out their peer list; clients must have a distinct prefix
   node-hostname = { node-ofs, node-region }: "${node-prefix}${toString node-ofs}";
-  client-hostname = node-spec@{ node-ofs, ... }: client-ofs: "${node-hostname node-spec}client${toString client-ofs}";
+  client-hostname = node-spec@{ node-ofs, ... }: client-ofs: "client${toString client-ofs}${node-hostname node-spec}";
 
   mergeNAttrs = xs: lib.foldr lib.mergeAttrs { } xs;
   #nix-repl> mergeNAttrs [ {foo=3; bar=4;} {bar=0; baz=0;} ]
