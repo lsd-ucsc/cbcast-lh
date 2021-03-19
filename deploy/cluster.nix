@@ -24,37 +24,72 @@ let
   indexes = n: if n < 1 then [ ] else lib.range 0 (n - 1);
   # nix-repl> indexes 3
   # [ 0 1 2 ]
-  genNodeIds = regions: map ({ fst, snd }: { node-id = fst; node-region = snd; }) (lib.zipLists (indexes (builtins.length regions)) regions);
+  genNodeIds = regions: map ({ fst, snd }: { node-ofs = fst; node-region = snd; }) (lib.zipLists (indexes (builtins.length regions)) regions);
   # nix-repl> :p genNodeIds ["us-east-1" "us-west-1" "us-west-2"]
-  # [ { node-id = 0; node-region = "us-east-1"; } { node-id = 1; node-region = "us-west-1"; } { node-id = 2; node-region = "us-west-2"; } ]
+  # [ { node-ofs = 0; node-region = "us-east-1"; } { node-ofs = 1; node-region = "us-west-1"; } { node-ofs = 2; node-region = "us-west-2"; } ]
 
+  gate = attrs: if accessKeyId == "" then { } else attrs;
+
+  kpName = region: "keypair-${region}";
+  sgName = region: "security-group-${region}";
+
+  # aws ec2 properties for a host
+  mkEc2PropsModule = node-region: { resources, ... }: {
+    deployment.ec2.region = node-region;
+    deployment.ec2.accessKeyId = accessKeyId; # refers to ~/.ec2-keys or ~/.aws/credentials
+    deployment.ec2.keyPair = resources.ec2KeyPairs."${kpName node-region}";
+    deployment.ec2.securityGroups = [ resources.ec2SecurityGroups."${sgName node-region}" ];
+  };
+
+  # aws ec2 key-pair for a region
+  mkKpFragment = region: {
+    "${kpName region}" = {
+      inherit region accessKeyId;
+    };
+  };
+  # aws ec2 security-group for a region
+  mkSgFragment = region: {
+    "${sgName region}" = {
+      inherit region accessKeyId;
+      rules = [
+        { sourceIp = "0.0.0.0/0"; toPort = 22; fromPort = 22; }
+        { sourceIp = "0.0.0.0/0"; toPort = node-port; fromPort = node-port; }
+      ];
+    };
+  };
 
   # client named with both node info and client id; targets the node
-  mkClientFragment = node-spec@{ node-id, node-region }: client-id: {
-    ${client-hostname node-spec client-id} = import ./host-client.nix {
+  mkClientFragment = node-spec@{ node-region, ... }: client-ofs: {
+    ${client-hostname node-spec client-ofs} = import ./host-client.nix {
       target-kv-store = "${node-hostname node-spec}:${toString node-port}";
       inherit skip-build;
-      modules = [{ deployment.ec2.region = node-region; }];
+      modules = [ (mkEc2PropsModule node-region) ];
     };
   };
 
   # node named with node info
-  mkNodeFragment = node-spec@{ node-id, node-region }: {
+  mkNodeFragment = node-spec@{ node-ofs, node-region }: {
     # only the first argument to ./host-kv.nix is passed here the {pkgs, ... }
     # argument is passed by nixops
     ${node-hostname node-spec} = import ./host-kv.nix {
-      kv-store-offset = node-id;
+      kv-store-offset = node-ofs;
       kv-store-port = node-port;
       inherit node-prefix;
       inherit skip-build;
-      modules = [{ deployment.ec2.region = node-region; }];
+      modules = [ (mkEc2PropsModule node-region) ];
     };
   };
 
+  regionFragment = let regions = lib.unique node-regions; in
+    gate {
+      resources.ec2KeyPairs = mergeNAttrs (map mkKpFragment regions);
+      resources.ec2SecurityGroups = mergeNAttrs (map mkSgFragment regions);
+    };
+
   node-specs = genNodeIds node-regions;
-  client-ids = indexes clients-per-node;
+  client-offsets = indexes clients-per-node;
 
   nodes = map mkNodeFragment node-specs;
-  clients = lib.crossLists mkClientFragment [ node-specs client-ids ];
+  clients = lib.crossLists mkClientFragment [ node-specs client-offsets ];
 in
-mergeNAttrs (nodes ++ clients)
+regionFragment // mergeNAttrs (nodes ++ clients)
