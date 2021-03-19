@@ -81,7 +81,7 @@ let
   };
 
   regionFragment = let regions = lib.unique node-regions; in
-    gate {
+    {
       resources.ec2KeyPairs = mergeNAttrs (map mkKpFragment regions);
       resources.ec2SecurityGroups = mergeNAttrs (map mkSgFragment regions);
     };
@@ -92,4 +92,4 @@ let
   nodes = map mkNodeFragment node-specs;
   clients = lib.crossLists mkClientFragment [ node-specs client-offsets ];
 in
-regionFragment // mergeNAttrs (nodes ++ clients)
+gate regionFragment // mergeNAttrs (nodes ++ clients)
