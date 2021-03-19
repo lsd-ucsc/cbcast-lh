@@ -1,9 +1,18 @@
-{ node-regions ? [ ] # one kv-store will be deployed to each region
+{
+  # One kv-store will be deployed for each region string. To deploy two stores
+  # in one region, name the region twice.
+  node-regions ? [ ]
+  # How many clients to create for each kv-store. Clients are created in the
+  # same region as the kv-store.
 , clients-per-node ? 0
+  # Name of the AWS access key profile.
+, accessKeyId ? ""
+  # For debugging
 , skip-build ? false
 }:
 let
   lib = (import <nixpkgs> { }).lib;
+
   node-port = 7780;
   node-prefix = "kv";
   node-hostname = { node-ofs, node-region }: "${node-prefix}${toString node-ofs}";
