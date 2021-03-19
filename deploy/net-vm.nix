@@ -1,8 +1,7 @@
 let
   nodes = import ./cluster.nix {
-    node-regions = [ "world" ];
-    #node-regions = [ "apples" "oranges" ];
-    #clients-per-node = 3;
+    node-regions = [ "apples" "oranges" ];
+    clients-per-node = 1;
     skip-build = false;
   };
 in
