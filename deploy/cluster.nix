@@ -5,9 +5,9 @@
 let
   lib = (import <nixpkgs> { }).lib;
   node-port = 7780;
-  node-prefix = "kvStore";
-  node-hostname = { node-id, node-region }: "${node-prefix}${toString node-id}-${node-region}";
-  client-hostname = node-spec: client-id: "kvClient${toString client-id}_for_${node-hostname node-spec}";
+  node-prefix = "kv";
+  node-hostname = { node-ofs, node-region }: "${node-prefix}${toString node-ofs}";
+  client-hostname = node-spec@{ node-ofs, ... }: client-ofs: "${node-hostname node-spec}client${toString client-ofs}";
 
   mergeNAttrs = xs: lib.foldr lib.mergeAttrs { } xs;
   #nix-repl> mergeNAttrs [ {foo=3; bar=4;} {bar=0; baz=0;} ]
