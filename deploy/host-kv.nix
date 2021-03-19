@@ -26,7 +26,7 @@ in
       ExecStart =
         if skip-build
         then "${pkgs.bash}/bin/bash -c 'echo example ${kv-store-args}'"
-        else "${import ./cbcast-pkg.nix}/bin/example ${kv-store-args}";
+        else "${(import ../default.nix).default}/bin/example ${kv-store-args}";
     };
   };
 
