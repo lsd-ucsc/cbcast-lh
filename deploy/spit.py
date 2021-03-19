@@ -46,9 +46,9 @@ if __name__ == '__main__':
     ns = ap.parse_args()
 
     print('#!/usr/bin/env bash')
-    for n in range(round(1e5)):
+    for n in range(round(1e4)):
         req = random.choice([get,delete,put]) if ns.mut else get
         cmd = req(ns.ip,ns.port,random.choice(string.ascii_lowercase),randdata(5))
-        if ns.mut:
-            cmd += ' > /dev/null'
+        #if ns.mut:
+        #    cmd += ' > /dev/null'
         print(cmd)

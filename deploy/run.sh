@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 set -x
 
-nixops ssh-for-each -- journalctl --rotate
-nixops ssh-for-each -- journalctl --vacuum-size=1B
-nixops ssh-for-each -- systemctl restart kv-store
+nixops ssh-for-each -d vm -- journalctl --rotate
+nixops ssh-for-each -d vm -- journalctl --vacuum-size=1B
+nixops ssh-for-each -d vm -- systemctl restart kv-store
 
-time ./kv-store-6.sh &
-time ./kv-store-7.sh &
-time ./kv-store-4.sh &
-time ./kv-store-5.sh &
-time ./kv-store-2.sh &
-time ./kv-store-3.sh &
-time ./kv-store-0.sh &
-time ./kv-store-1.sh > query
+time ./kv0.sh > query-kv0 &
+time ./kv1.sh > query-kv1 &
+time ./kv2.sh > query-kv2 &
+time ./kv3.sh > query-kv3
 
 echo canary has finished, but others might still be running
-ps aux | grep kv-store
+ps aux | grep kv
