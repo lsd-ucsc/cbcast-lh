@@ -38,15 +38,29 @@ causallyBeforeK :: Message r -> Message r -> PID -> Bool @-}
 causallyBeforeK :: Message r -> Message r -> PID -> Bool
 causallyBeforeK m1 m2 k = vcLessK (mSent m1) (mSent m2) k
 
+{-@ reflect causallyBefore @-}
+{-@
+causallyBefore :: Message r -> Message r -> Bool @-}
+causallyBefore :: Message r -> Message r -> Bool
+causallyBefore m1 m2 = vcLess (mSent m1) (mSent m2)
+
 -- | Property: 'causallyBeforeK' is true at all indexes.
 {-@
-type CausallyBeforeProp M1 M2 = k:PID -> { _:Proof | causallyBeforeK M1 M2 k } @-}
-type CausallyBeforeProp = PID -> Proof
+type CausallyBeforePropK M1 M2 = k:PID -> { _:Proof | causallyBeforeK M1 M2 k } @-}
+type CausallyBeforePropK = PID -> Proof
+
+{-@
+type CausallyBeforeProp M1 M2 = { _:Proof | causallyBefore M1 M2 } @-}
+type CausallyBeforeProp = Proof
 
 -- | Property: 'deliverableK' is true at all indexes.
 {-@
-type DeliverableProp M P = k:PID -> { _:Proof | deliverableK M P k } @-}
-type DeliverableProp = PID -> Proof
+type DeliverablePropK M P = k:PID -> { _:Proof | deliverableK M P k } @-}
+type DeliverablePropK = PID -> Proof
+
+{-@
+type DeliverableProp M P = { _:Proof | deliverable M P } @-}
+type DeliverableProp = Proof
 
 -- | Property: The given property is false.
 {-@
@@ -95,6 +109,27 @@ processOrderAxiom _m1 _m2 _proof = ()
 -- The actual property we're proving, however, is the "causal safety
 -- of delivery" property about our deliverable predicate.
 
+
+{-@
+deliverablePropImpliesDeliverablePropK
+    ::  procVc: VC
+    ->  m : Message r
+    ->  DeliverableProp m procVc
+    ->  DeliverablePropK m procVc
+@-}
+deliverablePropImpliesDeliverablePropK :: VC -> Message r -> Proof -> (PID -> Proof)
+deliverablePropImpliesDeliverablePropK _vc _m _proof _pid = () *** Admit
+
+{-@
+causallyBeforePropImpliesCausallyBeforePropK
+    ::  m1 : Message r
+    ->  m2 : Message r
+    ->  CausallyBeforeProp m1 m2
+    ->  CausallyBeforePropK m1 m2
+@-}
+causallyBeforePropImpliesCausallyBeforePropK :: Message r -> Message r -> Proof -> (PID -> Proof)
+causallyBeforePropImpliesCausallyBeforePropK _m1 _m2 _proof _pid = () *** Admit
+
 {-@ ple safety @-}
 {-@
 safety
@@ -106,16 +141,16 @@ safety
     ->  Not (DeliverableProp m2 procVc)
 @-}
 safety :: VC -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
-safety _procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
+safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
     | mSender m1 == mSender m2
         =   ()
-            ? m1_d_p (mSender m1)
-            ? m2_d_p (mSender m2)
+            ? (deliverablePropImpliesDeliverablePropK procVc m1 m1_d_p) (mSender m1)
+            ? (deliverablePropImpliesDeliverablePropK procVc m2 m2_d_p) (mSender m2)
             ? processOrderAxiom m1 m2 ()
             *** QED
     | otherwise
         =   ()
-            ? m1_before_m2 (mSender m1)
-            ? m1_d_p (mSender m1)
-            ? m2_d_p (mSender m1)
+            ? (causallyBeforePropImpliesCausallyBeforePropK m1 m2 m1_before_m2) (mSender m1)
+            ? (deliverablePropImpliesDeliverablePropK procVc m1 m1_d_p) (mSender m1)
+            ? (deliverablePropImpliesDeliverablePropK procVc m2 m2_d_p) (mSender m1)
             *** QED
