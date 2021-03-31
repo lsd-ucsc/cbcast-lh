@@ -106,6 +106,7 @@ iterImpliesForall
 iterImpliesForall :: Int -> (Fin -> Bool) -> Proof -> (Fin -> Proof)
 iterImpliesForall n p satisfied k = () *** Admit
 
+{-@ ple d_implies_dk @-}
 {-@
 d_implies_dk
     ::  procVc: VC
@@ -114,10 +115,21 @@ d_implies_dk
     ->  DeliverablePropK m procVc
 @-}
 d_implies_dk :: VC -> Message r -> Proof -> (PID -> Proof)
-d_implies_dk _vc _m _proof _pid
-    =   () -- ? iterImpliesForall 
-    *** Admit
+d_implies_dk procVc m deliverableSatisfied pid =
+    iterImpliesForall (vcSize (mSent m)) (deliverableK m procVc) deliverableSatisfied pid
 
+-- Question for Niki: Why can't we use (vcSize procVc) here? vcSize always
+-- returns procCount. We can swap it out for undefined and things work,
+-- because of the type of vcSize. What's going on when we use procVc?
+--
+-- Question for Niki: When passing in the second argument as a parenthesized
+-- expression, LH fails to give us the required type. If we define it, as a
+-- variable we get a proper required type.
+--
+-- Question for Niki: Why must cb_implies_cbk use p as vcLessK instead of p as
+-- causallyBeforeK?
+
+{-@ ple cb_implies_cbk @-}
 {-@
 cb_implies_cbk
     ::  m1 : Message r
@@ -126,7 +138,11 @@ cb_implies_cbk
     ->  CausallyBeforePropK m1 m2
 @-}
 cb_implies_cbk :: Message r -> Message r -> Proof -> (PID -> Proof)
-cb_implies_cbk _m1 _m2 _proof _pid = () *** Admit
+cb_implies_cbk m1 m2 causallyBeforeSatisfied pid =
+    iterImpliesForall (vcSize (mSent m1)) p causallyBeforeSatisfied pid
+  where
+--  p = causallyBeforeK m1 m2
+    p = vcLessK (mSent m1) (mSent m2)
 
 {-@ ple safety @-}
 {-@
