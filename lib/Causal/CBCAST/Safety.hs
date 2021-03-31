@@ -106,18 +106,6 @@ iterImpliesForall
 iterImpliesForall :: Int -> (Fin -> Bool) -> Proof -> (Fin -> Proof)
 iterImpliesForall n p satisfied k = () *** Admit
 
-{-@ ple andAtEachKImpliesForall @-}
-{-@
-andAtEachKImpliesForall
-    :: p:(PID -> Bool)
-    -> { _:Proof | andAtEachK p procCount }
-    -> (k:PID -> { _:Proof | p k })
-@-}
-andAtEachKImpliesForall :: (PID -> Bool) -> Proof -> (PID -> Proof)
-andAtEachKImpliesForall p satisfied k
-    =   () -- ? iterImpliesForAll
-    *** Admit
-
 {-@
 d_implies_dk
     ::  procVc: VC
