@@ -97,24 +97,24 @@ processOrderAxiom _m1 _m2 _proof = ()
 -- of delivery" property about our deliverable predicate.
 
 {-@
-deliverablePropImpliesDeliverablePropK
+d_implies_dk
     ::  procVc: VC
     ->  m : Message r
     ->  { _:Proof | deliverable m procVc }
     ->  DeliverablePropK m procVc
 @-}
-deliverablePropImpliesDeliverablePropK :: VC -> Message r -> Proof -> (PID -> Proof)
-deliverablePropImpliesDeliverablePropK _vc _m _proof _pid = () *** Admit
+d_implies_dk :: VC -> Message r -> Proof -> (PID -> Proof)
+d_implies_dk _vc _m _proof _pid = () *** Admit
 
 {-@
-causallyBeforePropImpliesCausallyBeforePropK
+cb_implies_cbk
     ::  m1 : Message r
     ->  m2 : Message r
     ->  { _:Proof | causallyBefore m1 m2 }
     ->  CausallyBeforePropK m1 m2
 @-}
-causallyBeforePropImpliesCausallyBeforePropK :: Message r -> Message r -> Proof -> (PID -> Proof)
-causallyBeforePropImpliesCausallyBeforePropK _m1 _m2 _proof _pid = () *** Admit
+cb_implies_cbk :: Message r -> Message r -> Proof -> (PID -> Proof)
+cb_implies_cbk _m1 _m2 _proof _pid = () *** Admit
 
 {-@ ple safety @-}
 {-@
@@ -131,13 +131,13 @@ safety :: VC -> Message r -> Message r -> Proof -> Proof -> Proof -> Proof
 safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
     | mSender m1 == mSender m2
         =   ()
-            ? (deliverablePropImpliesDeliverablePropK procVc m1 m1_d_p) (mSender m1)
-            ? (deliverablePropImpliesDeliverablePropK procVc m2 m2_d_p) (mSender m2)
+            ? (d_implies_dk procVc m1 m1_d_p) (mSender m1)
+            ? (d_implies_dk procVc m2 m2_d_p) (mSender m2)
             ? processOrderAxiom m1 m2 ()
             *** QED
     | otherwise
         =   ()
-            ? (causallyBeforePropImpliesCausallyBeforePropK m1 m2 m1_before_m2) (mSender m1)
-            ? (deliverablePropImpliesDeliverablePropK procVc m1 m1_d_p) (mSender m1)
-            ? (deliverablePropImpliesDeliverablePropK procVc m2 m2_d_p) (mSender m1)
+            ? (cb_implies_cbk m1 m2 m1_before_m2) (mSender m1)
+            ? (d_implies_dk procVc m1 m1_d_p) (mSender m1)
+            ? (d_implies_dk procVc m2 m2_d_p) (mSender m1)
             *** QED
