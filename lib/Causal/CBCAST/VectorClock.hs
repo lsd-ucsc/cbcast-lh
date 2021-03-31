@@ -91,9 +91,15 @@ vcLessK a b k = vcLessEqualK a b k && a /= b
 -- | And the results of calling a function at each possible vector clock index.
 {-@ reflect andAtEachK @-}
 {-@
-andAtEachK :: (PID -> Bool) -> {v:Nat | v <= procCount} -> Bool @-}
+andAtEachK :: (PID -> Bool) -> {v:Nat | v == procCount} -> Bool @-}
 andAtEachK :: (PID -> Bool) -> Int -> Bool
-andAtEachK f n = listFoldl boolAnd True (listMap f (fin n))
+andAtEachK f n = iter n f
+
+{-@ reflect iter @-}
+{-@
+iter :: n:Nat -> (Fin {n} -> Bool) -> Bool @-}
+iter :: Int -> (Fin -> Bool) -> Bool
+iter n f = listFoldl boolAnd True (listMap f (fin n))
 
 -- | Compare two vector clocks with elementwise less-equal.
 --
