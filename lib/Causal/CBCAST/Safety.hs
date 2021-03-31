@@ -97,6 +97,28 @@ processOrderAxiom _m1 _m2 _proof = ()
 -- of delivery" property about our deliverable predicate.
 
 {-@
+iterImpliesForall
+    :: n:Nat
+    -> p:(Fin {n} -> Bool)
+    -> { _:Proof | iter n p }
+    -> (k:Fin {n} -> { _:Proof | p k })
+@-}
+iterImpliesForall :: Int -> (Fin -> Bool) -> Proof -> (Fin -> Proof)
+iterImpliesForall n p satisfied k = () *** Admit
+
+{-@ ple andAtEachKImpliesForall @-}
+{-@
+andAtEachKImpliesForall
+    :: p:(PID -> Bool)
+    -> { _:Proof | andAtEachK p procCount }
+    -> (k:PID -> { _:Proof | p k })
+@-}
+andAtEachKImpliesForall :: (PID -> Bool) -> Proof -> (PID -> Proof)
+andAtEachKImpliesForall p satisfied k
+    =   () -- ? iterImpliesForAll
+    *** Admit
+
+{-@
 d_implies_dk
     ::  procVc: VC
     ->  m : Message r
@@ -104,7 +126,9 @@ d_implies_dk
     ->  DeliverablePropK m procVc
 @-}
 d_implies_dk :: VC -> Message r -> Proof -> (PID -> Proof)
-d_implies_dk _vc _m _proof _pid = () *** Admit
+d_implies_dk _vc _m _proof _pid
+    =   () -- ? iterImpliesForall 
+    *** Admit
 
 {-@
 cb_implies_cbk
