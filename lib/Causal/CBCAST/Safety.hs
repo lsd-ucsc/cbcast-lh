@@ -49,23 +49,10 @@ causallyBefore m1 m2 = vcLess (mSent m1) (mSent m2)
 type CausallyBeforePropK M1 M2 = k:PID -> { _:Proof | causallyBeforeK M1 M2 k } @-}
 type CausallyBeforePropK = PID -> Proof
 
-{-@
-type CausallyBeforeProp M1 M2 = { _:Proof | causallyBefore M1 M2 } @-}
-type CausallyBeforeProp = Proof
-
 -- | Property: 'deliverableK' is true at all indexes.
 {-@
 type DeliverablePropK M P = k:PID -> { _:Proof | deliverableK M P k } @-}
 type DeliverablePropK = PID -> Proof
-
-{-@
-type DeliverableProp M P = { _:Proof | deliverable M P } @-}
-type DeliverableProp = Proof
-
--- | Property: The given property is false.
-{-@
-type Not t = t -> { _:Proof | false } @-}
-type Not t = t -> Proof
 
 -- | @processOrderAxiom@ says that every message sent by a given process has a
 -- unique VC value at the sender position. (This follows from the fact that
@@ -109,12 +96,11 @@ processOrderAxiom _m1 _m2 _proof = ()
 -- The actual property we're proving, however, is the "causal safety
 -- of delivery" property about our deliverable predicate.
 
-
 {-@
 deliverablePropImpliesDeliverablePropK
     ::  procVc: VC
     ->  m : Message r
-    ->  DeliverableProp m procVc
+    ->  { _:Proof | deliverable m procVc }
     ->  DeliverablePropK m procVc
 @-}
 deliverablePropImpliesDeliverablePropK :: VC -> Message r -> Proof -> (PID -> Proof)
@@ -124,7 +110,7 @@ deliverablePropImpliesDeliverablePropK _vc _m _proof _pid = () *** Admit
 causallyBeforePropImpliesCausallyBeforePropK
     ::  m1 : Message r
     ->  m2 : Message r
-    ->  CausallyBeforeProp m1 m2
+    ->  { _:Proof | causallyBefore m1 m2 }
     ->  CausallyBeforePropK m1 m2
 @-}
 causallyBeforePropImpliesCausallyBeforePropK :: Message r -> Message r -> Proof -> (PID -> Proof)
@@ -136,11 +122,12 @@ safety
     ::  procVc : VC
     ->  m1 : Message r
     ->  m2 : Message r
-    ->  DeliverableProp m1 procVc
-    ->  CausallyBeforeProp m1 m2
-    ->  Not (DeliverableProp m2 procVc)
+    ->  { _:Proof | deliverable m1 procVc }
+    ->  { _:Proof | causallyBefore m1 m2 }
+    ->  { _:Proof | deliverable m2 procVc }
+    ->  { _:Proof | false }
 @-}
-safety :: VC -> Message r -> Message r -> DeliverableProp -> CausallyBeforeProp -> Not (DeliverableProp)
+safety :: VC -> Message r -> Message r -> Proof -> Proof -> Proof -> Proof
 safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
     | mSender m1 == mSender m2
         =   ()
