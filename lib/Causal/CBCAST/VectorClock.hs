@@ -88,13 +88,6 @@ vcLessK a b k = vcLessEqualK a b k && a /= b
 
 -- * Operations over all K
 
--- | And the results of calling a function at each possible vector clock index.
-{-@ reflect andAtEachK @-}
-{-@
-andAtEachK :: (PID -> Bool) -> {v:Nat | v == procCount} -> Bool @-}
-andAtEachK :: (PID -> Bool) -> Int -> Bool
-andAtEachK f n = iter n f
-
 {-@ reflect iter @-}
 {-@
 iter :: n:Nat -> (Fin {n} -> Bool) -> Bool @-}
@@ -117,7 +110,7 @@ iter n f = listFoldl boolAnd True (listMap f (fin n))
 {-@
 vcLessEqual :: VC -> VC -> Bool @-}
 vcLessEqual :: VC -> VC -> Bool
-vcLessEqual a b = vcLessEqualK a b `andAtEachK` vcSize a
+vcLessEqual a b = vcSize a `iter` vcLessEqualK a b
 
 -- | Compare two vector clocks. Are they ordered and distinct?
 --
@@ -136,7 +129,7 @@ vcLessEqual a b = vcLessEqualK a b `andAtEachK` vcSize a
 vcLess :: VC -> VC -> Bool @-}
 vcLess :: VC -> VC -> Bool
 vcLess (VC []) (VC []) = False
-vcLess a b = vcLessK a b `andAtEachK` vcSize a
+vcLess a b = vcSize a `iter` vcLessK a b
 
 
 -- * Additional vector clock functions

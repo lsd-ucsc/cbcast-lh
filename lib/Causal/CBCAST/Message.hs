@@ -80,4 +80,4 @@ deliverableK m procVc k
 {-@
 deliverable :: Message r -> VC -> Bool @-}
 deliverable :: Message r -> VC -> Bool
-deliverable m procVc = deliverableK m procVc `andAtEachK` vcSize (mSent m)
+deliverable m procVc = vcSize (mSent m) `iter` deliverableK m procVc
