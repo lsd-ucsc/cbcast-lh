@@ -96,6 +96,7 @@ processOrderAxiom _m1 _m2 _proof = ()
 -- The actual property we're proving, however, is the "causal safety
 -- of delivery" property about our deliverable predicate.
 
+{-@ ple iterImpliesForall @-}
 {-@
 iterImpliesForall
     :: n:Nat
@@ -104,7 +105,10 @@ iterImpliesForall
     -> (k:Fin {n} -> { _:Proof | p k })
 @-}
 iterImpliesForall :: Int -> (Fin -> Bool) -> Proof -> (Fin -> Proof)
-iterImpliesForall n p satisfied k = () *** Admit
+iterImpliesForall n p satisfied k
+    -- Insight: boolAnd (p (n - 1)) (listFoldr boolAnd True (listMap p (fin (n - 1))))
+    | k == n - 1 = ()
+    | k <  n - 1 = iterImpliesForall (n - 1) p satisfied k
 
 {-@ ple d_implies_dk @-}
 {-@

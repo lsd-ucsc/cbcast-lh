@@ -66,6 +66,15 @@ listFoldl :: (b -> a -> b) -> b -> [a] -> b
 listFoldl f acc (x:xs) = listFoldl f (f acc x) xs
 listFoldl _ acc [] = acc
 
+-- | Implementation of 'foldr' lifted to specifications. Probably same as
+-- 'Prelude'.
+--
+-- prop> foldr f acc xs == listFoldr f acc xs
+{-@ reflect listFoldr @-}
+listFoldr :: (a -> b -> b) -> b -> [a] -> b
+listFoldr f acc (x:xs) = f x (listFoldr f acc xs)
+listFoldr _ acc [] = acc
+
 -- | Implementation of 'reverse' lifted to specifications. Copied from
 -- 'Prelude'.
 --
