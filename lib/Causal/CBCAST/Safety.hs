@@ -148,6 +148,7 @@ cb_implies_cbk m1 m2 causallyBeforeSatisfied pid =
 --  p = causallyBeforeK m1 m2
     p = vcLessK (mSent m1) (mSent m2)
 
+{-@ LIQUID "--check-var=safety" @-}
 {-@ ple safety @-}
 {-@
 safety
