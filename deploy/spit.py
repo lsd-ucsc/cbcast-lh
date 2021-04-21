@@ -33,7 +33,7 @@ def randdata(fuel):
     else:
         return None
 
-get    = lambda ip,port,key,val: f'''curl --silent {ip}:{port}/kv/{key}'''
+get    = lambda ip,port,key,val: f'''curl --silent --write-out '\\n' {ip}:{port}/kv/{key}'''
 delete = lambda ip,port,key,val: f'''curl --silent -X DELETE {ip}:{port}/kv/{key}'''
 put    = lambda ip,port,key,val: f'''curl --silent -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {ip}:{port}/kv/{key}'''
 

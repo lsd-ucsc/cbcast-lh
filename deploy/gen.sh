@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -x
 
-./spit.py 192.168.56.151 7780 --mut > kv0.sh
-./spit.py 192.168.56.152 7780 --mut > kv1.sh
-./spit.py 192.168.56.153 7780 --mut > kv2.sh
-./spit.py 192.168.56.154 7780       > kv3.sh
+./spit.py 54.183.9.206  7780 --mut > kv0.sh
+./spit.py 35.82.28.205  7780 --mut > kv1.sh
+./spit.py 52.204.233.91 7780       > kv2.sh
 
 chmod +x kv*sh
