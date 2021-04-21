@@ -8,10 +8,15 @@
 { pkgs, lib, nodes, ... }:
 let
   node-names = builtins.filter (lib.hasPrefix node-prefix) (builtins.attrNames nodes);
-  #get-ip = config: if config.networking.publicIPv4 == null then config.networking.privateIPv4 else config.networking.publicIPv4;
-  #node-addrs = map (nn: nodes.${nn}.config.networking.privateIPv4) node-names;
-  node-addrs = map (nn: "${nn}:${toString kv-store-port}") node-names; # nixops populates the hosts file with hostnames
-  kv-store-args = "${toString kv-store-offset} ${builtins.concatStringsSep " " node-addrs}";
+  get-ip = config: if config.networking.publicIPv4 == null then config.networking.privateIPv4 else config.networking.publicIPv4;
+  node-ipports = map (nn: "${get-ip nodes.${nn}.config}:${toString kv-store-port}") node-names;
+  node-hostports = map (nn: "${nn}:${toString kv-store-port}") node-names; # nixops populates the hosts file with hostnames
+  kv-store-args = "${toString kv-store-offset} ${builtins.concatStringsSep " " node-ipports}";
+  debugScript = ''
+    echo example ${kv-store-args}
+    echo hostports ${toString node-hostports}
+    echo ipports ${toString node-ipports}
+  '';
 in
 {
   imports = modules;
@@ -25,7 +30,7 @@ in
     serviceConfig = {
       ExecStart =
         if skip-build
-        then "${pkgs.bash}/bin/bash -c 'echo example ${kv-store-args}'"
+        then "${pkgs.bash}/bin/bash ${pkgs.writeText "debug.sh" debugScript}"
         else "${(import ../default.nix).default}/bin/example ${kv-store-args}";
     };
   };
