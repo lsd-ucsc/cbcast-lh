@@ -1,5 +1,7 @@
 # Nixops deployment
 
+[Nixops manual](https://releases.nixos.org/nixops/nixops-1.7/manual/manual.html)
+
 ## Virtualbox
 
 ```sh-session

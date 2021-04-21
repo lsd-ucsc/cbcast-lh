@@ -1,6 +1,7 @@
 {
-  # users are static (vm target requires a password or a pubkey)
   users.mutableUsers = false;
+
+  # when users are not mutable, the vm tarket requires a password or pubkey set
   users.users."root".password = "trivial plaintext password which will never be used";
 
   # sshd config, necessary for ssh/nixops administration
