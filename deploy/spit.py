@@ -33,22 +33,22 @@ def randdata(fuel):
     else:
         return None
 
-get    = lambda ip,port,key,val: f'''curl --silent --write-out '\\n' {ip}:{port}/kv/{key}'''
-delete = lambda ip,port,key,val: f'''curl --silent -X DELETE {ip}:{port}/kv/{key}'''
-put    = lambda ip,port,key,val: f'''curl --silent -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {ip}:{port}/kv/{key}'''
+get    = lambda addr,key,val: f'''curl -v --write-out '\\n' {addr}/kv/{key}'''
+delete = lambda addr,key,val: f'''curl -v -X DELETE {addr}/kv/{key}'''
+put    = lambda addr,key,val: f'''curl -v -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {addr}/kv/{key}'''
 
 if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('ip')
-    ap.add_argument('port')
+    ap.add_argument('addr')
     ap.add_argument('--mut', action='store_true')
     ns = ap.parse_args()
 
     print('#!/usr/bin/env bash')
+    print('set -x')
     for n in range(round(1e4)):
         req = random.choice([get,delete,put]) if ns.mut else get
-        cmd = req(ns.ip,ns.port,random.choice(string.ascii_lowercase),randdata(5))
+        cmd = req(ns.addr,random.choice(string.ascii_lowercase),randdata(5))
         #if ns.mut:
         #    cmd += ' > /dev/null'
         print(cmd)

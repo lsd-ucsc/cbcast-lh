@@ -61,7 +61,8 @@ let
   # client named with both node info and client id; targets the node
   mkClientFragment = node-spec@{ node-region, ... }: client-ofs: {
     ${clientHostname node-spec client-ofs} = import ./host-client.nix {
-      target-kv-store = "${nodeHostname node-spec}:${toString node-port}";
+      target-kv-store = nodeHostname node-spec;
+      target-kv-store-port = node-port;
       inherit skip-build;
       modules = [ (mkEc2PropsModule node-region) ];
     };

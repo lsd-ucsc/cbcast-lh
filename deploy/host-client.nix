@@ -1,21 +1,24 @@
 { target-kv-store
+, target-kv-store-port
 , skip-build ? false
 , modules ? [ ]
 }:
 
 { pkgs, lib, nodes, ... }:
+let
+  get-ip = config: if config.networking.publicIPv4 == null then config.networking.privateIPv4 else config.networking.publicIPv4;
+  target-ip = get-ip nodes.${target-kv-store}.config;
+in
 {
   imports = modules;
 
   # run a client service
   systemd.services."kv-client" = {
-    wantedBy = [ "multi-user.target" ];
-    after = [ "network-online.target" ];
     serviceConfig = {
-      ExecStart =
-        if skip-build
-        then "${pkgs.bash}/bin/bash -c 'echo example ${target-kv-store}'"
-        else "${(import ../default.nix).default}/bin/example ${target-kv-store}";
+      ExecStart = import ./pkg-client.nix {
+        targetAddr = "${target-ip}:${toString target-kv-store-port}";
+        inherit pkgs;
+      };
     };
   };
 
