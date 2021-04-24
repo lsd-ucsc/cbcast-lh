@@ -117,13 +117,14 @@ readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
 readMail nodeState kvState = do
     message <- STM.stateTVar nodeState $ swap . CBCAST.deliver
     -- DEBUG
+    vc <- CBCAST.pVC <$> STM.readTVar nodeState
     dq <- CBCAST.pDQ <$> STM.readTVar nodeState
     self <- CBCAST.pToSelf <$> STM.readTVar nodeState
     -- /DEBUG
     maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw)
         . (if message == Nothing then id else
-            trace $ printf "message delivered, %d in pToSelf, %d in pDQ"
-            (CBCAST.fSize self) (CBCAST.dqSize dq))
+            trace $ printf "%s; message delivered, %d in pToSelf, %d in pDQ"
+            (show vc) (CBCAST.fSize self) (CBCAST.dqSize dq))
         $ message
 
 
