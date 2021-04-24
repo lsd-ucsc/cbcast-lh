@@ -12,6 +12,7 @@ else
     nixops deploy -d $DEPLOYMENT --force-reboot
 fi
 
+nixops ssh-for-each -d $DEPLOYMENT -- systemctl stop kv-client.service
 nixops ssh-for-each -d $DEPLOYMENT -- journalctl --rotate
 nixops ssh-for-each -d $DEPLOYMENT -- journalctl --vacuum-size=1B
 nixops ssh-for-each -d $DEPLOYMENT -- nix-collect-garbage
@@ -21,6 +22,7 @@ date -u | tee check.log
 nixops check -d $DEPLOYMENT | tee check.log
 
 nixops ssh-for-each -d $DEPLOYMENT -- systemctl start kv-client.service
+trap "nixops ssh-for-each -d $DEPLOYMENT -- journalctl -u kv-store -u kv-client | tee kv-test.log" SIGINT EXIT
 
 while sleep 10; do
     date -u | tee -a check.log
