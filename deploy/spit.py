@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     print('#!/usr/bin/env bash')
     print('set -x')
-    for n in range(round(1e5)):
+    for n in range(round(1e4)):
         req = random.choice([get,delete,put]) if ns.mut else get
         cmd = req(ns.addr,random.choice(string.ascii_lowercase),randdata(5))
         #if ns.mut:
