@@ -1,7 +1,7 @@
 let
   nodes = import ./cluster.nix {
     node-regions = [ "us-west-1" "us-west-2" "us-east-1" ];
-    clients-per-node = 1;
+    clients-per-node = 5;
     skip-build = false;
     accessKeyId = "cbcast";
   };
