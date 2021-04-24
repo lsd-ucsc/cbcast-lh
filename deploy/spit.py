@@ -33,9 +33,9 @@ def randdata(fuel):
     else:
         return None
 
-get    = lambda addr,key,val: f'''curl -v --write-out '\\n' {addr}/kv/{key}'''
-delete = lambda addr,key,val: f'''curl -v -X DELETE {addr}/kv/{key}'''
-put    = lambda addr,key,val: f'''curl -v -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {addr}/kv/{key}'''
+get    = lambda addr,key,val: f'''curl -v -s --write-out '\\n' {addr}/kv/{key}'''
+delete = lambda addr,key,val: f'''curl -v -s -X DELETE {addr}/kv/{key}'''
+put    = lambda addr,key,val: f'''curl -v -s -X PUT -H "Content-type: application/json" -d '{json.dumps(val)}' {addr}/kv/{key}'''
 
 if __name__ == '__main__':
 
