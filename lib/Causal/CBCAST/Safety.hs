@@ -174,3 +174,51 @@ safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
             ? (d_implies_dk procVc m1 m1_d_p) (mSender m1)
             ? (d_implies_dk procVc m2 m2_d_p) (mSender m1)
             *** QED
+
+
+
+
+-- Problem: we don't have an implementation of `delivered`.
+-- How are we going to do that?
+-- Like this??
+{-@ reflect delivered @-}
+{-@
+delivered :: Message r -> VC -> Bool @-}
+delivered :: Message r -> VC -> Bool
+delivered m vc = (mSent m) `vcLessEqual` vc
+-- (mSent m)[sender] <= vcProc[sender]
+
+-- This property, `safety2`, is a proof that a PARTICULAR implementation of `deliverable`/`delivered` is causally safe.
+{-@ ple safety2 @-}
+{-@
+safety2
+    ::  procVc : VC
+    ->  m1 : Message r
+    ->  m2 : Message r
+    ->  { _:Proof | deliverable m2 procVc }
+    ->  { _:Proof | causallyBefore m1 m2 }
+    ->  { _:Proof | delivered m1 procVc }
+@-}
+safety2 :: VC -> Message r -> Message r -> Proof -> Proof -> Proof
+safety2 _ _ _ _ _ = () -- it compiles, ship it
+-- Note: once we actually have an LH definition of causal safety, then we ought to be able to express safety2 in terms of that.
+
+
+
+
+
+
+
+
+-- Causal safety (the NEW version):
+-- a predicate d of type Deliverable =  Message -> Process -> Bool
+-- is Causally Safe (TM) if,
+-- if m1 happens before m2 and m2 is deliverable at p according to d,
+-- then m1 has already been delivered at p.
+
+-- TODO: a definition of causal safety in LH.
+
+-- TODO: Causal safety implies causal delivery.
+-- This one is not specific to any implementation of `deliverable`!
+type Deliverable r = Message r -> VC -> Bool
+
