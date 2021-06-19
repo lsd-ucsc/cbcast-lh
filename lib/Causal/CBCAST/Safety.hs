@@ -54,6 +54,17 @@ type CausallyBeforePropK = PID -> Proof
 type DeliverablePropK M P = k:PID -> { _:Proof | deliverableK M P k } @-}
 type DeliverablePropK = PID -> Proof
 
+{-@ ple causallyOrderedMessagesDistinct @-}
+{-@
+causallyOrderedMessagesDistinct
+    ::  m1: Message r
+    ->  m2: Message r
+    -> {_: Proof | causallyBefore m1 m2 }
+    -> {_: Proof | m1 != m2 }
+@-}
+causallyOrderedMessagesDistinct :: Message r -> Message r -> Proof -> Proof
+causallyOrderedMessagesDistinct _m1 _m2 _cbp = ()
+
 -- | @processOrderAxiom@ says that every message sent by a given process has a
 -- unique VC value at the sender position. (This follows from the fact that
 -- events on a process have a total order.) This is enough to prove safety in
@@ -64,7 +75,7 @@ type DeliverablePropK = PID -> Proof
 {-@
 assume processOrderAxiom
     ::  m1 : Message r
-    ->  m2 : Message r
+    ->  { m2 : Message r | m1 != m2 }
     ->  { _:Proof | mSender m1 == mSender m2 }
     ->  { _:Proof | vcReadK (mSent m1) (mSender m1) != vcReadK (mSent m2) (mSender m2) }
 @-}
@@ -166,6 +177,7 @@ safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
         =   ()
             ? (d_implies_dk procVc m1 m1_d_p) (mSender m1)
             ? (d_implies_dk procVc m2 m2_d_p) (mSender m2)
+            ? causallyOrderedMessagesDistinct m1 m2 m1_before_m2
             ? processOrderAxiom m1 m2 ()
             *** QED
     | otherwise
