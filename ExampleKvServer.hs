@@ -29,7 +29,9 @@ import qualified Causal.CBCAST.VectorClock as CBCAST
 import qualified Causal.CBCAST.Message as CBCAST
 import qualified Causal.CBCAST.Process as CBCAST
 import qualified Causal.CBCAST.Protocol as CBCAST
+import qualified Causal.CBCAST.DelayQueue as CBCAST
 
+import Debug.Trace
 
 -- * KV Application
 
@@ -114,7 +116,16 @@ handlers nodeState kvState = serve
 readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
 readMail nodeState kvState = do
     message <- STM.stateTVar nodeState $ swap . CBCAST.deliver
-    maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw) message
+    -- DEBUG
+    vc <- CBCAST.pVC <$> STM.readTVar nodeState
+    dq <- CBCAST.pDQ <$> STM.readTVar nodeState
+    self <- CBCAST.pToSelf <$> STM.readTVar nodeState
+    -- /DEBUG
+    maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw)
+        . (if message == Nothing then id else
+            trace $ printf "%s; message delivered, %d in pToSelf, %d in pDQ"
+            (show vc) (CBCAST.fSize self) (CBCAST.dqSize dq))
+        $ message
 
 
 -- ** Broadcast messages

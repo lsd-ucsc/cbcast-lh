@@ -1,0 +1,52 @@
+digraph G {
+    overlap=false;
+
+    subgraph cluster_0 {
+        label = "us-west-1 (N. California)                                              ";
+        client0kv0 -> kv0;
+        client1kv0 -> kv0;
+        client2kv0 -> kv0;
+        client3kv0 -> kv0;
+        client4kv0 -> kv0;
+        client5kv0 -> kv0;
+        client6kv0 -> kv0;
+        client7kv0 -> kv0;
+        client8kv0 -> kv0;
+        client9kv0 -> kv0;
+    }
+    subgraph cluster_1 {
+        label = "us-west-2 (Oregon)                                                  ";
+        kv1 -> client0kv1 [dir=back];
+    }
+    subgraph cluster_1 {
+        label = "us-west-2 (Oregon)                                                  ";
+        kv1 -> client0kv1 [dir=back];
+        kv1 -> client1kv1 [dir=back];
+        kv1 -> client2kv1 [dir=back];
+        kv1 -> client3kv1 [dir=back];
+        kv1 -> client4kv1 [dir=back];
+        kv1 -> client5kv1 [dir=back];
+        kv1 -> client6kv1 [dir=back];
+        kv1 -> client7kv1 [dir=back];
+        kv1 -> client8kv1 [dir=back];
+        kv1 -> client9kv1 [dir=back];
+    }
+    subgraph cluster_2 {
+        label = "                                             us-east-1 (N. Virginia)";
+        kv2 -> client0kv2 [dir=back];
+        kv2 -> client1kv2 [dir=back];
+        kv2 -> client2kv2 [dir=back];
+        kv2 -> client3kv2 [dir=back];
+        kv2 -> client4kv2 [dir=back];
+        kv2 -> client5kv2 [dir=back];
+        kv2 -> client6kv2 [dir=back];
+        kv2 -> client7kv2 [dir=back];
+        kv2 -> client8kv2 [dir=back];
+        kv2 -> client9kv2 [dir=back];
+    }
+
+    kv0 -> kv1 [dir=both];
+    kv0 -> kv2 [dir=both];
+    { rank=same; kv1; kv2; }
+    kv1 -> kv2 [dir=both];
+}
