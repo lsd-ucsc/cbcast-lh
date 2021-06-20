@@ -32,7 +32,7 @@ repl: $(CONFIG_FILE)
 	$(SETUP_CMD) repl $(basename $(CABAL_FILE))
 
 ghcid:
-	ghcid -c make repl
+	nix-shell -p ghcid --run 'ghcid -c make repl'
 entr-build:
 	git ls-files | entr -c bash -c 'make build; echo done'
 entr-test:

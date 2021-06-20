@@ -31,7 +31,7 @@ let
   # [ { node-ofs = 0; node-region = "us-east-1"; } { node-ofs = 1; node-region = "us-west-1"; } { node-ofs = 2; node-region = "us-west-2"; } ]
 
   # don't generate the gated attrset when there's no accessKeyId
-  gate = attrs: if accessKeyId == "" then { } else attrs;
+  awsGate = attrs: if accessKeyId == "" then { } else attrs;
 
   # aws ec2 properties for a host
   mkEc2PropsModule = node-region: { resources, ... }: {
@@ -61,7 +61,8 @@ let
   # client named with both node info and client id; targets the node
   mkClientFragment = node-spec@{ node-region, ... }: client-ofs: {
     ${clientHostname node-spec client-ofs} = import ./host-client.nix {
-      target-kv-store = "${nodeHostname node-spec}:${toString node-port}";
+      target-kv-store = nodeHostname node-spec;
+      target-kv-store-port = node-port;
       inherit skip-build;
       modules = [ (mkEc2PropsModule node-region) ];
     };
@@ -92,4 +93,4 @@ let
   nodes = map mkNodeFragment node-specs;
   clients = lib.crossLists mkClientFragment [ node-specs client-offsets ];
 in
-gate regionFragment // mergeNAttrs (nodes ++ clients)
+awsGate regionFragment // mergeNAttrs (nodes ++ clients)
