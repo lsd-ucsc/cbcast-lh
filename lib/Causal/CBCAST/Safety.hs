@@ -56,7 +56,7 @@ type DeliverablePropK = PID -> Proof
 
 {-@ ple causallyOrderedMessagesDistinct @-}
 {-@
-causallyOrderedMessagesDistinct
+assume causallyOrderedMessagesDistinct
     ::  m1: Message r
     ->  m2: Message r
     -> {_: Proof | causallyBefore m1 m2 }
@@ -159,7 +159,6 @@ cb_implies_cbk m1 m2 causallyBeforeSatisfied pid =
 --  p = causallyBeforeK m1 m2
     p = vcLessK (mSent m1) (mSent m2)
 
-{-@ LIQUID "--check-var=safety" @-}
 {-@ ple safety @-}
 {-@
 safety
