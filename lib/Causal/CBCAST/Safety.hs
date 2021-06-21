@@ -214,15 +214,8 @@ safety2
     ->  { _:Proof | delivered m1 procVc }
 @-}
 safety2 :: VC -> Message r -> Message r -> Proof -> Proof -> Proof
-safety2 _ _ _ _ _ = () -- it compiles, ship it
+safety2 VC{} Message{} Message{} () () = ()
 -- Note: once we actually have an LH definition of causal safety, then we ought to be able to express safety2 in terms of that.
-
-
-
-
-
-
-
 
 -- Causal safety (the NEW version):
 -- a predicate d of type Deliverable =  Message -> Process -> Bool
