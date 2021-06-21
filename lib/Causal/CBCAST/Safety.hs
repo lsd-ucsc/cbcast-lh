@@ -198,6 +198,9 @@ delivered :: Message r -> VC -> Bool @-}
 delivered :: Message r -> VC -> Bool
 delivered m vc = (mSent m) `vcLessEqual` vc
 -- (mSent m)[sender] <= vcProc[sender]
+-- delivered m vc = (mSent m ! mSender m) <= (vc ! mSender m)
+-- lindsey: we know that a message has been delivered at a process if that process has in its VC at sender pos, is at least as big as, the message VC at sender pos
+
 
 -- This property, `safety2`, is a proof that a PARTICULAR implementation of `deliverable`/`delivered` is causally safe.
 {-@ ple safety2 @-}
