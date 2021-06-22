@@ -202,21 +202,48 @@ delivered m procVc = mSent m `vcLessEqual` procVc
   where
     alternativeDefn m procVc = (mSent m ! mSender m) <= (procVc ! mSender m) -- (mSent m)[sender] <= vcProc[sender]
 
+---- -- "A property of executions"
+---- {-@
+---- type CausalDelivery execution process message ProcessOrder CausallyBefore Delivery
+----     =  ex : execution
+----     -> p  : process
+----     -> m1 : message
+----     -> m2 : message
+----     -> { _:Proof | CausallyBefore m1 m2 }
+----     -> { _:Proof | ProcessOrder ex (Delivery p m1) (Delivery p m2) }
+---- @-}
+---- 
+---- type Goal
+----     =  CausalSafety process message
+----     -> CausalDelivery execution process message
 
--- This property, `safety2`, is a proof that a PARTICULAR implementation of `deliverable`/`delivered` is causally safe.
-{-@ ple safety2 @-}
+-- "A property of programs"
 {-@
-safety2
-    ::  procVc : VC
-    ->  m1 : Message r
-    ->  m2 : Message r
-    ->  { _:Proof | deliverable m2 procVc }
-    ->  { _:Proof | causallyBefore m1 m2 }
-    ->  { _:Proof | delivered m1 procVc }
+type CausallySafe process message CausallyBefore Delivered Deliverable
+    =  p : process
+    -> m1 : message
+    -> m2 : message
+    -> { _:Proof | CausallyBefore m1 m2 }
+    -> { _:Proof | Deliverable m2 p }
+    -> { _:Proof | Delivered m1 p }
 @-}
-safety2 :: VC -> Message r -> Message r -> Proof -> Proof -> Proof
-safety2 VC{} Message{} Message{} () () = ()
--- Note: once we actually have an LH definition of causal safety, then we ought to be able to express safety2 in terms of that.
+type CausallySafe process message
+    =  process
+    -> message
+    -> message
+    -> Proof
+    -> Proof
+    -> Proof
+
+-- "A property of an implementation"
+{-@ ple safety2 @-}
+{-@ safety2 :: CausallySafe VC (Message r) {causallyBefore} {delivered} {deliverable} @-}
+safety2 :: CausallySafe VC (Message r)
+safety2 p m1 m2 m1_before_m2@() m2_deliverable_p@()
+    =   True
+    ==! delivered m1 p
+    *** Admit
+    -- m1_delivered_at_p
 
 -- Causal safety (the NEW version):
 -- a predicate d of type Deliverable =  Message -> Process -> Bool
