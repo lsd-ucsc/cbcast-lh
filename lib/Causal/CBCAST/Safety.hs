@@ -186,6 +186,7 @@ safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
             ? (d_implies_dk procVc m2 m2_d_p) (mSender m1)
             *** QED
 
+-- * Safety using deliverable/delivered
 
 
 
@@ -193,13 +194,13 @@ safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
 -- How are we going to do that?
 -- Like this??
 {-@ reflect delivered @-}
-{-@
-delivered :: Message r -> VC -> Bool @-}
 delivered :: Message r -> VC -> Bool
-delivered m vc = (mSent m) `vcLessEqual` vc
--- (mSent m)[sender] <= vcProc[sender]
--- delivered m vc = (mSent m ! mSender m) <= (vc ! mSender m)
--- lindsey: we know that a message has been delivered at a process if that process has in its VC at sender pos, is at least as big as, the message VC at sender pos
+delivered m procVc = mSent m `vcLessEqual` procVc
+-- Gan: the line above implies the line below, so either of these definitions
+-- is correct given the coupling of all parts of the implementation (this
+-- delivered is only correct w.r.t. CBCAST deliverable)
+  where
+    alternativeDefn m procVc = (mSent m ! mSender m) <= (procVc ! mSender m) -- (mSent m)[sender] <= vcProc[sender]
 
 
 -- This property, `safety2`, is a proof that a PARTICULAR implementation of `deliverable`/`delivered` is causally safe.
