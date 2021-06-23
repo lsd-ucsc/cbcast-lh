@@ -217,9 +217,42 @@ delivered m procVc = mSent m `vcLessEqual` procVc
 ----     =  CausalSafety process message
 ----     -> CausalDelivery execution process message
 
+
+data CausallySafe process message = CausallySafe
+    { csCausallyBefore :: message -> message -> Bool
+    , csDelivered :: message -> process -> Bool
+    , csDeliverable :: message -> process -> Bool
+    , csLawCausallySafe :: process -> message -> message -> Proof -> Proof -> Proof
+    }
+{-@
+data CausallySafe process message = CausallySafe
+    { csCausallyBefore :: message -> message -> Bool
+    , csDeliverable :: message -> process -> Bool
+    , csDelivered :: message -> process -> Bool
+    , csLawCausallySafe
+        ::  p : process
+        -> m1 : message
+        -> m2 : message
+        -> { _:Proof | csCausallyBefore m1 m2 }
+        -> { _:Proof | csDeliverable m2 p }
+        -> { _:Proof | csDelivered m1 p }
+    }
+@-}
+cbcast :: CausallySafe VC (Message r)
+cbcast = CausallySafe
+    { csCausallyBefore = causallyBefore
+    , csDeliverable = deliverable
+    , csDelivered = delivered
+    , csLawCausallySafe = proof
+    }
+  where
+    proof _p _m1 _m2 m1_before_m2@() m2_deliverable_p@()
+        = () *** Admit
+        -- Goal: m1_delivered_at_p
+
 -- "A property of programs"
 {-@
-type CausallySafe process message CausallyBefore Delivered Deliverable
+type CausallySafe_ process message CausallyBefore Delivered Deliverable
     =  p : process
     -> m1 : message
     -> m2 : message
@@ -227,7 +260,7 @@ type CausallySafe process message CausallyBefore Delivered Deliverable
     -> { _:Proof | Deliverable m2 p }
     -> { _:Proof | Delivered m1 p }
 @-}
-type CausallySafe process message
+type CausallySafe_ process message
     =  process
     -> message
     -> message
@@ -237,8 +270,8 @@ type CausallySafe process message
 
 -- "A property of an implementation"
 {-@ ple safety2 @-}
-{-@ safety2 :: CausallySafe VC (Message r) {causallyBefore} {delivered} {deliverable} @-}
-safety2 :: CausallySafe VC (Message r)
+{-@ safety2 :: CausallySafe_ VC (Message r) {causallyBefore} {delivered} {deliverable} @-}
+safety2 :: CausallySafe_ VC (Message r)
 safety2 p m1 m2 m1_before_m2@() m2_deliverable_p@()
     =   True
     ==! delivered m1 p
