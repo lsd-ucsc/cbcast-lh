@@ -66,53 +66,41 @@ safety2
 safety2 :: VC -> Message r -> Message r -> Deliverable -> CausallyBefore -> Delivered
 safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
     | k /= mSender m2 = () ? m1_before_m2 k ? m2_deliverable_p k
---  | k == mSender m2 = () ? m1_before_m2 k ? m2_deliverable_p k ? lemma1 m1 m2 k m1_before_m2 ()
     | k == mSender m2 =
         if k == mSender m1
         then () ? m1_before_m2 k ? m2_deliverable_p k ? processOrderAxiom m1 m2 ()
-        else () *** Admit
-            -- m2 is from k
-            -- m1 is NOT from k
-            -- m1 is before m2 (less-equal and not-equal)
+        else () ? m1_before_m2 k ? m2_deliverable_p k ? intermediateDelivery m1 m2 m1_before_m2 k ? vcSmallerAtIntermediateDelivery m2 k *** Admit
 
-            -- Gan: we already know it's <=, all we need to prove is that it's /=; is
-            -- there a contradiction from being ==?
-
-            -- k == 0
-            -- m1 1 [1,1,0]
-            -- m2 0 [1,1,1]
-            --
-    -- KNOWLEDGE
-    --
-    -- k -> ( k == mSender m2 => vcReadK (mSent m2) k == vcReadK p k + 1 )
-    --   && ( k /= mSender m2 => vcReadK (mSent m2) k <= vcReadK p k     )
-    --
-    -- k -> ( vcReadK (mSent m1) k <= vcReadK (mSent m2) k )
-    --   && (          mSent m1    /=          mSent m2    )
-    --
-    -- GOAL
-    --
-    --                           vcReadK (mSent m1) k <= vcReadK p k
-
+-- | Since sender(m1) /= sender(m2) and m1 -> m2, m1 must have been
+-- delivered at sender(m2) before m2 was sent by sender(m2).  In fact,
+-- by the step just *before* sender(m2)'s VC gets incremented in its
+-- own position for sending m2, m1 must have already been delivered at
+-- sender(m2).  That's what this lemma says.
+{-@ ple intermediateDelivery @-}
 {-@
-lemma1
+intermediateDelivery
     :: m1 : Message r
-    -> m2 : Message r
-    -> k : PID
+    -> { m2 : Message r | mSender m1 /= mSender m2 }
     -> CausallyBefore {m1} {m2}
-    -> { _:Proof | k == mSender m2 }
-    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
+    -> Delivered {m1} (vcBackTick (mSender m2) (mSent m2))
 @-}
-lemma1 :: Message r -> Message r -> PID -> CausallyBefore -> Proof -> Proof
-lemma1 m1 m2 k m1_before_m2 k_sent_m2
-    | mSender m1 == mSender m2 = () ? m1_before_m2 k ? processOrderAxiom m1 m2 ()
-    | mSender m1 /= mSender m2 = () *** Admit
-    -- m1 is from ?
-    -- m2 is from k
-    -- m1 is before m2 (less-equal and not-equal)
-    -- Gan: we already know it's <=, all we need to prove is that it's /=; is
-    -- there a contradiction from being ==?
+intermediateDelivery :: Message r -> Message r -> CausallyBefore -> Delivered
+intermediateDelivery m1 m2 m1_before_m2 k = () *** Admit
 
-    -- k == 0
-    -- m1 1 [0,1,0] (less-equal and not-equal)
-    -- m2 0 [1,1,0]
+-- At some point after this intermediate delivery takes place on
+-- sender(m2), m2 is sent.  We know that when m2 is sent, sender(m2)
+-- increments its own position first, so the VC must have been
+-- strictly smaller in the sender(m2) position at the intermediate
+-- delivery time than it is in m2's VC.
+
+-- | Another fact we need.
+{-@ ple vcSmallerAtIntermediateDelivery @-}
+{-@
+vcSmallerAtIntermediateDelivery
+    :: m : Message r
+    -> k : PID
+    -> { _:Proof | vcLessK (vcBackTick k (mSent m)) (mSent m) k }
+@-}
+vcSmallerAtIntermediateDelivery :: Message r -> PID -> Proof
+vcSmallerAtIntermediateDelivery m k = () *** Admit
+

@@ -187,6 +187,36 @@ vcTickImpl p (c:cs)
     | p == 0    = (c+1):cs
     | otherwise = c:vcTickImpl (p-1) cs
 
+
+-- | Decrement a given index in a vector clock.
+--
+-- >>> vcBackTick 0 (VC [9,8,7])
+-- VC [8,8,7]
+-- >>> vcBackTick 1 (VC [9,8,7])
+-- VC [9,7,7]
+-- >>> vcBackTick 2 (VC [9,8,7])
+-- VC [9,8,6]
+--
+-- >>> vcBackTick (-1) (VC [9,8,7])
+-- ...Exception...
+-- ...
+-- >>> vcBackTick 3 (VC [9,8,7])
+-- ...Exception...
+-- ...
+--
+{-@ reflect vcBackTick @-}
+{-@
+vcBackTick :: PID -> VC -> VC @-}
+vcBackTick :: PID -> VC -> VC
+vcBackTick p (VC xs) = VC $ vcTickImpl p xs
+{-@ reflect vcBackTickImpl @-}
+{-@
+vcBackTickImpl :: i:Nat -> {xs:[Clock] | i < len xs} -> {ys:[Clock] | len xs == len ys} @-}
+vcBackTickImpl :: Int -> [Clock] -> [Clock]
+vcBackTickImpl p (c:cs)
+    | p == 0    = (c+1):cs
+    | otherwise = c:vcBackTickImpl (p-1) cs
+
 -- | Combine two vector clocks with elementwise max.
 --
 -- >>> vcCombine (VC []) (VC [])
