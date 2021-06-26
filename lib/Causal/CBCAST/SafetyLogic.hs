@@ -73,14 +73,13 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
                    k p m1 m2
                    (vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2)
                    (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
-        --else () ? m1_before_m2 k ? m2_deliverable_p k ? intermediateDelivery m1 m2 m1_before_m2 k ? vcSmallerAtIntermediateDelivery m2 k *** Admit
-
 
 -- | Since sender(m1) /= sender(m2) and m1 -> m2, m1 must have been
 -- delivered at sender(m2) before m2 was sent by sender(m2).  In fact,
 -- by the step just *before* sender(m2)'s VC gets incremented in its
 -- own position for sending m2, m1 must have already been delivered at
--- sender(m2).  That's what this lemma says.
+-- sender(m2).  That's what this lemma says.  We aren't using it
+-- anywhere yet, but I feel like we will need to.
 {-@ ple intermediateDelivery @-}
 {-@
 intermediateDelivery
@@ -132,7 +131,7 @@ vc_m1_k_lt_vc_m2_k
     -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
 @-}
 vc_m1_k_lt_vc_m2_k :: PID -> VC -> Message r -> Message r -> CausallyBefore -> Proof
-vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2 = () ? vcInBetween k p m1 m2 (vcBackTick (mSender m2) (mSent m2)) ? m1_before_m2 k
+vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2 = () ? vcInBetween k p m1 m2 (vcBackTick (mSender m2) (mSent m2)) ? m1_before_m2 k *** QED
 
 -- | Since we have deliverable(m2, p), we have VC(m2)[k] = VC(p)[k]+1
 -- for k = sender(m2).
@@ -162,4 +161,4 @@ vc_m1_k_eq_vc_p_k_plus_1
     -> { _:Proof | vcReadK (mSent m1) k < (vcReadK p k) + 1 }
 @-}
 vc_m1_k_eq_vc_p_k_plus_1 :: PID -> VC -> Message r -> Message r -> Proof -> Proof -> Proof
-vc_m1_k_eq_vc_p_k_plus_1 _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = ()
+vc_m1_k_eq_vc_p_k_plus_1 _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = () *** QED
