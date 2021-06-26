@@ -69,45 +69,11 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
     | k == mSender m2 =
         if k == mSender m1
         then () ? m1_before_m2 k ? m2_deliverable_p k ? processOrderAxiom m1 m2 ()
-        else () ? relateM1P k p m1 m2 (fact1 k p m1 m2) (fact2 k p m2) *** QED
+        else () ? relateM1P k p m1 m2
+                            (vc_m1_k_lt_vc_m2_k k p m1 m2)
+                            (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
         --else () ? m1_before_m2 k ? m2_deliverable_p k ? intermediateDelivery m1 m2 m1_before_m2 k ? vcSmallerAtIntermediateDelivery m2 k *** Admit
 
-{-@ ple fact1 @-}
-{-@
-assume fact1
-    :: k : PID
-    -> p : VC
-    -> m1 : Message r
-    -> m2 : Message r
-    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
-@-}
-fact1 :: PID -> VC -> Message r -> Message r -> Proof
-fact1 _k _p _m1 _m2 = ()
-
-{-@ ple fact2 @-}
-{-@
-assume fact2
-    :: k : PID
-    -> p : VC
-    -> m2 : Message r
-    -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
-@-}
-fact2 :: PID -> VC -> Message r -> Proof
-fact2 _k _p _m2 = ()
-
-{-@ ple relateM1P @-}
-{-@
-relateM1P
-    :: k : PID
-    -> p : VC
-    -> m1 : Message r
-    -> m2 : Message r
-    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
-    -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
-    -> { _:Proof | vcReadK (mSent m1) k < (vcReadK p k) + 1 }
-@-}
-relateM1P :: PID -> VC -> Message r -> Message r -> Proof -> Proof -> Proof
-relateM1P _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = ()
 
 -- | Since sender(m1) /= sender(m2) and m1 -> m2, m1 must have been
 -- delivered at sender(m2) before m2 was sent by sender(m2).  In fact,
@@ -142,3 +108,45 @@ vcSmallerAtIntermediateDelivery
 vcSmallerAtIntermediateDelivery :: Message r -> PID -> Proof
 vcSmallerAtIntermediateDelivery m k = () *** Admit
 
+-- | NEED TO PROVE THIS
+{-@ ple vc_m1_k_lt_vc_m2_k @-}
+{-@
+assume vc_m1_k_lt_vc_m2_k
+    :: k : PID
+    -> p : VC
+    -> m1 : Message r
+    -> m2 : Message r
+    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
+@-}
+vc_m1_k_lt_vc_m2_k :: PID -> VC -> Message r -> Message r -> Proof
+vc_m1_k_lt_vc_m2_k _k _p _m1 _m2 = ()
+
+-- | Since we have deliverable(m2, p), we have VC(m2)[k] = VC(p)[k]+1
+-- for k = sender(m2).
+{-@ ple vc_m2_k_equals_vc_p_k_plus_1 @-}
+{-@
+vc_m2_k_equals_vc_p_k_plus_1
+    :: k : PID
+    -> p : VC
+    -> { m2 : Message r | mSender m2 == k }
+    -> Deliverable {m2} {p}
+    -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
+@-}
+vc_m2_k_equals_vc_p_k_plus_1 :: PID -> VC -> Message r -> Deliverable -> Proof
+vc_m2_k_equals_vc_p_k_plus_1 k _p _m2 m2_deliverable_p = () ? m2_deliverable_p k *** QED
+
+-- | If VC(m1)[k] < VC(m2)[k], and VC(m2)[k] = VC(p)[k]+1, then
+-- VC(m1)[k] < VC(p)[k]+1.
+{-@ ple relateM1P @-}
+{-@
+relateM1P
+    :: k : PID
+    -> p : VC
+    -> m1 : Message r
+    -> m2 : Message r
+    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
+    -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
+    -> { _:Proof | vcReadK (mSent m1) k < (vcReadK p k) + 1 }
+@-}
+relateM1P :: PID -> VC -> Message r -> Message r -> Proof -> Proof -> Proof
+relateM1P _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = ()
