@@ -69,9 +69,10 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
     | k == mSender m2 =
         if k == mSender m1
         then () ? m1_before_m2 k ? m2_deliverable_p k ? processOrderAxiom m1 m2 ()
-        else () ? relateM1P k p m1 m2
-                            (vc_m1_k_lt_vc_m2_k k p m1 m2)
-                            (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
+        else () ? vc_m1_k_eq_vc_p_k_plus_1
+                   k p m1 m2
+                   (vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2)
+                   (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
         --else () ? m1_before_m2 k ? m2_deliverable_p k ? intermediateDelivery m1 m2 m1_before_m2 k ? vcSmallerAtIntermediateDelivery m2 k *** Admit
 
 
@@ -86,10 +87,11 @@ intermediateDelivery
     :: m1 : Message r
     -> { m2 : Message r | mSender m1 /= mSender m2 }
     -> CausallyBefore {m1} {m2}
-    -> Delivered {m1} (vcBackTick (mSender m2) (mSent m2))
+    -> vc_between: VC
+    -> Delivered {m1} {vc_between}
 @-}
-intermediateDelivery :: Message r -> Message r -> CausallyBefore -> Delivered
-intermediateDelivery m1 m2 m1_before_m2 k = () *** Admit
+intermediateDelivery :: Message r -> Message r -> CausallyBefore -> VC -> Delivered
+intermediateDelivery m1 m2 m1_before_m2 k vc_between = () *** Admit
 
 -- At some point after this intermediate delivery takes place on
 -- sender(m2), m2 is sent.  We know that when m2 is sent, sender(m2)
@@ -97,29 +99,40 @@ intermediateDelivery m1 m2 m1_before_m2 k = () *** Admit
 -- strictly smaller in the sender(m2) position at the intermediate
 -- delivery time than it is in m2's VC.
 
--- | Another fact we need.
-{-@ ple vcSmallerAtIntermediateDelivery @-}
+-- | There's a VC value, call it vc_between, that is the VC of sender(m2)
+-- immediately before sender(m2) is incremented for m2's send.  Since
+-- m1 had to already have been delivered at sender(m2) at this point,
+-- vc_between must be at least as big as VC(m1), but is less than VC(m2) in
+-- the sender(m2) position.
+{-@ ple vcInBetween @-}
 {-@
-vcSmallerAtIntermediateDelivery
-    :: m : Message r
-    -> k : PID
-    -> { _:Proof | vcLessK (vcBackTick k (mSent m)) (mSent m) k }
-@-}
-vcSmallerAtIntermediateDelivery :: Message r -> PID -> Proof
-vcSmallerAtIntermediateDelivery m k = () *** Admit
-
--- | NEED TO PROVE THIS
-{-@ ple vc_m1_k_lt_vc_m2_k @-}
-{-@
-assume vc_m1_k_lt_vc_m2_k
+assume vcInBetween
     :: k : PID
     -> p : VC
     -> m1 : Message r
     -> m2 : Message r
+    -> vc_between : VC
+    -> { _:Proof | vcReadK (mSent m1) k <= vcReadK vc_between k &&
+                   vcReadK vc_between k <  vcReadK (mSent m2) k }
+@-}
+vcInBetween :: PID -> VC -> Message r -> Message r -> VC -> Proof
+vcInBetween _k _p _m1 _m2 _vc = ()
+
+-- | VC(m1)[k] < VC(m2)[k] since m1 -> m2 and since there is a VC
+-- value that's in between at that position, so they can't be equal at
+-- that position.
+{-@ ple vc_m1_k_lt_vc_m2_k @-}
+{-@
+vc_m1_k_lt_vc_m2_k
+    :: k : PID
+    -> p : VC
+    -> m1 : Message r
+    -> m2 : Message r
+    -> CausallyBefore {m1} {m2}
     -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
 @-}
-vc_m1_k_lt_vc_m2_k :: PID -> VC -> Message r -> Message r -> Proof
-vc_m1_k_lt_vc_m2_k _k _p _m1 _m2 = ()
+vc_m1_k_lt_vc_m2_k :: PID -> VC -> Message r -> Message r -> CausallyBefore -> Proof
+vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2 = () ? vcInBetween k p m1 m2 (vcBackTick (mSender m2) (mSent m2)) ? m1_before_m2 k
 
 -- | Since we have deliverable(m2, p), we have VC(m2)[k] = VC(p)[k]+1
 -- for k = sender(m2).
@@ -137,9 +150,9 @@ vc_m2_k_equals_vc_p_k_plus_1 k _p _m2 m2_deliverable_p = () ? m2_deliverable_p k
 
 -- | If VC(m1)[k] < VC(m2)[k], and VC(m2)[k] = VC(p)[k]+1, then
 -- VC(m1)[k] < VC(p)[k]+1.
-{-@ ple relateM1P @-}
+{-@ ple vc_m1_k_eq_vc_p_k_plus_1 @-}
 {-@
-relateM1P
+vc_m1_k_eq_vc_p_k_plus_1
     :: k : PID
     -> p : VC
     -> m1 : Message r
@@ -148,5 +161,5 @@ relateM1P
     -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
     -> { _:Proof | vcReadK (mSent m1) k < (vcReadK p k) + 1 }
 @-}
-relateM1P :: PID -> VC -> Message r -> Message r -> Proof -> Proof -> Proof
-relateM1P _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = ()
+vc_m1_k_eq_vc_p_k_plus_1 :: PID -> VC -> Message r -> Message r -> Proof -> Proof -> Proof
+vc_m1_k_eq_vc_p_k_plus_1 _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = ()
