@@ -188,7 +188,10 @@ vcTickImpl p (c:cs)
     | otherwise = c:vcTickImpl (p-1) cs
 
 
--- | Decrement a given index in a vector clock.
+-- | Decrement a given index in a vector clock.  If the value at the
+-- index is already 0, it should stay 0.  There isn't any reason to
+-- use this except at verification time, so it should arguably go in a
+-- verification-only file instead of here.
 --
 -- >>> vcBackTick 0 (VC [9,8,7])
 -- VC [8,8,7]
@@ -196,6 +199,10 @@ vcTickImpl p (c:cs)
 -- VC [9,7,7]
 -- >>> vcBackTick 2 (VC [9,8,7])
 -- VC [9,8,6]
+-- >>> vcBackTick 0 (VC [0,8,7])
+-- VC [0,8,7]
+-- >>> vcBackTick 2 (VC [9,8,0])
+-- VC [9,8,0]
 --
 -- >>> vcBackTick (-1) (VC [9,8,7])
 -- ...Exception...
@@ -208,13 +215,13 @@ vcTickImpl p (c:cs)
 {-@
 vcBackTick :: PID -> VC -> VC @-}
 vcBackTick :: PID -> VC -> VC
-vcBackTick p (VC xs) = VC $ vcTickImpl p xs
+vcBackTick p (VC xs) = VC $ vcBackTickImpl p xs
 {-@ reflect vcBackTickImpl @-}
 {-@
 vcBackTickImpl :: i:Nat -> {xs:[Clock] | i < len xs} -> {ys:[Clock] | len xs == len ys} @-}
 vcBackTickImpl :: Int -> [Clock] -> [Clock]
 vcBackTickImpl p (c:cs)
-    | p == 0    = (c+1):cs
+    | p == 0    = (if c > 0 then (c-1) else 0) : cs
     | otherwise = c:vcBackTickImpl (p-1) cs
 
 -- | Combine two vector clocks with elementwise max.
