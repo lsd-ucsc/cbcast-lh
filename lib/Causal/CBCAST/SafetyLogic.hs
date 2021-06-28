@@ -75,6 +75,12 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
                    (vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2)
                    (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
 
+
+-- Might need a lemma that says:  if mSender m1 /= mSender m2 and m1 -> m2,
+-- then m1 must have been delivered at mSender m2.                   
+-- Returns something of type Delivered {m1} (mSent m2).
+
+
 -- At some point after this intermediate delivery takes place on
 -- sender(m2), m2 is sent.  We know that when m2 is sent, sender(m2)
 -- increments its own position first, so the VC must have been
@@ -86,19 +92,22 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
 -- m1 had to already have been delivered at sender(m2) at this point,
 -- vc_between must be at least as big as VC(m1), but is less than VC(m2) in
 -- the sender(m2) position.
+
+-- Patrick says try this: vcReadK (vcTick vc_between k) k == vcReadK (mSent m2) k
+-- { vc_between : VC | vc_between == (vcBackTick k (mSent m2)) }
 {-@ ple vcInBetween @-}
 {-@
 vcInBetween
     :: k : PID
-    -> p : VC
     -> m1 : Message r
     -> { m2 : Message r | mSender m2 == k && mSender m1 /= mSender m2 }
-    -> { vc_between : VC | vc_between == (vcBackTick (mSender m2) (mSent m2)) }
+    -> CausallyBefore {m1} {m2}
+    -> { vc_between : VC | vc_between == (vcBackTick k (mSent m2)) }
     -> { _:Proof | vcReadK (mSent m1) k <= vcReadK vc_between k &&
                    vcReadK vc_between k <  vcReadK (mSent m2) k }
 @-}
-vcInBetween :: PID -> VC -> Message r -> Message r -> VC -> Proof
-vcInBetween _k _p _m1 _m2 _vc = () *** Admit
+vcInBetween :: PID -> Message r -> Message r -> CausallyBefore -> VC -> Proof
+vcInBetween _k _m1 _m2 _m1_before_m2 _vc = () *** Admit
 
 -- | VC(m1)[k] < VC(m2)[k] since m1 -> m2 and since there is a VC
 -- value that's in between at that position, so they can't be equal at
@@ -114,7 +123,7 @@ vc_m1_k_lt_vc_m2_k
     -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
 @-}
 vc_m1_k_lt_vc_m2_k :: PID -> VC -> Message r -> Message r -> CausallyBefore -> Proof
-vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2 = () ? vcInBetween k p m1 m2 (vcBackTick (mSender m2) (mSent m2)) ? m1_before_m2 k *** QED
+vc_m1_k_lt_vc_m2_k k _p m1 m2 m1_before_m2 = () ? vcInBetween k m1 m2 m1_before_m2 (vcBackTick (mSender m2) (mSent m2)) ? m1_before_m2 k *** QED
 
 -- | Since we have deliverable(m2, p), we have VC(m2)[k] = VC(p)[k]+1
 -- for k = sender(m2).
