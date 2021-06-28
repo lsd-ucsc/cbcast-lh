@@ -79,6 +79,15 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
 -- Might need a lemma that says:  if mSender m1 /= mSender m2 and m1 -> m2,
 -- then m1 must have been delivered at mSender m2.                   
 -- Returns something of type Delivered {m1} (mSent m2).
+{-@
+deliveredInBetween
+    :: m1 : Message r
+    -> m2 : Message r
+    -> CausallyBefore {m1} {m2}
+    -> Delivered {m1} {mSent m2}
+@-}
+deliveredInBetween :: Message r -> Message r -> CausallyBefore -> Delivered
+deliveredInBetween m1 m2 m1_before_m2 k = () ? m1_before_m2 k
 
 
 -- At some point after this intermediate delivery takes place on
@@ -94,12 +103,13 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
 -- the sender(m2) position.
 
 -- Patrick says try this: vcReadK (vcTick vc_between k) k == vcReadK (mSent m2) k
+-- { vc_between : VC | vcTick k vc_between == mSent m2 }
 -- { vc_between : VC | vc_between == (vcBackTick k (mSent m2)) }
 {-@ ple vcInBetween @-}
 {-@
 vcInBetween
-    :: k : PID
-    -> m1 : Message r
+    ::    k : PID
+    ->   m1 : Message r
     -> { m2 : Message r | mSender m2 == k && mSender m1 /= mSender m2 }
     -> CausallyBefore {m1} {m2}
     -> { vc_between : VC | vc_between == (vcBackTick k (mSent m2)) }
@@ -107,7 +117,13 @@ vcInBetween
                    vcReadK vc_between k <  vcReadK (mSent m2) k }
 @-}
 vcInBetween :: PID -> Message r -> Message r -> CausallyBefore -> VC -> Proof
-vcInBetween _k _m1 _m2 _m1_before_m2 _vc = () *** Admit
+vcInBetween k m1 m2 m1_before_m2 vc
+    =   ()  ? m1_before_m2 k
+            ? deliveredInBetween m1 m2 m1_before_m2 k
+    *** Admit
+    -- m1 from _ at 1,1,1
+    -- m2 from 1 at 1,1,2
+    --         back 1,0,2
 
 -- | VC(m1)[k] < VC(m2)[k] since m1 -> m2 and since there is a VC
 -- value that's in between at that position, so they can't be equal at
