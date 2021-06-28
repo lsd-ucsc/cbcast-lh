@@ -211,9 +211,15 @@ vcTickImpl p (c:cs)
 -- ...Exception...
 -- ...
 --
+
+-- TODO: Can we require that the input is at least 1 at the specified index?
 {-@ reflect vcBackTick @-}
 {-@
-vcBackTick :: PID -> VC -> VC @-}
+vcBackTick
+    :: PID
+    -> VC
+    -> VC
+@-}
 vcBackTick :: PID -> VC -> VC
 vcBackTick p (VC xs) = VC $ vcBackTickImpl p xs
 {-@ reflect vcBackTickImpl @-}

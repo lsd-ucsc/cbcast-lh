@@ -69,28 +69,11 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
     | k == mSender m2 =
         if k == mSender m1
         then () ? m1_before_m2 k ? m2_deliverable_p k ? processOrderAxiom m1 m2 ()
+        -- Case where k /= mSender m2
         else () ? vc_m1_k_eq_vc_p_k_plus_1
                    k p m1 m2
                    (vc_m1_k_lt_vc_m2_k k p m1 m2 m1_before_m2)
                    (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
-
--- | Since sender(m1) /= sender(m2) and m1 -> m2, m1 must have been
--- delivered at sender(m2) before m2 was sent by sender(m2).  In fact,
--- by the step just *before* sender(m2)'s VC gets incremented in its
--- own position for sending m2, m1 must have already been delivered at
--- sender(m2).  That's what this lemma says.  We aren't using it
--- anywhere yet, but I feel like we will need to.
-{-@ ple intermediateDelivery @-}
-{-@
-intermediateDelivery
-    :: m1 : Message r
-    -> { m2 : Message r | mSender m1 /= mSender m2 }
-    -> CausallyBefore {m1} {m2}
-    -> vc_between: VC
-    -> Delivered {m1} {vc_between}
-@-}
-intermediateDelivery :: Message r -> Message r -> CausallyBefore -> VC -> Delivered
-intermediateDelivery m1 m2 m1_before_m2 k vc_between = () *** Admit
 
 -- At some point after this intermediate delivery takes place on
 -- sender(m2), m2 is sent.  We know that when m2 is sent, sender(m2)
@@ -105,17 +88,17 @@ intermediateDelivery m1 m2 m1_before_m2 k vc_between = () *** Admit
 -- the sender(m2) position.
 {-@ ple vcInBetween @-}
 {-@
-assume vcInBetween
+vcInBetween
     :: k : PID
     -> p : VC
     -> m1 : Message r
-    -> m2 : Message r
-    -> vc_between : VC
+    -> { m2 : Message r | mSender m2 == k && mSender m1 /= mSender m2 }
+    -> { vc_between : VC | vc_between == (vcBackTick (mSender m2) (mSent m2)) }
     -> { _:Proof | vcReadK (mSent m1) k <= vcReadK vc_between k &&
                    vcReadK vc_between k <  vcReadK (mSent m2) k }
 @-}
 vcInBetween :: PID -> VC -> Message r -> Message r -> VC -> Proof
-vcInBetween _k _p _m1 _m2 _vc = ()
+vcInBetween _k _p _m1 _m2 _vc = () *** Admit
 
 -- | VC(m1)[k] < VC(m2)[k] since m1 -> m2 and since there is a VC
 -- value that's in between at that position, so they can't be equal at
@@ -126,7 +109,7 @@ vc_m1_k_lt_vc_m2_k
     :: k : PID
     -> p : VC
     -> m1 : Message r
-    -> m2 : Message r
+    -> { m2 : Message r | mSender m2 == k && mSender m1 /= mSender m2 }
     -> CausallyBefore {m1} {m2}
     -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
 @-}
