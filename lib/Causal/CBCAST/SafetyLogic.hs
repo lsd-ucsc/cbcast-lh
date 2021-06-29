@@ -1,6 +1,4 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs Redefined to be imported for specs
--- | Attempt to translate the things Gan did in agda to LiquidHaskell, more or
--- less exactly
 module Causal.CBCAST.SafetyLogic where
 
 import Language.Haskell.Liquid.ProofCombinators
