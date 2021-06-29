@@ -39,11 +39,13 @@ type Deliverable = Fin -> Proof
 -- | @distinctAtSenderM2@ says that, given two messages m1 and m2
 -- where m1 -> m2, their VC entries are distinct in the position of
 -- m2's sender.  (This is the case since in any execution that can
--- occur, if m1 -> m2, then m2 could not have known about m1's send,
--- so m2 would have, at a minimum, an entry in its own VC position
--- that is one larger than m1 in the corresponding position.  However,
--- we cannot prove this in our formalism because we haven't formalized
--- a notion of what executions can occur.)
+-- occur, if m1 -> m2, then m2's sender knows about m1's send, but
+-- m1's sender cannot have known about m2's send.  So m2 will have a
+-- VC with an entry in its own sender's position that is, at a
+-- minimum, one larger than m1 in the corresponding position, to
+-- account for its own send.  However, we cannot prove this in our
+-- formalism because we haven't formalized a notion of what executions
+-- can occur.)
 {-@
 assume distinctAtSenderM2
     :: m1 : Message r
@@ -76,9 +78,9 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
                    (vc_m1_k_lt_vc_m2_k k m1 m2 m1_before_m2)
                    (vc_m2_k_equals_vc_p_k_plus_1 k p m2 m2_deliverable_p) *** QED
 
--- | VC(m1)[k] < VC(m2)[k] since m1 -> m2 and since there is a VC
--- value that's in between at that position, so they can't be equal at
--- that position.
+-- | VC(m1)[k] < VC(m2)[k] since m1 -> m2, so all entries are <=, and
+-- since they have to be distinct at m2's sender's position, which is
+-- k.
 {-@ ple vc_m1_k_lt_vc_m2_k @-}
 {-@
 vc_m1_k_lt_vc_m2_k
