@@ -7,13 +7,20 @@ import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 
+-- | @iterImpliesForall@ lets us take a proof about a function that
+-- iterates a predicate over all entries in a vector clock, and turns
+-- it into a function that takes a vector clock index and returns a
+-- proof that the predicate holds at that particular index.  This is
+-- handy because it lets us turn a proof about, for instance, the
+-- @deliverable@ function into a proof about @deliverableK@ for a
+-- given @k@.
 {-@ ple iterImpliesForall @-}
 {-@
 iterImpliesForall
-    :: n:Nat
-    -> p:(Fin {n} -> Bool)
+    :: n : Nat
+    -> p : (Fin {n} -> Bool)
     -> { _:Proof | iter n p }
-    -> (k:Fin {n} -> { _:Proof | p k })
+    -> (k : Fin {n} -> { _:Proof | p k })
 @-}
 iterImpliesForall :: Int -> (Fin -> Bool) -> Proof -> (Fin -> Proof)
 iterImpliesForall n p satisfied k
@@ -108,15 +115,17 @@ safety2
 @-}
 safety2 :: VC -> Message r -> Message r -> Proof -> Proof -> Delivered
 safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
-    | k /= mSender m2 = () ? (cb_implies_CB m1 m2 m1_before_m2) k ? (d_implies_D p m2 m2_deliverable_p) k
+    | k /= mSender m2 = () ? (cb_implies_CB m1 m2 m1_before_m2) k
+                           ? (d_implies_D p m2 m2_deliverable_p) k
     | k == mSender m2 =
         if k == mSender m1
-        then () ? (cb_implies_CB m1 m2 m1_before_m2) k ? (d_implies_D p m2 m2_deliverable_p) k ? distinctAtSenderM2 m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
+        then () ? (cb_implies_CB m1 m2 m1_before_m2) k
+                ? (d_implies_D p m2 m2_deliverable_p) k
+                ? distinctAtSenderM2 m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
         -- Case where k /= mSender m1
-        else () ? vc_m1_k_eq_vc_p_k_plus_1
-                   k p m1 m2
-                   (vc_m1_k_lt_vc_m2_k k m1 m2 (cb_implies_CB m1 m2 m1_before_m2))
-                   (vc_m2_k_equals_vc_p_k_plus_1 k p m2 (d_implies_D p m2 m2_deliverable_p)) *** QED
+        else () ? vc_m1_k_lt_vc_m2_k k m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
+                ? vc_m2_k_equals_vc_p_k_plus_1 k p m2 (d_implies_D p m2 m2_deliverable_p)
+                *** QED             
 
 -- | VC(m1)[k] < VC(m2)[k] since m1 -> m2, so all entries are <=, and
 -- since they have to be distinct at m2's sender's position, which is
@@ -147,19 +156,3 @@ vc_m2_k_equals_vc_p_k_plus_1
 @-}
 vc_m2_k_equals_vc_p_k_plus_1 :: PID -> VC -> Message r -> Deliverable -> Proof
 vc_m2_k_equals_vc_p_k_plus_1 k _p _m2 m2_deliverable_p = () ? m2_deliverable_p k *** QED
-
--- | If VC(m1)[k] < VC(m2)[k], and VC(m2)[k] = VC(p)[k]+1, then
--- VC(m1)[k] < VC(p)[k]+1.
-{-@ ple vc_m1_k_eq_vc_p_k_plus_1 @-}
-{-@
-vc_m1_k_eq_vc_p_k_plus_1
-    :: k : PID
-    -> p : VC
-    -> m1 : Message r
-    -> m2 : Message r
-    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
-    -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
-    -> { _:Proof | vcReadK (mSent m1) k < (vcReadK p k) + 1 }
-@-}
-vc_m1_k_eq_vc_p_k_plus_1 :: PID -> VC -> Message r -> Message r -> Proof -> Proof -> Proof
-vc_m1_k_eq_vc_p_k_plus_1 _k _p _m1 _m2 _m1_lt_m2 _m2_eq_p_plus1 = () *** QED
