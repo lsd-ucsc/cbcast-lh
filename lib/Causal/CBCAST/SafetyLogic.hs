@@ -83,25 +83,105 @@ d_implies_D :: VC -> Message r -> Proof -> Deliverable
 d_implies_D procVc m deliverableSatisfied pid =
     iterImpliesForall (vcSize (mSent m)) (deliverableK m procVc) deliverableSatisfied pid
 
+-- | Axiom: for every message m, there exists some vector clock
+-- procVcPrev such that m's vector clock is equal to procVcPrev but
+-- incremented in the sender's position.  (procVcPrev can be thought
+-- of as m's sender's VC right before being incremented for m's
+-- sending.)
+{-@
+assume vcPrevWithProof
+    :: m : Message r
+    -> (procVcPrev :: VC,
+        { _:Proof | mSent m == vcTick (mSender m) procVcPrev &&
+                    vcReadK procVcPrev (mSender m) < vcReadK (mSent m) (mSender m) })
+@-}
+vcPrevWithProof :: Message r -> (VC, Proof)
+vcPrevWithProof m = (vcBackTick (mSender m) (mSent m), ())
+-- TODO: Maaaaybe this wouldn't have to be an axiom if we could prove that
+-- vcTick (mSender m) (vcBackTick (mSender m) (mSent m)) == mSent m
+
+{-@ reflect vcPrev @-}
+{-@
+assume vcPrev
+    :: m : Message r
+    -> { procVcPrev : VC | mSent m == vcTick (mSender m) procVcPrev &&
+                           vcReadK procVcPrev (mSender m) < vcReadK (mSent m) (mSender m) }
+@-}
+vcPrev :: Message r -> VC
+vcPrev m = (vcBackTick (mSender m) (mSent m))
+
+-- TODO: could we use the above assumptions to prove vcInBetween?
+
+-- | @vcInBetween@ says that, if we have two messages m1 and m2 with
+-- distinct senders such that m1 -> m2, then there is some vector
+-- clock value, procVCPrev, that is less than or equal to m1's VC in
+-- sender(m2)'s position, and less than m2's VC in sender(m2)'s
+-- position.
+-- 
+-- This is the case since in any execution that can occur, if m1 ->
+-- m2, then m2's sender knows about m2's send at the time it sends m2,
+-- but m1's sender cannot have known about m2's send at the time it
+-- sends m1.  So m2 will have a VC with an entry in its own sender's
+-- position that is, at a minimum, one larger than m1 in the
+-- corresponding position, to account for its own send of m2.)
+
+{-@
+assume vcInBetween
+    :: m1 : Message r
+    -> { m2 : Message r | mSender m1 /= mSender m2 }
+    -> CausallyBefore {m1} {m2}
+    -> (procVcPrev :: VC,
+        { _:Proof | vcReadK (mSent m1) (mSender m2) <= vcReadK procVcPrev (mSender m2) &&
+                    vcReadK procVcPrev (mSender m2) <  vcReadK (mSent m2) (mSender m2) })
+@-}
+vcInBetween :: Message r -> Message r -> CausallyBefore -> (VC, Proof)
+vcInBetween _m1 m2 _m1_before_m2 = (vcPrev m2, ())
+
+-- | @processOrderAxiom@ says that every message sent by a given process has a
+-- unique VC value at the sender position. (This follows from the fact that
+-- events on a process have a total order.) This is enough to prove safety in
+-- the same-sender case, because we already know that m1 -> m2, so we know that
+-- for each position i in their respective VCs, VC(m1)[i] <= VC(m2)[i]. This
+-- axiom rules out the case where they're equal, so then we know that VC(m1)[i]
+-- < VC(m2)[i], which is the fact that LH needs to complete the proof.
+{-@
+assume processOrderAxiom
+    ::  m1 : Message r
+    ->  { m2 : Message r | m1 != m2 }
+    ->  { _:Proof | mSender m1 == mSender m2 }
+    ->  { _:Proof | vcReadK (mSent m1) (mSender m1) != vcReadK (mSent m2) (mSender m2) }
+@-}
+processOrderAxiom :: Message r -> Message r -> Proof -> Proof
+processOrderAxiom _m1 _m2 _proof = ()
+
+-- LK: WTF, why does this have to be assumed?
+{-@ ple causallyOrderedMessagesDistinct @-}
+{-@
+assume causallyOrderedMessagesDistinct
+    ::  m1: Message r
+    ->  m2: Message r
+    -> CausallyBefore {m1} {m2}
+    -> {_: Proof | m1 != m2 }
+@-}
+causallyOrderedMessagesDistinct :: Message r -> Message r -> CausallyBefore -> Proof
+causallyOrderedMessagesDistinct _m1 _m2 _cbp = ()
+
 -- | @distinctAtSenderM2@ says that, given two messages m1 and m2
 -- where m1 -> m2, their VC entries are distinct in the position of
--- m2's sender.  (This is the case since in any execution that can
--- occur, if m1 -> m2, then m2's sender knows about m2's send at the
--- time it sends m2, but m1's sender cannot have known about m2's send
--- at the time it sends m1.  So m2 will have a VC with an entry in its
--- own sender's position that is, at a minimum, one larger than m1 in
--- the corresponding position, to account for its own send of m2.
--- However, we cannot prove this in our formalism because we haven't
--- formalized a notion of what executions can occur.)
+-- m2's sender.
 {-@
-assume distinctAtSenderM2
+distinctAtSenderM2
     :: m1 : Message r
     -> m2 : Message r
     -> CausallyBefore {m1} {m2}
     -> { _:Proof | vcReadK (mSent m1) (mSender m2) != vcReadK (mSent m2) (mSender m2) }
 @-}
 distinctAtSenderM2 :: Message r -> Message r -> CausallyBefore -> Proof
-distinctAtSenderM2 _m1 _m2 _m1_before_m2 = ()
+distinctAtSenderM2 m1 m2 m1_before_m2
+    | mSender m1 == mSender m2 = () ? causallyOrderedMessagesDistinct m1 m2 m1_before_m2
+                                    ? processOrderAxiom m1 m2 ()
+    | mSender m1 /= mSender m2 = case (vcInBetween m1 m2 m1_before_m2) of
+        (_, proof) -> proof
 
 {-@ ple safety2 @-}
 {-@
