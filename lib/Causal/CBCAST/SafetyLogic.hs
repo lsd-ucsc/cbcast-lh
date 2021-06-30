@@ -124,7 +124,7 @@ safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
                 ? distinctAtSenderM2 m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
         -- Case where k /= mSender m1
         else () ? vc_m1_k_lt_vc_m2_k k m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
-                ? vc_m2_k_equals_vc_p_k_plus_1 k p m2 (d_implies_D p m2 m2_deliverable_p)
+                ? (d_implies_D p m2 m2_deliverable_p) k
                 *** QED             
 
 -- | VC(m1)[k] < VC(m2)[k] since m1 -> m2, so all entries are <=, and
@@ -142,17 +142,3 @@ vc_m1_k_lt_vc_m2_k
 vc_m1_k_lt_vc_m2_k :: PID -> Message r -> Message r -> CausallyBefore -> Proof
 vc_m1_k_lt_vc_m2_k k m1 m2 m1_before_m2 =
   () ? m1_before_m2 k ? distinctAtSenderM2 m1 m2 m1_before_m2 *** QED
-
--- | Since we have deliverable(m2, p), we have VC(m2)[k] = VC(p)[k]+1
--- for k = sender(m2).
-{-@ ple vc_m2_k_equals_vc_p_k_plus_1 @-}
-{-@
-vc_m2_k_equals_vc_p_k_plus_1
-    :: k : PID
-    -> p : VC
-    -> { m2 : Message r | mSender m2 == k }
-    -> Deliverable {m2} {p}
-    -> { _:Proof | vcReadK (mSent m2) k == (vcReadK p k) + 1 }
-@-}
-vc_m2_k_equals_vc_p_k_plus_1 :: PID -> VC -> Message r -> Deliverable -> Proof
-vc_m2_k_equals_vc_p_k_plus_1 k _p _m2 m2_deliverable_p = () ? m2_deliverable_p k *** QED
