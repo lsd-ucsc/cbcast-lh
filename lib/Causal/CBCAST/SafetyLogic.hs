@@ -117,28 +117,7 @@ safety2 :: VC -> Message r -> Message r -> Proof -> Proof -> Delivered
 safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
     | k /= mSender m2 = () ? (cb_implies_CB m1 m2 m1_before_m2) k
                            ? (d_implies_D p m2 m2_deliverable_p) k
-    | k == mSender m2 =
-        if k == mSender m1
-        then () ? (cb_implies_CB m1 m2 m1_before_m2) k
-                ? (d_implies_D p m2 m2_deliverable_p) k
-                ? distinctAtSenderM2 m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
-        -- Case where k /= mSender m1
-        else () ? vc_m1_k_lt_vc_m2_k k m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
-                ? (d_implies_D p m2 m2_deliverable_p) k
-                *** QED             
-
--- | VC(m1)[k] < VC(m2)[k] since m1 -> m2, so all entries are <=, and
--- since they have to be distinct at m2's sender's position, which is
--- k.
-{-@ ple vc_m1_k_lt_vc_m2_k @-}
-{-@
-vc_m1_k_lt_vc_m2_k
-    :: k : PID
-    -> m1 : Message r
-    -> { m2 : Message r | mSender m2 == k && mSender m1 /= mSender m2 }
-    -> CausallyBefore {m1} {m2}
-    -> { _:Proof | vcReadK (mSent m1) k < vcReadK (mSent m2) k }
-@-}
-vc_m1_k_lt_vc_m2_k :: PID -> Message r -> Message r -> CausallyBefore -> Proof
-vc_m1_k_lt_vc_m2_k k m1 m2 m1_before_m2 =
-  () ? m1_before_m2 k ? distinctAtSenderM2 m1 m2 m1_before_m2 *** QED
+    | k == mSender m2 = () ? (cb_implies_CB m1 m2 m1_before_m2) k
+                           ? (d_implies_D p m2 m2_deliverable_p) k
+                           ? distinctAtSenderM2 m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
+                           *** QED                                        
