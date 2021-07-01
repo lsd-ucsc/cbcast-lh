@@ -124,7 +124,6 @@ vcPrev m = (vcBackTick (mSender m) (mSent m))
 -- sends m1.  So m2 will have a VC with an entry in its own sender's
 -- position that is, at a minimum, one larger than m1 in the
 -- corresponding position, to account for its own send of m2.)
-
 {-@
 assume vcInBetween
     :: m1 : Message r
@@ -135,7 +134,7 @@ assume vcInBetween
                     vcReadK procVcPrev (mSender m2) <  vcReadK (mSent m2) (mSender m2) })
 @-}
 vcInBetween :: Message r -> Message r -> CausallyBefore -> (VC, Proof)
-vcInBetween _m1 m2 _m1_before_m2 = (vcPrev m2, ())
+vcInBetween _m1 _m2 _m1_before_m2 = (vcPrev m2, ())
 
 -- | @processOrderAxiom@ says that every message sent by a given process has a
 -- unique VC value at the sender position. (This follows from the fact that
@@ -147,48 +146,38 @@ vcInBetween _m1 m2 _m1_before_m2 = (vcPrev m2, ())
 {-@
 assume processOrderAxiom
     ::  m1 : Message r
-    ->  { m2 : Message r | m1 != m2 }
+    ->  { m2 : Message r | m1 /= m2 }
     ->  { _:Proof | mSender m1 == mSender m2 }
     ->  { _:Proof | vcReadK (mSent m1) (mSender m1) != vcReadK (mSent m2) (mSender m2) }
 @-}
 processOrderAxiom :: Message r -> Message r -> Proof -> Proof
 processOrderAxiom _m1 _m2 _proof = ()
 
--- LK: WTF, why does this have to be assumed?
-{-@ ple causallyOrderedMessagesDistinct @-}
-{-@
-assume causallyOrderedMessagesDistinct
-    ::  m1: Message r
-    ->  m2: Message r
-    -> CausallyBefore {m1} {m2}
-    -> {_: Proof | m1 != m2 }
-@-}
-causallyOrderedMessagesDistinct :: Message r -> Message r -> CausallyBefore -> Proof
-causallyOrderedMessagesDistinct _m1 _m2 _cbp = ()
-
--- | @distinctAtSenderM2@ says that, given two messages m1 and m2
--- where m1 -> m2, their VC entries are distinct in the position of
--- m2's sender.
+-- | @distinctAtSenderM2@ says that, given two distinct messages m1
+-- and m2 where m1 -> m2, their VC entries are distinct in the
+-- position of m2's sender.
 {-@
 distinctAtSenderM2
     :: m1 : Message r
-    -> m2 : Message r
+    -> { m2 : Message r | m1 /= m2 }
     -> CausallyBefore {m1} {m2}
     -> { _:Proof | vcReadK (mSent m1) (mSender m2) != vcReadK (mSent m2) (mSender m2) }
 @-}
 distinctAtSenderM2 :: Message r -> Message r -> CausallyBefore -> Proof
 distinctAtSenderM2 m1 m2 m1_before_m2
-    | mSender m1 == mSender m2 = () ? causallyOrderedMessagesDistinct m1 m2 m1_before_m2
-                                    ? processOrderAxiom m1 m2 ()
+    | mSender m1 == mSender m2 = () ? processOrderAxiom m1 m2 ()
     | mSender m1 /= mSender m2 = case (vcInBetween m1 m2 m1_before_m2) of
         (_, proof) -> proof
 
+-- | @safety2@ says that, given two distinct messages m1 and m2 where
+-- m1 -> m2 and m2 is deliverable at p, m1 has already been delivered
+-- at p.
 {-@ ple safety2 @-}
 {-@
 safety2
     :: p : VC
     -> m1 : Message r
-    -> m2 : Message r
+    -> { m2 : Message r | m1 /= m2 }
     -> { _:Proof | deliverable m2 p }
     -> { _:Proof | causallyBefore m1 m2 }
     -> Delivered {m1} {p}
