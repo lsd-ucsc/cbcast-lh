@@ -88,18 +88,6 @@ d_implies_D procVc m deliverableSatisfied pid =
 -- incremented in the sender's position.  (procVcPrev can be thought
 -- of as m's sender's VC right before being incremented for m's
 -- sending.)
-{-@
-assume vcPrevWithProof
-    :: m : Message r
-    -> (procVcPrev :: VC,
-        { _:Proof | mSent m == vcTick (mSender m) procVcPrev &&
-                    vcReadK procVcPrev (mSender m) < vcReadK (mSent m) (mSender m) })
-@-}
-vcPrevWithProof :: Message r -> (VC, Proof)
-vcPrevWithProof m = (vcBackTick (mSender m) (mSent m), ())
--- TODO: Maaaaybe this wouldn't have to be an axiom if we could prove that
--- vcTick (mSender m) (vcBackTick (mSender m) (mSent m)) == mSent m
-
 {-@ reflect vcPrev @-}
 {-@
 assume vcPrev
@@ -110,7 +98,17 @@ assume vcPrev
 vcPrev :: Message r -> VC
 vcPrev m = (vcBackTick (mSender m) (mSent m))
 
--- TODO: could we use the above assumptions to prove vcInBetween?
+-- Could we use the above assumption to help prove vcInBetween?  Idea:
+-- prove vcInBetween in two parts.
+--
+-- First prove that VC(m1) <= procVCPrev in sender(m2)'s position.
+-- This is the first conjunct.  This will be tricky.  We can prove
+-- that VC(m1) is delivered at sender(m2) at the point sender(m2) is
+-- sent, but what about one step BEFORE sender(m2) is sent?
+--
+-- Then prove that procVCPrev < VC(m2) in sender(m2)'s position.  This
+-- is the second conjunct.  This should hopefully be easy because we
+-- constructed procVCPrev this way.
 
 -- | @vcInBetween@ says that, if we have two messages m1 and m2 with
 -- distinct senders such that m1 -> m2, then there is some vector
