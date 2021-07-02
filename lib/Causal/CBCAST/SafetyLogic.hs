@@ -7,13 +7,42 @@ import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 
+-- | The @CausallyBefore@ type makes use of the isomorphism between
+-- the vector clock ordering and the happens-before relation.
+{-@
+type CausallyBefore M1 M2
+    =   k : PID
+    ->  { _:Proof | vcReadK (mSent M1) k            <= vcReadK (mSent M2) k
+                 &&          mSent M1               /=          mSent M2    }
+@-}
+type CausallyBefore = PID -> Proof
+
+-- | The @Delivered@ type says that a message has been delivered at a
+-- process by checking the process's vector clock.  If the process VC
+-- is at least as big as the message VC, the message has been
+-- delivered.
+{-@
+type Delivered M P
+    =   k : PID
+    ->  { _:Proof | vcReadK (mSent M) k <= vcReadK P k }
+@-}
+type Delivered = PID -> Proof
+
+-- | The @Deliverable@ type says that a message is deliverable at a
+-- process.  It is written terms of @deliverableK@.
+{-@
+type Deliverable M P
+    =  k : PID
+    -> { _:Proof | deliverableK M P k }
+@-}
+type Deliverable = PID -> Proof
+
 -- | @iterImpliesForall@ lets us take a proof about a function that
 -- iterates a predicate over all entries in a vector clock, and turns
 -- it into a function that takes a vector clock index and returns a
 -- proof that the predicate holds at that particular index.  This is
--- handy because it lets us turn a proof about, for instance, the
--- @deliverable@ function into a proof about @deliverableK@ for a
--- given @k@.
+-- handy because it lets us turn a proof about the @deliverable@
+-- function into a proof about @Deliverable@.
 {-@ ple iterImpliesForall @-}
 {-@
 iterImpliesForall
@@ -28,163 +57,56 @@ iterImpliesForall n p satisfied k
     | k == n - 1 = ()
     | k <  n - 1 = iterImpliesForall (n - 1) p satisfied k
 
-{-@ reflect causallyBeforeK @-}
+-- | @dImpliesD@ converts a proof that a message m is @deliverable@ at
+-- a process with VC procVC into a proof that m is @Deliverable@ at a
+-- process with procVC.  The difference is that @deliverable@ iterates
+-- over entries in a VC, while @Deliverable@ uses universal
+-- quantification.  Converting to the latter makes the proof easier
+-- for Liquid Haskell to carry out.
+{-@ ple dImpliesD @-}
 {-@
-causallyBeforeK :: Message r -> Message r -> PID -> Bool @-}
-causallyBeforeK :: Message r -> Message r -> PID -> Bool
-causallyBeforeK m1 m2 k = vcLessK (mSent m1) (mSent m2) k
-
-{-@ reflect causallyBefore @-}
-{-@
-causallyBefore :: Message r -> Message r -> Bool @-}
-causallyBefore :: Message r -> Message r -> Bool
-causallyBefore m1 m2 = vcLess (mSent m1) (mSent m2)
-
-{-@
-type CausallyBefore M1 M2 = k:PID -> { _:Proof | causallyBeforeK M1 M2 k }
-@-}
-type CausallyBefore = PID -> Proof
-
-{-@ ple cb_implies_CB @-}
-{-@
-cb_implies_CB
-    ::  m1 : Message r
-    ->  m2 : Message r
-    ->  { _:Proof | causallyBefore m1 m2 }
-    ->  CausallyBefore m1 m2
-@-}
-cb_implies_CB :: Message r -> Message r -> Proof -> CausallyBefore
-cb_implies_CB m1 m2 causallyBeforeSatisfied pid =
-    iterImpliesForall (vcSize (mSent m1)) p causallyBeforeSatisfied pid
-  where
-    p = vcLessK (mSent m1) (mSent m2)
-
-{-@
-type Delivered MSG PROCVC
-    =   k : PID
-    ->  { _:Proof | vcReadK (mSent MSG) k <= vcReadK PROCVC k }
-@-}
-type Delivered = PID -> Proof
-
-{-@
-type Deliverable M P = k:PID -> { _:Proof | deliverableK M P k }
-@-}
-type Deliverable = PID -> Proof
-
-{-@ ple d_implies_D @-}
-{-@
-d_implies_D
-    ::  procVc: VC
+dImpliesD
+    ::  p: VC
     ->  m : Message r
-    ->  { _:Proof | deliverable m procVc }
-    ->  Deliverable m procVc
+    ->  { _:Proof | deliverable m p }
+    ->  Deliverable m p
 @-}
-d_implies_D :: VC -> Message r -> Proof -> Deliverable
-d_implies_D procVc m deliverableSatisfied pid =
-    iterImpliesForall (vcSize (mSent m)) (deliverableK m procVc) deliverableSatisfied pid
+dImpliesD :: VC -> Message r -> Proof -> Deliverable
+dImpliesD p m m_deliverable_p k =
+    iterImpliesForall (vcSize (mSent m)) (deliverableK m p) m_deliverable_p k
 
--- | Axiom: for every message m, there exists some vector clock
--- procVcPrev such that m's vector clock is equal to procVcPrev but
--- incremented in the sender's position.  (procVcPrev can be thought
--- of as m's sender's VC right before being incremented for m's
--- sending.)
-{-@ reflect vcPrev @-}
+-- | @vcAxiom@ encodes a standard observation about vector clocks: If
+-- m1 -> m2, then VC(m1) will be strictly less than VC(m2) at the
+-- index of m2's sender.
 {-@
-assume vcPrev
-    :: m : Message r
-    -> { procVcPrev : VC | mSent m == vcTick (mSender m) procVcPrev &&
-                           vcReadK procVcPrev (mSender m) < vcReadK (mSent m) (mSender m) }
-@-}
-vcPrev :: Message r -> VC
-vcPrev m = (vcBackTick (mSender m) (mSent m))
-
--- Could we use the above assumption to help prove vcInBetween?  Idea:
--- prove vcInBetween in two parts.
---
--- First prove that VC(m1) <= procVCPrev in sender(m2)'s position.
--- This is the first conjunct.  This will be tricky.  We can prove
--- that VC(m1) is delivered at sender(m2) at the point sender(m2) is
--- sent, but what about one step BEFORE sender(m2) is sent?
---
--- Then prove that procVCPrev < VC(m2) in sender(m2)'s position.  This
--- is the second conjunct.  This should hopefully be easy because we
--- constructed procVCPrev this way.
-
--- | @vcInBetween@ says that, if we have two messages m1 and m2 with
--- distinct senders such that m1 -> m2, then there is some vector
--- clock value, procVCPrev, that is less than or equal to m1's VC in
--- sender(m2)'s position, and less than m2's VC in sender(m2)'s
--- position.
--- 
--- This is the case since in any execution that can occur, if m1 ->
--- m2, then m2's sender knows about m2's send at the time it sends m2,
--- but m1's sender cannot have known about m2's send at the time it
--- sends m1.  So m2 will have a VC with an entry in its own sender's
--- position that is, at a minimum, one larger than m1 in the
--- corresponding position, to account for its own send of m2.)
-{-@
-assume vcInBetween
+assume vcAxiom
     :: m1 : Message r
-    -> { m2 : Message r | mSender m1 /= mSender m2 }
+    -> m2 : Message r
     -> CausallyBefore {m1} {m2}
-    -> (procVcPrev :: VC,
-        { _:Proof | vcReadK (mSent m1) (mSender m2) <= vcReadK procVcPrev (mSender m2) &&
-                    vcReadK procVcPrev (mSender m2) <  vcReadK (mSent m2) (mSender m2) })
+    -> { _:Proof | vcReadK (mSent m1) (mSender m2) < vcReadK (mSent m2) (mSender m2) }
 @-}
-vcInBetween :: Message r -> Message r -> CausallyBefore -> (VC, Proof)
-vcInBetween _m1 _m2 _m1_before_m2 = (vcPrev m2, ())
+vcAxiom :: Message r -> Message r -> CausallyBefore -> Proof
+vcAxiom _m1 _m2 _m1_before_m2 = ()
 
--- | @processOrderAxiom@ says that every message sent by a given process has a
--- unique VC value at the sender position. (This follows from the fact that
--- events on a process have a total order.) This is enough to prove safety in
--- the same-sender case, because we already know that m1 -> m2, so we know that
--- for each position i in their respective VCs, VC(m1)[i] <= VC(m2)[i]. This
--- axiom rules out the case where they're equal, so then we know that VC(m1)[i]
--- < VC(m2)[i], which is the fact that LH needs to complete the proof.
-{-@
-assume processOrderAxiom
-    ::  m1 : Message r
-    ->  { m2 : Message r | m1 /= m2 }
-    ->  { _:Proof | mSender m1 == mSender m2 }
-    ->  { _:Proof | vcReadK (mSent m1) (mSender m1) != vcReadK (mSent m2) (mSender m2) }
-@-}
-processOrderAxiom :: Message r -> Message r -> Proof -> Proof
-processOrderAxiom _m1 _m2 _proof = ()
-
--- | @distinctAtSenderM2@ says that, given two distinct messages m1
--- and m2 where m1 -> m2, their VC entries are distinct in the
--- position of m2's sender.
-{-@
-distinctAtSenderM2
-    :: m1 : Message r
-    -> { m2 : Message r | m1 /= m2 }
-    -> CausallyBefore {m1} {m2}
-    -> { _:Proof | vcReadK (mSent m1) (mSender m2) != vcReadK (mSent m2) (mSender m2) }
-@-}
-distinctAtSenderM2 :: Message r -> Message r -> CausallyBefore -> Proof
-distinctAtSenderM2 m1 m2 m1_before_m2
-    | mSender m1 == mSender m2 = () ? processOrderAxiom m1 m2 ()
-    | mSender m1 /= mSender m2 = case (vcInBetween m1 m2 m1_before_m2) of
-        (_, proof) -> proof
-
--- | @safety2@ says that, given two distinct messages m1 and m2 where
--- m1 -> m2 and m2 is deliverable at p, m1 has already been delivered
+-- | @causalSafety@ says that, given two messages m1 and m2 where m1
+-- -> m2 and m2 is @deliverable@ at p, m1 has already been delivered
 -- at p.
-{-@ ple safety2 @-}
+{-@ ple causalSafety @-}
 {-@
-safety2
+causalSafety
     :: p : VC
     -> m1 : Message r
-    -> { m2 : Message r | m1 /= m2 }
+    -> m2 : Message r
     -> { _:Proof | deliverable m2 p }
-    -> { _:Proof | causallyBefore m1 m2 }
+    -> CausallyBefore {m1} {m2}
     -> Delivered {m1} {p}
 @-}
-safety2 :: VC -> Message r -> Message r -> Proof -> Proof -> Delivered
-safety2 p m1 m2 m2_deliverable_p m1_before_m2 k
-    | k /= mSender m2 = () ? (cb_implies_CB m1 m2 m1_before_m2) k
-                           ? (d_implies_D p m2 m2_deliverable_p) k
-    | k == mSender m2 = () ? (cb_implies_CB m1 m2 m1_before_m2) k
-                           ? (d_implies_D p m2 m2_deliverable_p) k
-                           ? distinctAtSenderM2 m1 m2 (cb_implies_CB m1 m2 m1_before_m2)
-                           *** QED                                        
+causalSafety :: VC -> Message r -> Message r -> Proof -> CausallyBefore -> Delivered
+causalSafety p m1 m2 m2_deliverable_p m1_before_m2 k
+    | k /= mSender m2 = () ? m1_before_m2 k
+                           ? (dImpliesD p m2 m2_deliverable_p) k
+    | k == mSender m2 = () ? m1_before_m2 k
+                           ? (dImpliesD p m2 m2_deliverable_p) k
+                           ? vcAxiom m1 m2 m1_before_m2
+                           *** QED                     
+                           
