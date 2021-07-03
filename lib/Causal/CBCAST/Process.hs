@@ -62,6 +62,7 @@ data Process r = Process
     , pDQ :: DQ r {pID}
     , pToSelf :: FIFO ({m:Message r | pID == mSender m})
     , pToNetwork :: FIFO ({m:Message r | pID == mSender m})
+    , pDelivered :: [VC]
     }
 @-}
 data Process r = Process
@@ -70,6 +71,7 @@ data Process r = Process
     , pDQ :: DQ r
     , pToSelf :: FIFO (Message r)
     , pToNetwork :: FIFO (Message r)
+    , pDelivered :: [VC]
     }
     deriving (Eq, Show)
 
@@ -84,5 +86,6 @@ pNew pid pCount = Process
     , pDQ = dqNew pid
     , pToSelf = fNew
     , pToNetwork = fNew
+    , pDelivered = []
     }
 {-@ inline pNew @-}
