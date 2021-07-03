@@ -265,5 +265,5 @@ drainBroadcasts p =
 -- VC [2,1,0]
 
 {-@ reflect delivered @-}
-delivered :: Process r -> VC -> Bool
-delivered p vc = listElem vc (pDelivered p)
+delivered :: Process r -> Message r -> Bool
+delivered p m = listElem (mSent m) (pDelivered p)
