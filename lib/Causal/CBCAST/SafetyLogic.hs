@@ -6,6 +6,9 @@ import Language.Haskell.Liquid.ProofCombinators
 import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
+import Causal.CBCAST.Process
+import Causal.CBCAST.Protocol
+import qualified Causal.CBCAST.DelayQueue -- LH breaks without this
 
 -- | The @CausallyBefore@ type makes use of the isomorphism between
 -- the vector clock ordering and the happens-before relation.
@@ -120,19 +123,13 @@ vcAxiom _m1 _m2 _m1_before_m2 = ()
 {-@ ple causalSafety @-}
 {-@
 causalSafety
-    :: p : VC
+    :: p : Process r
     -> m1 : Message r
     -> m2 : Message r
-    -> { _:Proof | deliverable m2 p }
-    -> CausallyBefore {m1} {m2}
-    -> Delivered {m1} {p}
+    -> { _:Proof | deliverable m2 (pVC p) }
+    -> { _:Proof | causallyBefore m1 m2 }
+    -> { _:Proof | delivered p m1 }
 @-}
-causalSafety :: VC -> Message r -> Message r -> Proof -> CausallyBefore -> Delivered
-causalSafety p m1 m2 m2_deliverable_p m1_before_m2 k
-    | k /= mSender m2 = () ? m1_before_m2 k
-                           ? (dImpliesD p m2 m2_deliverable_p) k
-    | k == mSender m2 = () ? m1_before_m2 k
-                           ? (dImpliesD p m2 m2_deliverable_p) k
-                           ? vcAxiom m1 m2 m1_before_m2
-                           *** QED                     
-                           
+causalSafety :: Process r -> Message r -> Message r -> Proof -> Proof -> Proof
+causalSafety p m1 m2 m2_deliverable_p m1_before_m2
+    = () *** Admit
