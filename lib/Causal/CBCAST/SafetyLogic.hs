@@ -19,16 +19,16 @@ type CausallyBefore M1 M2
 @-}
 type CausallyBefore = PID -> Proof
 
--- | The @Delivered@ type says that a message has been delivered at a
+-- | The @DeliveredVC@ type says that a message has been delivered at a
 -- process by checking the process's vector clock.  If the process VC
 -- is at least as big as the message VC, the message has been
 -- delivered.
 {-@
-type Delivered M P
+type DeliveredVC M P
     =   k : PID
-    ->  { _:Proof | vcReadK (mSent M) k <= vcReadK P k }
+    ->  { _:Proof | vcLessEqualK (mSent M) P k }
 @-}
-type Delivered = PID -> Proof
+type DeliveredVC = PID -> Proof
 
 -- | The @Deliverable@ type says that a message is deliverable at a
 -- process.  It is written terms of @deliverableK@.
@@ -128,7 +128,7 @@ causalSafety
     -> m2 : Message r
     -> { _:Proof | deliverable m2 (pVC p) }
     -> { _:Proof | causallyBefore m1 m2 }
-    -> { _:Proof | delivered p m1 }
+    -> { _:Proof | inDelivered p m1 }
 @-}
 causalSafety :: Process r -> Message r -> Message r -> Proof -> Proof -> Proof
 causalSafety p m1 m2 m2_deliverable_p m1_before_m2

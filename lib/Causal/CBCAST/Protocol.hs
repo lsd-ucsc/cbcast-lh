@@ -264,6 +264,6 @@ drainBroadcasts p =
 -- >>> pVC <$> readIORef carol
 -- VC [2,1,0]
 
-{-@ reflect delivered @-}
-delivered :: Process r -> Message r -> Bool
-delivered p m = listElem (mSent m) (pDelivered p)
+{-@ reflect inDelivered @-}
+inDelivered :: Process r -> Message r -> Bool
+inDelivered p m = listElem (mSent m) (pDelivered p)
