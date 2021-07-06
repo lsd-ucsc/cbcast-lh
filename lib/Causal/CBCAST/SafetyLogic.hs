@@ -7,42 +7,42 @@ import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 
--- | The @CausallyBefore@ type makes use of the isomorphism between
--- the vector clock ordering and the happens-before relation.
+-- | The @CausallyBeforeProp@ type makes use of the isomorphism
+-- between the vector clock ordering and the happens-before relation.
 {-@
-type CausallyBefore M1 M2
+type CausallyBeforeProp M1 M2
     =   k : PID
-    ->  { _:Proof | vcReadK (mSent M1) k            <= vcReadK (mSent M2) k
-                 &&          mSent M1               /=          mSent M2    }
+    ->  { _:Proof | vcReadK (mSent M1) k <= vcReadK (mSent M2) k
+                 &&          mSent M1    /=          mSent M2    }
 @-}
-type CausallyBefore = PID -> Proof
+type CausallyBeforeProp = PID -> Proof
 
--- | The @Delivered@ type says that a message has been delivered at a
+-- | The @DeliveredProp@ type says that a message has been delivered at a
 -- process by checking the process's vector clock.  If the process VC
 -- is at least as big as the message VC, the message has been
 -- delivered.
 {-@
-type Delivered M P
+type DeliveredProp M P
     =   k : PID
     ->  { _:Proof | vcReadK (mSent M) k <= vcReadK P k }
 @-}
-type Delivered = PID -> Proof
+type DeliveredProp = PID -> Proof
 
--- | The @Deliverable@ type says that a message is deliverable at a
+-- | The @DeliverableProp@ type says that a message is deliverable at a
 -- process.  It is written terms of @deliverableK@.
 {-@
-type Deliverable M P
+type DeliverableProp M P
     =  k : PID
     -> { _:Proof | deliverableK M P k }
 @-}
-type Deliverable = PID -> Proof
+type DeliverableProp = PID -> Proof
 
 -- | @iterImpliesForall@ lets us take a proof about a function that
 -- iterates a predicate over all entries in a vector clock, and turns
 -- it into a function that takes a vector clock index and returns a
 -- proof that the predicate holds at that particular index.  This is
 -- handy because it lets us turn a proof about the @deliverable@
--- function into a proof about @Deliverable@.
+-- function into a proof about @DeliverableProp@.
 {-@ ple iterImpliesForall @-}
 {-@
 iterImpliesForall
@@ -57,22 +57,23 @@ iterImpliesForall n p satisfied k
     | k == n - 1 = ()
     | k <  n - 1 = iterImpliesForall (n - 1) p satisfied k
 
--- | @dImpliesD@ converts a proof that a message m is @deliverable@ at
--- a process with VC procVC into a proof that m is @Deliverable@ at a
--- process with procVC.  The difference is that @deliverable@ iterates
--- over entries in a VC, while @Deliverable@ uses universal
--- quantification.  Converting to the latter makes the proof easier
--- for Liquid Haskell to carry out.
-{-@ ple dImpliesD @-}
+-- | @deliverableImpliesDeliverableProp@ converts a proof that a
+-- message m is @deliverable@ at a process with VC procVC into a proof
+-- that m is @DeliverableProp@ at a process with procVC.  The
+-- difference is that @deliverable@ iterates over entries in a VC,
+-- while @DeliverableProp@ uses universal quantification.  Converting
+-- to the latter makes the proof easier for Liquid Haskell to carry
+-- out.
+{-@ ple deliverableImpliesDeliverableProp @-}
 {-@
-dImpliesD
+deliverableImpliesDeliverableProp
     ::  p: VC
     ->  m : Message r
     ->  { _:Proof | deliverable m p }
-    ->  Deliverable m p
+    ->  DeliverableProp m p
 @-}
-dImpliesD :: VC -> Message r -> Proof -> Deliverable
-dImpliesD p m m_deliverable_p k =
+deliverableImpliesDeliverableProp :: VC -> Message r -> Proof -> DeliverableProp
+deliverableImpliesDeliverableProp p m m_deliverable_p k =
     iterImpliesForall (vcSize (mSent m)) (deliverableK m p) m_deliverable_p k
 
 -- | @vcAxiom@ encodes a standard observation about vector clocks: If
@@ -82,10 +83,10 @@ dImpliesD p m m_deliverable_p k =
 assume vcAxiom
     :: m1 : Message r
     -> m2 : Message r
-    -> CausallyBefore {m1} {m2}
+    -> CausallyBeforeProp {m1} {m2}
     -> { _:Proof | vcReadK (mSent m1) (mSender m2) < vcReadK (mSent m2) (mSender m2) }
 @-}
-vcAxiom :: Message r -> Message r -> CausallyBefore -> Proof
+vcAxiom :: Message r -> Message r -> CausallyBeforeProp -> Proof
 vcAxiom _m1 _m2 _m1_before_m2 = ()
 
 -- | @causalSafety@ says that, given two messages m1 and m2 where m1
@@ -94,19 +95,19 @@ vcAxiom _m1 _m2 _m1_before_m2 = ()
 {-@ ple causalSafety @-}
 {-@
 causalSafety
-    :: p : VC
+    :: procVc : VC
     -> m1 : Message r
     -> m2 : Message r
-    -> { _:Proof | deliverable m2 p }
-    -> CausallyBefore {m1} {m2}
-    -> Delivered {m1} {p}
+    -> { _:Proof | deliverable m2 procVc }
+    -> CausallyBeforeProp {m1} {m2}
+    -> DeliveredProp {m1} {procVc}
 @-}
-causalSafety :: VC -> Message r -> Message r -> Proof -> CausallyBefore -> Delivered
-causalSafety p m1 m2 m2_deliverable_p m1_before_m2 k
-    | k /= mSender m2 = () ? m1_before_m2 k
-                           ? (dImpliesD p m2 m2_deliverable_p) k
-    | k == mSender m2 = () ? m1_before_m2 k
-                           ? (dImpliesD p m2 m2_deliverable_p) k
-                           ? vcAxiom m1 m2 m1_before_m2
-                           *** QED                     
+causalSafety :: VC -> Message r -> Message r -> Proof -> CausallyBeforeProp -> DeliveredProp
+causalSafety procVc m1 m2 m2_deliverable_p m1_before_m2 k
+    | k /= mSender m2 = m1_before_m2 k
+                        ? (deliverableImpliesDeliverableProp procVc m2 m2_deliverable_p) k
+    | k == mSender m2 = m1_before_m2 k
+                        ? (deliverableImpliesDeliverableProp procVc m2 m2_deliverable_p) k
+                        ? vcAxiom m1 m2 m1_before_m2
+                        *** QED                     
                            
