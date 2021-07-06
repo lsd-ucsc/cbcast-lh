@@ -12,7 +12,8 @@ import Causal.CBCAST.Message
 {-@
 type CausallyBefore M1 M2
     =   k : PID
-    ->  { _:Proof | causallyBeforeK M1 M2 k }
+    ->  { _:Proof | vcReadK (mSent M1) k            <= vcReadK (mSent M2) k
+                 &&          mSent M1               /=          mSent M2    }
 @-}
 type CausallyBefore = PID -> Proof
 
@@ -73,33 +74,6 @@ dImpliesD
 dImpliesD :: VC -> Message r -> Proof -> Deliverable
 dImpliesD p m m_deliverable_p k =
     iterImpliesForall (vcSize (mSent m)) (deliverableK m p) m_deliverable_p k
-
-{-@ reflect causallyBeforeK @-}
-{-@
-causallyBeforeK :: Message r -> Message r -> PID -> Bool @-}
-causallyBeforeK :: Message r -> Message r -> PID -> Bool
-causallyBeforeK m1 m2 k = vcLessK (mSent m1) (mSent m2) k
-
-{-@ reflect causallyBefore @-}
-{-@
-causallyBefore :: Message r -> Message r -> Bool @-}
-causallyBefore :: Message r -> Message r -> Bool
-causallyBefore m1 m2 = vcLess (mSent m1) (mSent m2)
-
-{-@ ple cbImpliesCB@-}
-{-@
-cbImpliesCB
-    ::  m1 : Message r
-    ->  m2 : Message r
-    ->  { _:Proof | causallyBefore m1 m2 }
-    ->  CausallyBefore m1 m2
-@-}
-cbImpliesCB :: Message r -> Message r -> Proof -> CausallyBefore
-cbImpliesCB m1 m2 m1_before_m2 k =
-    iterImpliesForall (vcSize (mSent m1)) p m1_before_m2 k
-  where
---  p = causallyBeforeK m1 m2
-    p = vcLessK (mSent m1) (mSent m2) -- Why can't we use the commented p here?
 
 -- | @vcAxiom@ encodes a standard observation about vector clocks: If
 -- m1 -> m2, then VC(m1) will be strictly less than VC(m2) at the
