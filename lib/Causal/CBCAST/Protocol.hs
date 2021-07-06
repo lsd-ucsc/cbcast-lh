@@ -119,12 +119,12 @@ receive m p
 deliver :: Process r -> (Process r, Maybe (Message r))
 deliver p = case fPop (pToSelf p) of
     Just (m, toSelf) ->
-        ( p{pToSelf=toSelf, pVC=vcCombine (pVC p) (mSent m), pDelivered=mSent m:pDelivered p}
+        ( p{pToSelf=toSelf, pVC=vcCombine (pVC p) (mSent m)}
         , Just m
         )
     Nothing -> case dqDequeue (pVC p) (pDQ p) of
         Just (dq, m) ->
-            ( p{pDQ=dq, pVC=vcCombine (pVC p) (mSent m), pDelivered=mSent m:pDelivered p}
+            ( p{pDQ=dq, pVC=vcCombine (pVC p) (mSent m)}
             , Just m
             )
         Nothing -> (p, Nothing)
@@ -263,7 +263,3 @@ drainBroadcasts p =
 -- Just (Message {...[2,1,0]..."Glad to hear it!"})
 -- >>> pVC <$> readIORef carol
 -- VC [2,1,0]
-
-{-@ reflect inDelivered @-}
-inDelivered :: Process r -> Message r -> Bool
-inDelivered p m = listElem (mSent m) (pDelivered p)
