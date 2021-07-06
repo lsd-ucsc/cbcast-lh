@@ -103,6 +103,9 @@ assume deliveredPropImpliesDelivered
 deliveredPropImpliesDelivered :: Process r -> Message r -> DeliveredProp -> Proof
 deliveredPropImpliesDelivered _p _m _dp = ()
 
+-- | @causalSafety@ says that, given two messages m1 and m2 where m1
+-- -> m2 and m2 is @deliverable@ at p, m1 has already been delivered
+-- at p.
 {-@ ple causalSafety @-}
 {-@
 causalSafety
@@ -115,11 +118,8 @@ causalSafety
 @-}
 causalSafety :: Process r -> Message r -> Message r -> Proof -> CausallyBeforeProp -> Proof
 causalSafety p m1 m2 m2_deliverable_p m1_before_m2 =
-  deliveredPropImpliesDelivered p m1 (causalSafetyInner (pVC p) m1 m2 m2_deliverable_p m1_before_m2)
+    deliveredPropImpliesDelivered p m1 (causalSafetyInner (pVC p) m1 m2 m2_deliverable_p m1_before_m2)
 
--- | @causalSafety@ says that, given two messages m1 and m2 where m1
--- -> m2 and m2 is @deliverable@ at p, m1 has already been delivered
--- at p.
 {-@ ple causalSafetyInner @-}
 {-@
 causalSafetyInner
@@ -137,5 +137,3 @@ causalSafetyInner procVc m1 m2 m2_deliverable_p m1_before_m2 k
     | k == mSender m2 = m1_before_m2 k
                         ? (deliverableImpliesDeliverableProp procVc m2 m2_deliverable_p) k
                         ? vcAxiom m1 m2 m1_before_m2
-                        *** QED                     
-                           
