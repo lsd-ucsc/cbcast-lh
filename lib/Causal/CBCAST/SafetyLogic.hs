@@ -6,6 +6,9 @@ import Language.Haskell.Liquid.ProofCombinators
 import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
+import Causal.CBCAST.Process
+import Causal.CBCAST.Protocol
+import qualified Causal.CBCAST.DelayQueue -- LH breaks without this
 
 -- | The @CausallyBeforeProp@ type makes use of the isomorphism
 -- between the vector clock ordering and the happens-before relation.
@@ -89,12 +92,37 @@ assume vcAxiom
 vcAxiom :: Message r -> Message r -> CausallyBeforeProp -> Proof
 vcAxiom _m1 _m2 _m1_before_m2 = ()
 
--- | @causalSafety@ says that, given two messages m1 and m2 where m1
--- -> m2 and m2 is @deliverable@ at p, m1 has already been delivered
--- at p.
+{-@ ple deliveredPropImpliesDelivered @-}
+{-@
+assume deliveredPropImpliesDelivered
+    :: p : Process r
+    -> m : Message r
+    -> DeliveredProp {m} {(pVC p)}
+    -> { _:Proof | delivered p m }
+@-}
+deliveredPropImpliesDelivered :: Process r -> Message r -> DeliveredProp -> Proof
+deliveredPropImpliesDelivered _p _m _dp = ()
+
 {-@ ple causalSafety @-}
 {-@
 causalSafety
+    :: p : Process r
+    -> m1 : Message r
+    -> m2 : Message r
+    -> { _:Proof | deliverable m2 (pVC p) }
+    -> CausallyBeforeProp {m1} {m2}
+    -> { _:Proof | delivered p m1 }
+@-}
+causalSafety :: Process r -> Message r -> Message r -> Proof -> CausallyBeforeProp -> Proof
+causalSafety p m1 m2 m2_deliverable_p m1_before_m2 =
+  deliveredPropImpliesDelivered p m1 (causalSafetyInner (pVC p) m1 m2 m2_deliverable_p m1_before_m2)
+
+-- | @causalSafety@ says that, given two messages m1 and m2 where m1
+-- -> m2 and m2 is @deliverable@ at p, m1 has already been delivered
+-- at p.
+{-@ ple causalSafetyInner @-}
+{-@
+causalSafetyInner
     :: procVc : VC
     -> m1 : Message r
     -> m2 : Message r
@@ -102,8 +130,8 @@ causalSafety
     -> CausallyBeforeProp {m1} {m2}
     -> DeliveredProp {m1} {procVc}
 @-}
-causalSafety :: VC -> Message r -> Message r -> Proof -> CausallyBeforeProp -> DeliveredProp
-causalSafety procVc m1 m2 m2_deliverable_p m1_before_m2 k
+causalSafetyInner :: VC -> Message r -> Message r -> Proof -> CausallyBeforeProp -> DeliveredProp
+causalSafetyInner procVc m1 m2 m2_deliverable_p m1_before_m2 k
     | k /= mSender m2 = m1_before_m2 k
                         ? (deliverableImpliesDeliverableProp procVc m2 m2_deliverable_p) k
     | k == mSender m2 = m1_before_m2 k
