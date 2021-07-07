@@ -92,10 +92,10 @@ handlers nodeState kvState = serve
     kvHandlers :: Server (ToServantApi KvRoutes)
     kvHandlers
         =    (\key val -> liftIO . STM.atomically $ do
-                STM.modifyTVar' nodeState . CBCAST.send $ KvPut key val
+                STM.modifyTVar' nodeState . CBCAST.broadcast $ KvPut key val
                 return NoContent)
         :<|> (\key -> liftIO . STM.atomically $ do
-                STM.modifyTVar' nodeState . CBCAST.send $ KvDel key
+                STM.modifyTVar' nodeState . CBCAST.broadcast $ KvDel key
                 return NoContent)
         :<|> (\key -> do
                 kv <- liftIO $ STM.readTVarIO kvState
@@ -152,7 +152,7 @@ sendMailThread peers nodeState = do
 -- TODO tests
 feedPeerQueues :: STM.TVar NodeState -> [STM.TQueue (Int, Broadcast)] -> IO ()
 feedPeerQueues nodeState peerQueues = STM.atomically $ do
-    messages <- STM.stateTVar nodeState $ swap . CBCAST.drainBroadcasts
+    messages <- STM.stateTVar nodeState $ swap . CBCAST.convey
     STM.check . not $ null messages
     Monad.forM_ peerQueues $ \q ->
         Monad.forM_ messages $ \m ->

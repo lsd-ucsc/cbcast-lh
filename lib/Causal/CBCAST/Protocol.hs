@@ -25,12 +25,12 @@ import Causal.CBCAST.Process
 -- >>> pNew 0 2
 -- Process {pID = 0, pVC = VC [0,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO []}
 --
--- >>> send "hello" $ pNew 0 2
+-- >>> broadcast "hello" $ pNew 0 2
 -- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...VC [1,0]...], pToNetwork = FIFO [...VC [1,0]...]}
 --
-{-@ reflect send @-}
-send :: r -> Process r -> Process r
-send r p
+{-@ reflect broadcast @-}
+broadcast :: r -> Process r -> Process r
+broadcast r p
     = let
         vc = vcTick (pID p) (pVC p)
         m = Message{mSender=pID p, mSent=vc, mRaw=r}
@@ -88,12 +88,12 @@ receive m p
 --
 -- >>> let msgSelf = Message 0 (VC [1,0]) "hello"
 -- >>> let msgOther = Message 1 (VC [0,1]) "world"
--- >>> receive msgOther . send "hello" $ pNew 0 2
+-- >>> receive msgOther . broadcast "hello" $ pNew 0 2
 -- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [...], pToNetwork = FIFO [...]}
 --
 -- Deliver once: Messages from self take priority. VC is updated.
 --
--- >>> let (p, m) = deliver . receive msgOther . send "hello" $ pNew 0 2
+-- >>> let (p, m) = deliver . receive msgOther . broadcast "hello" $ pNew 0 2
 -- >>> p
 -- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = [...]}, pToSelf = FIFO [], pToNetwork = FIFO [...]}
 -- >>> m == Just msgSelf
@@ -101,7 +101,7 @@ receive m p
 --
 -- Deliver twice: Messages from other may be delivered. VC is updated.
 --
--- >>> let (p, m) = deliver . fst . deliver . receive msgOther . send "hello" $ pNew 0 2
+-- >>> let (p, m) = deliver . fst . deliver . receive msgOther . broadcast "hello" $ pNew 0 2
 -- >>> p
 -- Process {pID = 0, pVC = VC [1,1], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [], pToNetwork = FIFO [...]}
 -- >>> m == Just msgOther
@@ -132,18 +132,18 @@ deliver p = case fPop (pToSelf p) of
 -- | Remove and return all sent messages so the application can broadcast them
 -- (in sent-order, eg, with 'mapM_' or 'foldl'').
 --
--- >>> send "hello" $ pNew 0 2
+-- >>> broadcast "hello" $ pNew 0 2
 -- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...], pToNetwork = FIFO [...]}
 --
--- >>> let (p, ms) = drainBroadcasts . send "hello" $ pNew 0 2
+-- >>> let (p, ms) = convey . broadcast "hello" $ pNew 0 2
 -- >>> p
 -- Process {pID = 0, pVC = VC [1,0], pDQ = DelayQueue {...dqList = []}, pToSelf = FIFO [...], pToNetwork = FIFO []}
 -- >>> ms
 -- [Message {mSender = 0, mSent = VC [1,0], mRaw = "hello"}]
 --
-{-@ reflect drainBroadcasts @-}
-drainBroadcasts :: Process r -> (Process r, [Message r])
-drainBroadcasts p =
+{-@ reflect convey @-}
+convey :: Process r -> (Process r, [Message r])
+convey p =
     ( p{pToNetwork=fNew}
     , fList (pToNetwork p)
     )
@@ -159,10 +159,10 @@ drainBroadcasts p =
 -- >>> bob   <- newIORef (pNew 1 3 :: Process String)
 -- >>> carol <- newIORef (pNew 2 3 :: Process String)
 --
--- >>> modifyIORef alice $ send "I lost my wallet..."
+-- >>> modifyIORef alice $ broadcast "I lost my wallet..."
 -- >>> pVC <$> readIORef alice
 -- VC [1,0,0]
--- >>> aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+-- >>> aliceBcastLost <- atomicModifyIORef alice convey
 --
 -- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastLost
 -- >>> atomicModifyIORef bob deliver
@@ -170,10 +170,10 @@ drainBroadcasts p =
 -- >>> pVC <$> readIORef bob
 -- VC [1,0,0]
 --
--- >>> modifyIORef alice $ send "Found it!"
+-- >>> modifyIORef alice $ broadcast "Found it!"
 -- >>> pVC <$> readIORef alice
 -- VC [2,0,0]
--- >>> aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+-- >>> aliceBcastFound <- atomicModifyIORef alice convey
 --
 -- >>> -- Carol receives but the message is buffered
 -- >>> modifyIORef carol $ \p -> foldr receive p aliceBcastFound
@@ -205,10 +205,10 @@ drainBroadcasts p =
 -- >>> bob   <- newIORef (pNew 1 3 :: Process String)
 -- >>> carol <- newIORef (pNew 2 3 :: Process String)
 --
--- >>> modifyIORef alice $ send "I lost my wallet..."
+-- >>> modifyIORef alice $ broadcast "I lost my wallet..."
 -- >>> pVC <$> readIORef alice
 -- VC [1,0,0]
--- >>> aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+-- >>> aliceBcastLost <- atomicModifyIORef alice convey
 --
 -- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastLost
 -- >>> atomicModifyIORef bob deliver
@@ -216,10 +216,10 @@ drainBroadcasts p =
 -- >>> pVC <$> readIORef bob
 -- VC [1,0,0]
 --
--- >>> modifyIORef alice $ send "Found it!"
+-- >>> modifyIORef alice $ broadcast "Found it!"
 -- >>> pVC <$> readIORef alice
 -- VC [2,0,0]
--- >>> aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+-- >>> aliceBcastFound <- atomicModifyIORef alice convey
 --
 -- >>> modifyIORef bob $ \p -> foldr receive p aliceBcastFound
 -- >>> atomicModifyIORef bob deliver
@@ -233,10 +233,10 @@ drainBroadcasts p =
 -- >>> pVC <$> readIORef carol
 -- VC [1,0,0]
 --
--- >>> modifyIORef bob $ send "Glad to hear it!"
+-- >>> modifyIORef bob $ broadcast "Glad to hear it!"
 -- >>> pVC <$> readIORef bob
 -- VC [2,1,0]
--- >>> bobBcastGlad <- atomicModifyIORef bob drainBroadcasts
+-- >>> bobBcastGlad <- atomicModifyIORef bob convey
 --
 -- >>> modifyIORef alice $ \p -> foldr receive p bobBcastGlad
 -- >>> atomicModifyIORef alice deliver

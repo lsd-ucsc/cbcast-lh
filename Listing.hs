@@ -21,13 +21,13 @@ leftExample = do
 
     -- Alice sends 'lost' and their VC increments to [1,0,0].
     -- Alice's message is conveyed by transport.
-    modifyIORef alice $ send "I lost my wallet..."
-    aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+    modifyIORef alice $ broadcast "I lost my wallet..."
+    aliceBcastLost <- atomicModifyIORef alice convey
 
     -- Alice sends 'found' and their VC increments to [2,0,0].
     -- Alice's message is conveyed by transport.
-    modifyIORef alice $ send "Found it!"
-    aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+    modifyIORef alice $ broadcast "Found it!"
+    aliceBcastFound <- atomicModifyIORef alice convey
 
     -- Carol receives 'found' and delays it because it depends on 'lost'.
     modifyIORef carol $ \p -> foldr receive p aliceBcastFound
@@ -52,13 +52,13 @@ rightExample = do
 
     -- Alice sends 'lost' and their VC increments to [1,0,0].
     -- Alice's message is conveyed by transport.
-    modifyIORef alice $ send "I lost my wallet..."
-    aliceBcastLost <- atomicModifyIORef alice drainBroadcasts
+    modifyIORef alice $ broadcast "I lost my wallet..."
+    aliceBcastLost <- atomicModifyIORef alice convey
 
     -- Alice sends 'found' and their VC increments to [2,0,0].
     -- Alice's message is conveyed by transport.
-    modifyIORef alice $ send "Found it!"
-    aliceBcastFound <- atomicModifyIORef alice drainBroadcasts
+    modifyIORef alice $ broadcast "Found it!"
+    aliceBcastFound <- atomicModifyIORef alice convey
 
     -- Bob receives both 'lost' and 'found' and delivers them in causal order,
     -- updating their VC to [2,0,0].
@@ -72,8 +72,8 @@ rightExample = do
 
     -- Bob sends 'glad' and their VC increments to [2,1,0].
     -- Bob's message is conveyed by transport.
-    modifyIORef bob $ send "Glad to hear it!"
-    bobBcastGlad <- atomicModifyIORef bob drainBroadcasts
+    modifyIORef bob $ broadcast "Glad to hear it!"
+    bobBcastGlad <- atomicModifyIORef bob convey
 
     -- Carol receives 'glad' and delays it because it depends on 'found'.
     modifyIORef carol $ \p -> foldr receive p bobBcastGlad
