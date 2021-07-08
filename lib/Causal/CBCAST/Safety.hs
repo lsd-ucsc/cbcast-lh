@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs Redefined to be imported for specs
--- | Implementation of vector clocks and safety proof for deliverability
--- predicate. Safety proof uses implementation components as part of the spec.
+-- | Implementation of safety proof for deliverability predicate. Safety proof
+-- uses implementation components as part of the spec.
 --
 -- To follow the proof, start with VectorClock.hs, then Message.hs, then this
 -- file.
-module Causal.CBCAST.Safety where
+module Causal.CBCAST.SafetyLogic where
 
 import Language.Haskell.Liquid.ProofCombinators
 
@@ -12,108 +12,49 @@ import Redefined
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 
--- | page 7/278:
---
---      "The execution of a process is a partial ordered sequence of _events_,
---      each corresponding to the execution of an indivisible action. An
---      acyclic event order, denoted ->^p, reflects the dependence of events
---      occuring at process p upon one another."
---
---      "As Lamport [17], we define the potential causality relation for the
---      system, ->, as the transitive closure of the relation defined as
---      follows:
---
---      (1) if there-exists p: e ->^p e' then e -> e'
---      (2) for-all m: send(m) -> rcv(m)"
---
---      "For messages m and m', the notation m -> m' will be used as a
---      shorthand for send(m) -> send(m')."
---
--- Therefore 'causallyBeforeK' is an alias for 'vcLessK' with respect to
--- message sent times.
---
-{-@ reflect causallyBeforeK @-}
+-- | The @CausallyBeforeProp@ type makes use of the isomorphism
+-- between the vector clock ordering and the happens-before relation.
 {-@
-causallyBeforeK :: Message r -> Message r -> PID -> Bool @-}
-causallyBeforeK :: Message r -> Message r -> PID -> Bool
-causallyBeforeK m1 m2 k = vcLessK (mSent m1) (mSent m2) k
-
-{-@ reflect causallyBefore @-}
-{-@
-causallyBefore :: Message r -> Message r -> Bool @-}
-causallyBefore :: Message r -> Message r -> Bool
-causallyBefore m1 m2 = vcLess (mSent m1) (mSent m2)
-
--- | Property: 'causallyBeforeK' is true at all indexes.
-{-@
-type CausallyBeforePropK M1 M2 = k:PID -> { _:Proof | causallyBeforeK M1 M2 k } @-}
-type CausallyBeforePropK = PID -> Proof
-
--- | Property: 'deliverableK' is true at all indexes.
-{-@
-type DeliverablePropK M P = k:PID -> { _:Proof | deliverableK M P k } @-}
-type DeliverablePropK = PID -> Proof
-
-{-@ ple causallyOrderedMessagesDistinct @-}
-{-@
-assume causallyOrderedMessagesDistinct
-    ::  m1: Message r
-    ->  m2: Message r
-    -> {_: Proof | causallyBefore m1 m2 }
-    -> {_: Proof | m1 != m2 }
+type CausallyBeforeProp M1 M2
+    =   k : PID
+    ->  { _:Proof | vcReadK (mSent M1) k <= vcReadK (mSent M2) k
+                 &&          mSent M1    /=          mSent M2    }
 @-}
-causallyOrderedMessagesDistinct :: Message r -> Message r -> Proof -> Proof
-causallyOrderedMessagesDistinct _m1 _m2 _cbp = ()
+type CausallyBeforeProp = PID -> Proof
 
--- | @processOrderAxiom@ says that every message sent by a given process has a
--- unique VC value at the sender position. (This follows from the fact that
--- events on a process have a total order.) This is enough to prove safety in
--- the same-sender case, because we already know that m1 -> m2, so we know that
--- for each position i in their respective VCs, VC(m1)[i] <= VC(m2)[i]. This
--- axiom rules out the case where they're equal, so then we know that VC(m1)[i]
--- < VC(m2)[i], which is the fact that LH needs to complete the proof.
+-- | The @DeliveredProp@ type says that a message has been delivered at a
+-- process by checking the process's vector clock.  If the process VC
+-- is at least as big as the message VC, the message has been
+-- delivered.
 {-@
-assume processOrderAxiom
-    ::  m1 : Message r
-    ->  { m2 : Message r | m1 != m2 }
-    ->  { _:Proof | mSender m1 == mSender m2 }
-    ->  { _:Proof | vcReadK (mSent m1) (mSender m1) != vcReadK (mSent m2) (mSender m2) }
+type DeliveredProp M P
+    =   k : PID
+    ->  { _:Proof | vcReadK (mSent M) k <= vcReadK P k }
 @-}
-processOrderAxiom :: Message r -> Message r -> Proof -> Proof
-processOrderAxiom _m1 _m2 _proof = ()
+type DeliveredProp = PID -> Proof
 
--- | page 8/279:
---
---      "Two types of delivery ordering will be of interest here. We define the
---      causal delivery ordering for multicast messages m and m' as follows:
---
---          m -> m' => for-all p element-of dests(m) intersect dests(m'):
---                      deliver(m) ->^p deliver(m')
---
---      CBCAST provides only the causal delivery ordering."
---
--- page 10/281:
---
---      "Suppose that a set of processes P communicate using only broadcasts to
---      the full set of processes in the system; that is,
---      for-all m: dests(m) = P."
---
---      "We now develop a _delivery protocol_ by which each process p receives
---      messages sent to it, delays them if necessary, and then delivers them
---      in an order consistent with causality:
---
---          m -> m' => for-all p: deliver_p(m) ->^p deliver_p(m')"
---
--- The actual property we're proving, however, is the "causal safety
--- of delivery" property about our deliverable predicate.
+-- | The @DeliverableProp@ type says that a message is deliverable at a
+-- process.  It is written terms of @deliverableK@.
+{-@
+type DeliverableProp M P
+    =  k : PID
+    -> { _:Proof | deliverableK M P k }
+@-}
+type DeliverableProp = PID -> Proof
 
+-- | @iterImpliesForall@ lets us take a proof about a function that
+-- iterates a predicate over all entries in a vector clock, and turns
+-- it into a function that takes a vector clock index and returns a
+-- proof that the predicate holds at that particular index.  This is
+-- handy because it lets us turn a proof about the @deliverable@
+-- function into a proof about @DeliverableProp@.
 {-@ ple iterImpliesForall @-}
 {-@
 iterImpliesForall
-    :: n:Nat
-    -> p:(Fin {n} -> Bool)
+    :: n : Nat
+    -> p : (Fin {n} -> Bool)
     -> { _:Proof | iter n p }
-    -> (k:Fin {n} -> { _:Proof | p k })
+    -> (k : Fin {n} -> { _:Proof | p k })
 @-}
 iterImpliesForall :: Int -> (Fin -> Bool) -> Proof -> (Fin -> Proof)
 iterImpliesForall n p satisfied k
@@ -121,171 +62,57 @@ iterImpliesForall n p satisfied k
     | k == n - 1 = ()
     | k <  n - 1 = iterImpliesForall (n - 1) p satisfied k
 
-{-@ ple d_implies_dk @-}
+-- | @deliverableImpliesDeliverableProp@ converts a proof that a
+-- message m is @deliverable@ at a process with VC procVC into a proof
+-- that m is @DeliverableProp@ at a process with procVC.  The
+-- difference is that @deliverable@ iterates over entries in a VC,
+-- while @DeliverableProp@ uses universal quantification.  Converting
+-- to the latter makes the proof easier for Liquid Haskell to carry
+-- out.
+{-@ ple deliverableImpliesDeliverableProp @-}
 {-@
-d_implies_dk
-    ::  procVc: VC
+deliverableImpliesDeliverableProp
+    ::  p: VC
     ->  m : Message r
-    ->  { _:Proof | deliverable m procVc }
-    ->  DeliverablePropK m procVc
+    ->  { _:Proof | deliverable m p }
+    ->  DeliverableProp m p
 @-}
-d_implies_dk :: VC -> Message r -> Proof -> (PID -> Proof)
-d_implies_dk procVc m deliverableSatisfied pid =
-    iterImpliesForall (vcSize (mSent m)) (deliverableK m procVc) deliverableSatisfied pid
+deliverableImpliesDeliverableProp :: VC -> Message r -> Proof -> DeliverableProp
+deliverableImpliesDeliverableProp p m m_deliverable_p k =
+    iterImpliesForall (vcSize (mSent m)) (deliverableK m p) m_deliverable_p k
 
--- Question for Niki: Why can't we use (vcSize procVc) here? vcSize always
--- returns procCount. We can swap it out for undefined and things work,
--- because of the type of vcSize. What's going on when we use procVc?
---
--- Question for Niki: When passing in the second argument as a parenthesized
--- expression, LH fails to give us the required type. If we define it, as a
--- variable we get a proper required type.
---
--- Question for Niki: Why must cb_implies_cbk use p as vcLessK instead of p as
--- causallyBeforeK?
-
-{-@ ple cb_implies_cbk @-}
+-- | @vcAxiom@ encodes a standard observation about vector clocks: If
+-- m1 -> m2, then VC(m1) will be strictly less than VC(m2) at the
+-- index of m2's sender.
 {-@
-cb_implies_cbk
-    ::  m1 : Message r
-    ->  m2 : Message r
-    ->  { _:Proof | causallyBefore m1 m2 }
-    ->  CausallyBeforePropK m1 m2
+assume vcAxiom
+    :: m1 : Message r
+    -> m2 : Message r
+    -> CausallyBeforeProp {m1} {m2}
+    -> { _:Proof | vcReadK (mSent m1) (mSender m2) < vcReadK (mSent m2) (mSender m2) }
 @-}
-cb_implies_cbk :: Message r -> Message r -> Proof -> (PID -> Proof)
-cb_implies_cbk m1 m2 causallyBeforeSatisfied pid =
-    iterImpliesForall (vcSize (mSent m1)) p causallyBeforeSatisfied pid
-  where
---  p = causallyBeforeK m1 m2
-    p = vcLessK (mSent m1) (mSent m2)
+vcAxiom :: Message r -> Message r -> CausallyBeforeProp -> Proof
+vcAxiom _m1 _m2 _m1_before_m2 = ()
 
-{-@ ple safety @-}
+-- | @causalSafety@ says that, given two messages m1 and m2 where m1
+-- -> m2 and m2 is @deliverable@ at p, m1 has already been delivered
+-- at p.
+{-@ ple causalSafety @-}
 {-@
-safety
-    ::  procVc : VC
-    ->  m1 : Message r
-    ->  m2 : Message r
-    ->  { _:Proof | deliverable m1 procVc }
-    ->  { _:Proof | causallyBefore m1 m2 }
-    ->  { _:Proof | deliverable m2 procVc }
-    ->  { _:Proof | false }
+causalSafety
+    :: procVc : VC
+    -> m1 : Message r
+    -> m2 : Message r
+    -> { _:Proof | deliverable m2 procVc }
+    -> CausallyBeforeProp {m1} {m2}
+    -> DeliveredProp {m1} {procVc}
 @-}
-safety :: VC -> Message r -> Message r -> Proof -> Proof -> Proof -> Proof
-safety procVc m1 m2 m1_d_p m1_before_m2 m2_d_p
-    | mSender m1 == mSender m2
-        =   ()
-            ? (d_implies_dk procVc m1 m1_d_p) (mSender m1)
-            ? (d_implies_dk procVc m2 m2_d_p) (mSender m2)
-            ? causallyOrderedMessagesDistinct m1 m2 m1_before_m2
-            ? processOrderAxiom m1 m2 ()
-            *** QED
-    | otherwise
-        =   ()
-            ? (cb_implies_cbk m1 m2 m1_before_m2) (mSender m1)
-            ? (d_implies_dk procVc m1 m1_d_p) (mSender m1)
-            ? (d_implies_dk procVc m2 m2_d_p) (mSender m1)
-            *** QED
-
--- * Safety using deliverable/delivered
-
-
-
--- Problem: we don't have an implementation of `delivered`.
--- How are we going to do that?
--- Like this??
-{-@ reflect delivered @-}
-delivered :: Message r -> VC -> Bool
-delivered m procVc = mSent m `vcLessEqual` procVc
--- Gan: the line above implies the line below, so either of these definitions
--- is correct given the coupling of all parts of the implementation (this
--- delivered is only correct w.r.t. CBCAST deliverable)
-  where
-    alternativeDefn m procVc = (mSent m ! mSender m) <= (procVc ! mSender m) -- (mSent m)[sender] <= vcProc[sender]
-
----- -- "A property of executions"
----- {-@
----- type CausalDelivery execution process message ProcessOrder CausallyBefore Delivery
-----     =  ex : execution
-----     -> p  : process
-----     -> m1 : message
-----     -> m2 : message
-----     -> { _:Proof | CausallyBefore m1 m2 }
-----     -> { _:Proof | ProcessOrder ex (Delivery p m1) (Delivery p m2) }
----- @-}
----- 
----- type Goal
-----     =  CausalSafety process message
-----     -> CausalDelivery execution process message
-
-
-data CausallySafe process message = CausallySafe
-    { csCausallyBefore :: message -> message -> Bool
-    , csDelivered :: message -> process -> Bool
-    , csDeliverable :: message -> process -> Bool
-    , csLawCausallySafe :: process -> message -> message -> Proof -> Proof -> Proof
-    }
-{-@
-data CausallySafe process message = CausallySafe
-    { csCausallyBefore :: message -> message -> Bool
-    , csDeliverable :: message -> process -> Bool
-    , csDelivered :: message -> process -> Bool
-    , csLawCausallySafe
-        ::  p : process
-        -> m1 : message
-        -> m2 : message
-        -> { _:Proof | csCausallyBefore m1 m2 }
-        -> { _:Proof | csDeliverable m2 p }
-        -> { _:Proof | csDelivered m1 p }
-    }
-@-}
-cbcast :: CausallySafe VC (Message r)
-cbcast = CausallySafe
-    { csCausallyBefore = causallyBefore
-    , csDeliverable = deliverable
-    , csDelivered = delivered
-    , csLawCausallySafe = proof
-    }
-  where
-    proof _p _m1 _m2 m1_before_m2@() m2_deliverable_p@()
-        = () *** Admit
-        -- Goal: m1_delivered_at_p
-
--- "A property of programs"
-{-@
-type CausallySafe_ process message CausallyBefore Delivered Deliverable
-    =  p : process
-    -> m1 : message
-    -> m2 : message
-    -> { _:Proof | CausallyBefore m1 m2 }
-    -> { _:Proof | Deliverable m2 p }
-    -> { _:Proof | Delivered m1 p }
-@-}
-type CausallySafe_ process message
-    =  process
-    -> message
-    -> message
-    -> Proof
-    -> Proof
-    -> Proof
-
--- "A property of an implementation"
-{-@ ple safety2 @-}
-{-@ safety2 :: CausallySafe_ VC (Message r) {causallyBefore} {delivered} {deliverable} @-}
-safety2 :: CausallySafe_ VC (Message r)
-safety2 p m1 m2 m1_before_m2@() m2_deliverable_p@()
-    =   True
-    ==! delivered m1 p
-    *** Admit
-    -- m1_delivered_at_p
-
--- Causal safety (the NEW version):
--- a predicate d of type Deliverable =  Message -> Process -> Bool
--- is Causally Safe (TM) if,
--- if m1 happens before m2 and m2 is deliverable at p according to d,
--- then m1 has already been delivered at p.
-
--- TODO: a definition of causal safety in LH.
-
--- TODO: Causal safety implies causal delivery.
--- This one is not specific to any implementation of `deliverable`!
-type Deliverable r = Message r -> VC -> Bool
+causalSafety :: VC -> Message r -> Message r -> Proof -> CausallyBeforeProp -> DeliveredProp
+causalSafety procVc m1 m2 m2_deliverable_p m1_before_m2 k
+    | k /= mSender m2 = m1_before_m2 k
+                        ? (deliverableImpliesDeliverableProp procVc m2 m2_deliverable_p) k
+    | k == mSender m2 = m1_before_m2 k
+                        ? (deliverableImpliesDeliverableProp procVc m2 m2_deliverable_p) k
+                        ? vcAxiom m1 m2 m1_before_m2
+                        *** QED                     
+                           
