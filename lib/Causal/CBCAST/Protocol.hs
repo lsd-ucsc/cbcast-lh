@@ -116,6 +116,13 @@ receive m p
 -- True
 --
 {-@ reflect deliver @-}
+{-@
+deliver
+    :: p:Process r
+    ->  ( Process r
+        , Maybe ({m:Message r | mSender m /= pID p => deliverable m (pVC p)})
+        )
+@-}
 deliver :: Process r -> (Process r, Maybe (Message r))
 deliver p = case fPop (pToSelf p) of
     Just (m, toSelf) ->
