@@ -4,7 +4,7 @@
 --
 -- To follow the proof, start with VectorClock.hs, then Message.hs, then this
 -- file.
-module Causal.CBCAST.SafetyLogic where
+module Causal.CBCAST.Safety where
 
 import Language.Haskell.Liquid.ProofCombinators
 
