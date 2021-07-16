@@ -1,5 +1,6 @@
 module Redefined.List where
 
+import Redefined.Bool
 import Redefined.Fin ()
 
 -- $setup
@@ -16,15 +17,6 @@ import Redefined.Fin ()
 listLength :: [a] -> Int
 listLength [] = 0
 listLength (_x:xs) = 1 + listLength xs
-
--- | Implementation of 'and' lifted to specifications. Probably same as
--- 'Prelude'.
---
--- prop> and xs == listAnd xs
-{-@ reflect listAnd @-} -- FIXME: this causes a crash when it's a measure?
-listAnd :: [Bool] -> Bool
-listAnd [] = True
-listAnd (b:bs) = b && listAnd bs
 
 -- | Implementation of 'replicate' lifted to specifications. Probably same as
 -- that of 'Prelude'.
@@ -46,15 +38,6 @@ listMap :: (a -> b) -> [a] -> [b]
 listMap f (x:xs) = f x:listMap f xs
 listMap _ [] = []
 
--- | Implementation of 'foldl' lifted to specifications. Probably same as
--- 'Prelude'.
---
--- prop> foldl f acc xs == listFoldl f acc xs
-{-@ reflect listFoldl @-}
-listFoldl :: (b -> a -> b) -> b -> [a] -> b
-listFoldl f acc (x:xs) = listFoldl f (f acc x) xs
-listFoldl _ acc [] = acc
-
 -- | Implementation of 'foldr' lifted to specifications. Probably same as
 -- 'Prelude'.
 --
@@ -63,6 +46,22 @@ listFoldl _ acc [] = acc
 listFoldr :: (a -> b -> b) -> b -> [a] -> b
 listFoldr f acc (x:xs) = f x (listFoldr f acc xs)
 listFoldr _ acc [] = acc
+
+-- | Implementation of 'and' lifted to specifications. Probably same as
+-- 'Prelude'.
+--
+-- prop> and xs == listAnd xs
+{-@ reflect listAnd @-} -- FIXME: this causes a crash when it's a measure?
+listAnd :: [Bool] -> Bool
+listAnd = listFoldr boolAnd True
+
+-- | Implementation of 'or' lifted to specifications. Probably same as
+-- 'Prelude'.
+--
+-- prop> or xs == listOr xs
+{-@ reflect listOr @-} -- FIXME: this causes a crash when it's a measure?
+listOr :: [Bool] -> Bool
+listOr = listFoldr boolOr False
 
 -- | Implementation of 'reverse' lifted to specifications. Copied from
 -- 'Prelude'.

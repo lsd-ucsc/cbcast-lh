@@ -25,6 +25,8 @@ import Redefined.Set as X
 funFlip :: (a -> b -> c) -> b -> a -> c
 funFlip f b a = f a b
 
+-- * LiquidHaskell proof-combinators reimplemented
+
 -- | Implementation of 'impossible' lifted to specifications. similar to the
 -- one in 'Language.Haskell.Liquid.ProofCombinators'.
 {-@ inline impossibleConst @-}
@@ -35,6 +37,16 @@ impossibleConst a _ = a
 {-@ inline proofConst @-}
 proofConst :: a -> b -> a
 proofConst x _ = x
+
+-- * Racket things reimplemented
+
+{-@ reflect listAndMap @-}
+listAndMap :: (a -> Bool) -> [a] -> Bool
+listAndMap f xs = listAnd (listMap f xs)
+
+{-@ reflect listOrMap @-}
+listOrMap :: (a -> Bool) -> [a] -> Bool
+listOrMap f xs = listOr (listMap f xs)
 
 -- * Agda things reimplemented
 
