@@ -3,66 +3,36 @@ module Causal.CBCAST.Execution where
 
 import Redefined
 
----- -- Can we refine type parameters using a measure of the outer structure?
-----
----- {-@ type IndexesN N = { xs:[ {n:Int | n < N} ] | len xs == N } @-}
----- {-@ type Indexes = xs:IndexesN {len xs} @-}
----- 
----- {-@ a :: Indexes @-}
----- a :: [Int]
----- a = [0, 2, 0]
----- 
----- {-@ fail b @-}
----- {-@ b :: Indexes @-}
----- b :: [Int]
----- b = [0, 3, 0]
----- 
----- {-@ fail c @-}
----- {-@ c :: Indexes @-}
----- c :: [Int]
----- c = [0, 2]
-
----- -- Can we define an adjacency list?
-----
----- type AdjacencyList = [Set Fin]
----- {-@ type AdjacencyListN N = { xs : [Set (Fin {N})] | listLength xs == N } @-}
----- -- {-@ type AdjacencyList    = { xs : AdjacencyListN {listLength xs} | True } @-}
----- 
----- eg2 :: AdjacencyList
----- {-@ eg2 :: AdjacencyListN {0} @-}
----- eg2 = []
----- 
----- -- https://jamboard.google.com/d/1JRk9aN0vcIwFiObGgWm1A6QMzJBkd1teWfz7ThNO6kM/viewer?f=0
----- eg :: AdjacencyList
----- {-@ eg :: AdjacencyListN {6} @-}
----- eg = [ setFromList []
-----     , setFromList [0]
-----     , setFromList [0]
-----     , setFromList [2, 1]
-----     , setFromList [3]
-----     , setFromList [4, 3]
-----     ]
-
--- Can we make the adjacency list structurally recursive so that recursive functions can traverse it and return smaller parts?
+-- | Define directed acyclic graph in adjacency list representation suitable
+-- for structurally recursive traversal which maintains appropriate size and
+-- indexing relationships.
 --
--- N == 0       []
---               0
--- N == 1       [{}] 
---               0  1
--- N == 2       [{},{}]
---           or [{},{0}]
---               0  1  2
--- N == 3       [{},{},{}]
---           or [{},{},{0}]
---           or [{},{},{1}]
---           or [{},{0},{}]
---           or [{},{0},{0}]
---           or [{},{0},{1}]
+-- N == 0
+--          []
+--
+-- N == 1
+--           0
+--          [{}]
+--
+-- N == 2
+--           0  1
+--          [{},{}]
+--       or [{},{0}]
+--
+-- N == 3
+--           0  1  2
+--          [{},{},{}]
+--       or [{},{},{0}]
+--       or [{},{},{1}]
+--       or [{},{0},{}]
+--       or [{},{0},{0}]
+--       or [{},{0},{1}]
 --
 -- Invariant:
 --  * The node with index i:Nat may contain edges to k:Nat|k<i
 
--- Constrain dests of the current node (gHead) to make this a DAG.
+-- Constrain neighbors of the current node (gHead) to those in the rest of the
+-- graph (gTail).
 data DAG = DAGnil | DAGcons DAG (Set DAGnode)
 {-@
 data DAG = DAGnil | DAGcons
@@ -130,7 +100,8 @@ n4enn = DAGnil
     `DAGcons` setFromList [0]   -- 2
     `DAGcons` setFromList [0,1] -- 3
 
--- | Index into the DAG adjacency list and return the adjacency set of the i-th member from Nil.
+-- | Index into the DAG adjacency list and return the neighbor set of the i-th
+-- node away from nil.
 {-@ gNeighbors :: xs:DAG -> i:DAGnode {xs} -> Set (Fin i) @-}
 gNeighbors :: DAG -> Int -> Set Fin
 gNeighbors DAGnil _i = setEmpty
