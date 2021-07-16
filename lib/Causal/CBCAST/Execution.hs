@@ -46,9 +46,12 @@ import Redefined
 -- Can we make the adjacency list structurally recursive so that recursive functions can traverse it and return smaller parts?
 --
 -- N == 0       []
+--               0
 -- N == 1       [{}] 
+--               0  1
 -- N == 2       [{},{}]
 --           or [{},{0}]
+--               0  1  2
 -- N == 3       [{},{},{}]
 --           or [{},{},{0}]
 --           or [{},{},{1}]
@@ -111,11 +114,23 @@ n2e = DAGnil `DAGcons` setFromList [] `DAGcons` setFromList [1]
 --   3
 n4diamond :: DAG
 n4diamond = DAGnil
-    `DAGcons` setFromList []
-    `DAGcons` setFromList [0]
-    `DAGcons` setFromList [0]
-    `DAGcons` setFromList [1,2]
+    `DAGcons` setFromList []    -- 0
+    `DAGcons` setFromList [0]   -- 1
+    `DAGcons` setFromList [0]   -- 2
+    `DAGcons` setFromList [1,2] -- 3
 
+-- 0  1
+-- |\ |
+-- | \|
+-- 2  3
+n4enn :: DAG
+n4enn = DAGnil
+    `DAGcons` setFromList []    -- 0
+    `DAGcons` setFromList []    -- 1
+    `DAGcons` setFromList [0]   -- 2
+    `DAGcons` setFromList [0,1] -- 3
+
+-- | Index into the DAG adjacency list and return the adjacency set of the i-th member from Nil.
 {-@ gNeighbors :: xs:DAG -> i:DAGnode {xs} -> Set (Fin i) @-}
 gNeighbors :: DAG -> Int -> Set Fin
 gNeighbors DAGnil _i = setEmpty
@@ -123,6 +138,27 @@ gNeighbors (DAGcons gTail gHead) i
     | gSize gTail == i = gHead
     | otherwise = gNeighbors gTail i
 
+-- | Is dest in the neighbor-set of src, or transitively in any of their
+-- neighbor sets?
+--
+-- >>> listMap (gReachable n4diamond 0) [0, 1, 2, 3]
+-- [False,False,False,False]
+-- >>> listMap (gReachable n4diamond 1) [0, 1, 2, 3]
+-- [True,False,False,False]
+-- >>> listMap (gReachable n4diamond 2) [0, 1, 2, 3]
+-- [True,False,False,False]
+-- >>> listMap (gReachable n4diamond 3) [0, 1, 2, 3]
+-- [True,True,True,False]
+--
+-- >>> listMap (gReachable n4enn 0) [0, 1, 2, 3]
+-- [False,False,False,False]
+-- >>> listMap (gReachable n4enn 1) [0, 1, 2, 3]
+-- [False,False,False,False]
+-- >>> listMap (gReachable n4enn 2) [0, 1, 2, 3]
+-- [True,False,False,False]
+-- >>> listMap (gReachable n4enn 3) [0, 1, 2, 3]
+-- [True,True,False,False]
+--
 {-@ gReachable :: xs:DAG -> src:DAGnode {xs} -> dest:Nat -> Bool @-}
 gReachable :: DAG -> Int -> Int -> Bool
 gReachable graph src dest = case graph of
