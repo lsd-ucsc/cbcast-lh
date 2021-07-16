@@ -72,6 +72,9 @@ dagajSize :: DAGAJList -> Int
 dagajSize DAGAJNil = 0
 dagajSize (DAGAJCons tl _) = 1 + dagajSize tl
 
+{-@ type DAGAJIndex XS = Fin {dagajSize XS} @-}
+type DAGAJIndex = Fin
+
 n0 :: DAGAJList
 n0 = DAGAJNil
 
@@ -112,6 +115,13 @@ n4diamond =
     `DAGAJCons` setFromList [0]
     `DAGAJCons` setFromList [0]
     `DAGAJCons` setFromList [1,2]
+
+{-@ dagajIndex :: xs:DAGAJList -> i:DAGAJIndex {xs} -> Set (Fin i) @-}
+dagajIndex :: DAGAJList -> Int -> Set Fin
+dagajIndex DAGAJNil _ = setEmpty
+dagajIndex (DAGAJCons tl hd) i
+    | dagajSize tl == i = hd
+    | otherwise = dagajIndex tl i
 
 
 --- type AdjacencyList a = [(a, Set Fin)]
