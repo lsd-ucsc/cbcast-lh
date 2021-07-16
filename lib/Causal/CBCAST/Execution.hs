@@ -59,80 +59,79 @@ import Redefined
 -- Invariant:
 --  * The node with index i:Nat may contain edges to k:Nat|k<i
 
--- Constrain dests of the current node (graphHead) to make this a DAG.
-data DAGAJList = DAGAJNil | DAGAJCons DAGAJList (Set DAGAJNode)
+-- Constrain dests of the current node (gHead) to make this a DAG.
+data DAG = DAGnil | DAGcons DAG (Set DAGnode)
 {-@
-data DAGAJList = DAGAJNil | DAGAJCons
-    { graphTail :: DAGAJList
-    , graphHead :: Set (DAGAJNode {graphTail})
+data DAG = DAGnil | DAGcons
+    { gTail :: DAG
+    , gHead :: Set (DAGnode {gTail})
     }
 @-}
 
-{-@ measure dagajSize @-}
-dagajSize :: DAGAJList -> Int
-dagajSize DAGAJNil = 0
-dagajSize (DAGAJCons graphTail _) = 1 + dagajSize graphTail
+{-@ measure gSize @-}
+gSize :: DAG -> Int
+gSize DAGnil = 0
+gSize (DAGcons gTail _gHead) = 1 + gSize gTail
 
-type DAGAJNode = Fin
-{-@ type DAGAJNode XS = Fin {dagajSize XS} @-}
+type DAGnode = Fin
+{-@ type DAGnode XS = Fin {gSize XS} @-}
 
-n0 :: DAGAJList
-n0 = DAGAJNil
+n0 :: DAG
+n0 = DAGnil
 
-n1a :: DAGAJList
-n1a = DAGAJNil `DAGAJCons` setFromList []
+n1a :: DAG
+n1a = DAGnil `DAGcons` setFromList []
 
 {-@ fail n1b @-} -- Node cannot have a cycle pointing at itself.
-n1b :: DAGAJList
-n1b = DAGAJNil `DAGAJCons` setFromList [0]
+n1b :: DAG
+n1b = DAGnil `DAGcons` setFromList [0]
 
-n2a :: DAGAJList
-n2a = DAGAJNil `DAGAJCons` setFromList [] `DAGAJCons` setFromList []
+n2a :: DAG
+n2a = DAGnil `DAGcons` setFromList [] `DAGcons` setFromList []
 
-n2b :: DAGAJList
-n2b = DAGAJNil `DAGAJCons` setFromList [] `DAGAJCons` setFromList [0]
+n2b :: DAG
+n2b = DAGnil `DAGcons` setFromList [] `DAGcons` setFromList [0]
 
 {-@ fail n2c @-} -- Node cannot point to itself.
-n2c :: DAGAJList
-n2c = DAGAJNil `DAGAJCons` setFromList [0] `DAGAJCons` setFromList []
+n2c :: DAG
+n2c = DAGnil `DAGcons` setFromList [0] `DAGcons` setFromList []
 
 {-@ fail n2d @-} -- Node cannot point to later nodes.
-n2d :: DAGAJList
-n2d = DAGAJNil `DAGAJCons` setFromList [1] `DAGAJCons` setFromList []
+n2d :: DAG
+n2d = DAGnil `DAGcons` setFromList [1] `DAGcons` setFromList []
 
 {-@ fail n2e @-} -- Node cannot point to itself
-n2e :: DAGAJList
-n2e = DAGAJNil `DAGAJCons` setFromList [] `DAGAJCons` setFromList [1]
+n2e :: DAG
+n2e = DAGnil `DAGcons` setFromList [] `DAGcons` setFromList [1]
 
 --   0
 --  / \
 -- 1   2
 --  \ /
 --   3
-n4diamond :: DAGAJList
-n4diamond =
-    DAGAJNil
-    `DAGAJCons` setFromList []
-    `DAGAJCons` setFromList [0]
-    `DAGAJCons` setFromList [0]
-    `DAGAJCons` setFromList [1,2]
+n4diamond :: DAG
+n4diamond = DAGnil
+    `DAGcons` setFromList []
+    `DAGcons` setFromList [0]
+    `DAGcons` setFromList [0]
+    `DAGcons` setFromList [1,2]
 
-{-@ dagajNeighbors :: xs:DAGAJList -> i:DAGAJNode {xs} -> Set (Fin i) @-}
-dagajNeighbors :: DAGAJList -> Int -> Set Fin
-dagajNeighbors DAGAJNil _ = setEmpty
-dagajNeighbors (DAGAJCons graphTail graphHead) i
-    | dagajSize graphTail == i = graphHead
-    | otherwise = dagajNeighbors graphTail i
+{-@ gNeighbors :: xs:DAG -> i:DAGnode {xs} -> Set (Fin i) @-}
+gNeighbors :: DAG -> Int -> Set Fin
+gNeighbors DAGnil _i = setEmpty
+gNeighbors (DAGcons gTail gHead) i
+    | gSize gTail == i = gHead
+    | otherwise = gNeighbors gTail i
 
-{-@ dagajReachable :: xs:DAGAJList -> src:DAGAJNode {xs} -> dest:Nat -> Bool @-}
-dagajReachable :: DAGAJList -> Int -> Int -> Bool
-dagajReachable graph src dest = case graph of
-    DAGAJNil -> False
-    DAGAJCons graphTail _graphHead
+{-@ gReachable :: xs:DAG -> src:DAGnode {xs} -> dest:Nat -> Bool @-}
+gReachable :: DAG -> Int -> Int -> Bool
+gReachable graph src dest = case graph of
+    DAGnil -> False
+    DAGcons gTail _graphHead
         -> setMember dest srcNeighbors
-        || listOrMap (\s -> dagajReachable graphTail s dest) (setAscList srcNeighbors)
+        || listOrMap (\s -> gReachable gTail s dest) (setAscList srcNeighbors)
   where
-    srcNeighbors = dagajNeighbors graph src
+    srcNeighbors = gNeighbors graph src
 
 --- type AdjacencyList a = [(a, Set Fin)]
 --- {-@ type AdjacencyList a = gr:[(a, Set (Fin {listLength gr}))] @-}
