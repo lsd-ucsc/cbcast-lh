@@ -59,21 +59,22 @@ import Redefined
 -- Invariant:
 --  * The node with index i:Nat may contain edges to k:Nat|k<i
 
-data DAGAJList = DAGAJNil | DAGAJCons DAGAJList (Set Fin)
+-- Constrain dests of the current node (graphHead) to make this a DAG.
+data DAGAJList = DAGAJNil | DAGAJCons DAGAJList (Set DAGAJNode)
 {-@
 data DAGAJList = DAGAJNil | DAGAJCons
-    { tl :: DAGAJList
-    , hd :: Set (Fin {dagajSize tl})
+    { graphTail :: DAGAJList
+    , graphHead :: Set (DAGAJNode {graphTail})
     }
 @-}
 
 {-@ measure dagajSize @-}
 dagajSize :: DAGAJList -> Int
 dagajSize DAGAJNil = 0
-dagajSize (DAGAJCons tl _) = 1 + dagajSize tl
+dagajSize (DAGAJCons graphTail _) = 1 + dagajSize graphTail
 
-{-@ type DAGAJIndex XS = Fin {dagajSize XS} @-}
-type DAGAJIndex = Fin
+type DAGAJNode = Fin
+{-@ type DAGAJNode XS = Fin {dagajSize XS} @-}
 
 n0 :: DAGAJList
 n0 = DAGAJNil
@@ -116,13 +117,22 @@ n4diamond =
     `DAGAJCons` setFromList [0]
     `DAGAJCons` setFromList [1,2]
 
-{-@ dagajIndex :: xs:DAGAJList -> i:DAGAJIndex {xs} -> Set (Fin i) @-}
-dagajIndex :: DAGAJList -> Int -> Set Fin
-dagajIndex DAGAJNil _ = setEmpty
-dagajIndex (DAGAJCons tl hd) i
-    | dagajSize tl == i = hd
-    | otherwise = dagajIndex tl i
+{-@ dagajNeighbors :: xs:DAGAJList -> i:DAGAJNode {xs} -> Set (Fin i) @-}
+dagajNeighbors :: DAGAJList -> Int -> Set Fin
+dagajNeighbors DAGAJNil _ = setEmpty
+dagajNeighbors (DAGAJCons graphTail graphHead) i
+    | dagajSize graphTail == i = graphHead
+    | otherwise = dagajNeighbors graphTail i
 
+{-@ dagajReachable :: xs:DAGAJList -> src:DAGAJNode {xs} -> dest:Nat -> Bool @-}
+dagajReachable :: DAGAJList -> Int -> Int -> Bool
+dagajReachable graph src dest = case graph of
+    DAGAJNil -> False
+    DAGAJCons graphTail _graphHead
+        -> setMember dest srcNeighbors
+        || listOrMap (\s -> dagajReachable graphTail s dest) (setAscList srcNeighbors)
+  where
+    srcNeighbors = dagajNeighbors graph src
 
 --- type AdjacencyList a = [(a, Set Fin)]
 --- {-@ type AdjacencyList a = gr:[(a, Set (Fin {listLength gr}))] @-}
