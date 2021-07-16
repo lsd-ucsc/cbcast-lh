@@ -6,6 +6,7 @@ module Redefined
 , module X
 ) where
 
+import Redefined.Bool as X
 import Redefined.List as X
 import Redefined.Fin as X
 import Redefined.Set as X
@@ -15,12 +16,6 @@ import Redefined.Set as X
 -- >>> instance Show (a -> b) where show _ = "(a -> b)"
 
 -- * Haskell things reimplemented
-
-{-@ reflect boolAnd @-}
-{-@ boolAnd :: a:Bool -> b:Bool -> {c:Bool | c <=> a && b} @-}
-boolAnd :: Bool -> Bool -> Bool
-boolAnd True True = True
-boolAnd _ _ = False
 
 -- | Implementation of 'flip' lifted to specifications. Probably same as
 -- 'Prelude'.
