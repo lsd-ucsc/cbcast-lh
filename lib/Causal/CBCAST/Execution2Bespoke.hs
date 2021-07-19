@@ -18,79 +18,96 @@ import Redefined
 data Execution pid msg
     = ExNil
     | ExBroadcast
-        { ebTail :: Execution pid msg
-        , ebProcessOrderEvent :: Maybe Fin
-        , ebSender :: pid
+        { ebSender :: pid
         , ebMessage :: msg
+        , ebTail :: Execution pid msg
+        , ebPreviousEvent :: Maybe Fin
         }
     | ExDeliver
-        { edTail :: Execution pid msg
-        , edProcessOrderEvent :: Maybe Fin
+        { edReceiver :: pid
+        , edTail :: Execution pid msg
+        , edPreviousEvent :: Maybe Fin
         , edBroadcastEvent :: Fin
-        , edReceiver :: pid
         }
+{-@
+data Execution [executionSize] pid msg
+    = ExNil
+    | ExBroadcast
+        { ebSender :: pid
+        , ebMessage :: msg
+        , ebTail :: Execution pid msg
+        , ebPreviousEvent :: PreviousEvent {ebTail} {ebSender}
+        }
+    | ExDeliver
+        { edReceiver :: pid
+        , edTail :: Execution pid msg
+        , edPreviousEvent :: PreviousEvent {edTail} {edReceiver}
+        , edBroadcastEvent :: BroadcastEvent {edTail} {edReceiver}
+        }
+@-}
+-- [x] Enforce DAG by constraining the Fin of event fields
+-- [x] Enforce Deliver{edBroadcastEvent} references Broadcast from distinct-process
+-- [x] Enforce Deliver{edPreviousEvent} references own-process-event unless there are none
+--      - [ ] MOST RECENT
+-- [x] Enforce Broadcast{ebPreviousEvent} references own-process-event unless there are none
+--      - [ ] MOST RECENT
+
+-- An integer index to event in the execution.
+{-@ type Edge EX = Fin {executionSize EX} @-}
+
+-- An event in the execution at the specified process.
+{-@ type SelfEdge EX PID = { e : Edge {EX} | eventProcess (executionLookup EX e) == PID } @-}
+
+-- An event in the execution at a distinct process.
+{-@ type OtherEdge EX PID = { e : Edge {EX} | eventProcess (executionLookup EX e) /= PID } @-}
+
+-- A value required except when there are no events in the execution at the specified process.
+{-@ type Optional a EX PID = { m : Maybe a | m == Nothing => not (hasProcess EX PID) } @-}
+
+-- Process-order edge.
+{-@ type PreviousEvent EX PID = Optional (SelfEdge {EX} {PID}) {EX} {PID} @-}
+
+-- Happens-before edge.
+{-@ type BroadcastEvent EX PID = OtherEdge {EX} {PID} @-}
 
 {-@ measure executionSize @-}
-{-@ executionSize :: _ -> Nat @-}
+{-@ executionSize :: Execution pid msg -> Nat @-}
 executionSize :: Execution pid msg -> Int
 executionSize ExNil = 0
 executionSize ExBroadcast{ebTail} = 1 + executionSize ebTail
 executionSize ExDeliver{edTail} = 1 + executionSize edTail
 
-{-@ executionTail :: {ex:_ | ex /= ExNil} -> {out:_ | executionSize ex == 1 + executionSize out} @-}
+{-@
+using (Execution pid msg) as
+    { ex : Execution pid msg |
+        0 < executionSize ex <=> ex /= ExNil
+    }
+@-}
+
+{-@ reflect executionTail @-}
+{-@ executionTail :: {ex:Execution pid msg | ex /= ExNil} -> {out:Execution pid msg | executionSize ex == 1 + executionSize out} @-}
 executionTail :: Execution pid msg -> Execution pid msg
 executionTail ExBroadcast{ebTail} = ebTail
 executionTail ExDeliver{edTail} = edTail
 
-{-@ using (Execution pid msg) as {ex:_ | 0 < executionSize ex <=> ex /= ExNil} @-}
+{-@ reflect executionLookup @-}
+{-@ executionLookup :: ex:Execution pid msg -> i:Fin {executionSize ex} -> {out:Execution pid msg | out /= ExNil} @-}
+executionLookup :: Execution pid msg -> Fin -> Execution pid msg
+executionLookup ex i
+    | executionSize exTail == i = ex
+    | otherwise = executionLookup exTail i
+  where
+    exTail = executionTail ex
 
-{-@ sizeFinPositive :: ex:_ -> i:Fin {executionSize ex} -> {0 < executionSize ex} @-}
-sizeFinPositive :: Execution pid msg -> Fin -> Proof
-sizeFinPositive _ _ = ()
+-- | Look up the process where an event took place.
+{-@ reflect eventProcess @-}
+{-@ eventProcess :: {ex:Execution pid msg | ex /= ExNil} -> pid @-}
+eventProcess :: Execution pid msg -> pid
+eventProcess ExBroadcast{ebSender} = ebSender
+eventProcess ExDeliver{edReceiver} = edReceiver
 
---{-@ executionIndex2 :: {ex:_ | ex /= ExNil} -> i:Fin {executionSize ex} -> _ @-}
---executionIndex2 :: Execution pid msg -> Fin -> Execution pid msg
---executionIndex2 ex i
---    | executionSize exTail == i = ex
---    | otherwise = executionIndex2 exTail i
---  where
---    exTail = executionTail ex
-
--- XXX output is smaller
--- XXX since 0 <= i < {executionSize ex} then ex cannot be ExNil, and the output cannot be ExNil
---
-{-@ executionIndex :: ex:_ -> i:Fin {executionSize ex} -> _ @-}
-executionIndex :: Execution pid msg -> Fin -> Execution pid msg
-executionIndex ex@ExBroadcast{ebTail} i
-    | executionSize ebTail == i = ex
-    | otherwise = executionIndex ebTail i
-executionIndex ex@ExDeliver{edTail} i
-    | executionSize edTail == i = ex
-    | otherwise = executionIndex edTail i
-
--- {-@ eventPID :: ex:_ -> i:Fin {executionSize ex} -> pid @-}
--- eventPID :: Execution pid msg -> Fin -> pid
--- eventPID ex i = case executionIndex ex i of
---     ExBroadcast{ebSender} -> ebSender
---     ExDeliver{edReceiver} -> edReceiver
-
--- [x] Enforce DAG by constraining the Fin of event fields
--- [ ] Enforce Deliver references Broadcast from distinct-process
--- [ ] Enforce Deliver references own-process-event unless there are none
--- [ ] Enforce Broadcast references own-process-event unless there are none
-{-@
-data Execution [executionSize] pid msg
-    = ExNil
-    | ExBroadcast
-        { ebTail :: Execution pid msg
-        , ebProcessOrderEvent :: Maybe (Fin {executionSize ebTail})
-        , ebSender :: pid
-        , ebMessage :: msg
-        }
-    | ExDeliver
-        { edTail :: Execution pid msg
-        , edProcessOrderEvent :: Maybe (Fin {executionSize edTail})
-        , edBroadcastEvent :: Fin {executionSize edTail}
-        , edReceiver :: pid
-        }
-@-}
+-- | Does the execution include the process?
+{-@ reflect hasProcess @-}
+hasProcess :: Eq pid => Execution pid msg -> pid -> Bool
+hasProcess ExNil _p = False
+hasProcess ex p = eventProcess ex == p || hasProcess (executionTail ex) p
