@@ -15,6 +15,7 @@ import Redefined
 --     = Broadcast pid msg -- Process pid sends message msg to everyone.
 --     | Deliver pid msg -- Process pid delivers message msg to itself.
 
+-- | Define a cons-list of execution events, each referencing by index some previous events.
 data Execution pid msg
     = ExNil
     | ExBroadcast
@@ -45,7 +46,7 @@ data Execution [executionSize] pid msg
         , edBroadcastEvent :: BroadcastEvent {edTail} {edReceiver}
         }
 @-}
--- [x] Enforce DAG by constraining the Fin of event fields
+-- [x] Enforce DAG by constraining the Fin of event fields to reference into the tail of the cons-list.
 -- [x] Enforce Deliver{edBroadcastEvent} references Broadcast from distinct-process
 -- [x] Enforce Deliver{edPreviousEvent} references own-process-event unless there are none
 --      - [ ] MOST RECENT
@@ -70,6 +71,7 @@ data Execution [executionSize] pid msg
 -- Happens-before edge.
 {-@ type BroadcastEvent EX PID = OtherEdge {EX} {PID} @-}
 
+-- | How many events are in the execution?
 {-@ measure executionSize @-}
 {-@ executionSize :: Execution pid msg -> Nat @-}
 executionSize :: Execution pid msg -> Int
@@ -77,6 +79,7 @@ executionSize ExNil = 0
 executionSize ExBroadcast{ebTail} = 1 + executionSize ebTail
 executionSize ExDeliver{edTail} = 1 + executionSize edTail
 
+-- Ask LH to add an extra assertion everywhere: An execution has nonzero size IFF it is non-nil.
 {-@
 using (Execution pid msg) as
     { ex : Execution pid msg |
@@ -84,12 +87,14 @@ using (Execution pid msg) as
     }
 @-}
 
+-- | Return the part of the execution which recorded before the current event.
 {-@ reflect executionTail @-}
 {-@ executionTail :: {ex:Execution pid msg | ex /= ExNil} -> {out:Execution pid msg | executionSize ex == 1 + executionSize out} @-}
 executionTail :: Execution pid msg -> Execution pid msg
 executionTail ExBroadcast{ebTail} = ebTail
 executionTail ExDeliver{edTail} = edTail
 
+-- | Return the specified event by indexing into the execution.
 {-@ reflect executionLookup @-}
 {-@ executionLookup :: ex:Execution pid msg -> i:Fin {executionSize ex} -> {out:Execution pid msg | out /= ExNil} @-}
 executionLookup :: Execution pid msg -> Fin -> Execution pid msg
@@ -99,7 +104,7 @@ executionLookup ex i
   where
     exTail = executionTail ex
 
--- | Look up the process where an event took place.
+-- | On which process did the event occur?
 {-@ reflect eventProcess @-}
 {-@ eventProcess :: {ex:Execution pid msg | ex /= ExNil} -> pid @-}
 eventProcess :: Execution pid msg -> pid
