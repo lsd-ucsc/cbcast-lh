@@ -4,18 +4,8 @@ module Causal.CBCAST.Execution2Bespoke where
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined
 
--- data DAG
---     = DAGnil
---     | DAGcons
---         { gTail :: DAG
---         , gHead :: Set (Fin {gSize gTail})
---         }
-
--- data Event pid msg
---     = Broadcast pid msg -- Process pid sends message msg to everyone.
---     | Deliver pid msg -- Process pid delivers message msg to itself.
-
--- | Define a cons-list of execution events, each referencing by index some previous events.
+-- | Define a cons-list of execution events, each referencing by index
+-- (executionLookup) some previous events to form a DAG.
 data Execution pid msg
     = ExNil
     | ExBroadcast
@@ -48,9 +38,9 @@ data Execution [executionSize] pid msg
 @-}
 
 -- | Enforce that bPreviousProcessEvent, dPreviousProcessEvent, and
--- dMessageBroadcastEvent form a DAG over indexes to all the events in the list
--- by constraining them to refernce only events in bExecutionTail or
--- dExecutionTail respectively.
+-- dMessageBroadcastEvent form a DAG over indexes (executionLookup) to all the
+-- events in the list by constraining them to refernce only events in
+-- bExecutionTail or dExecutionTail respectively.
 --
 -- Additionally enforce that bPreviousProcessEvent and dPreviousProcessEvent
 -- both reference the most-recent-event on the process with PID broadcastSender
