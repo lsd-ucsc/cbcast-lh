@@ -3,6 +3,8 @@ module Causal.CBCAST.Execution where
 
 import Redefined
 
+-- * Graph
+
 -- | Define directed acyclic graph in adjacency list representation suitable
 -- for structurally recursive traversal which maintains appropriate size and
 -- indexing relationships.
@@ -104,7 +106,6 @@ n4enn = DAGnil
 -- node away from nil.
 {-@ gNeighbors :: xs:DAG -> i:DAGnode {xs} -> Set (Fin i) @-}
 gNeighbors :: DAG -> Int -> Set Fin
-gNeighbors DAGnil _i = setEmpty
 gNeighbors (DAGcons gTail gHead) i
     | gSize gTail == i = gHead
     | otherwise = gNeighbors gTail i
@@ -133,101 +134,64 @@ gNeighbors (DAGcons gTail gHead) i
 {-@ gReachable :: xs:DAG -> src:DAGnode {xs} -> dest:Nat -> Bool @-}
 gReachable :: DAG -> Int -> Int -> Bool
 gReachable graph src dest = case graph of
-    DAGnil -> False
     DAGcons gTail _graphHead
         -> setMember dest srcNeighbors
         || listOrMap (\s -> gReachable gTail s dest) (setAscList srcNeighbors)
   where
     srcNeighbors = gNeighbors graph src
 
---- type AdjacencyList a = [(a, Set Fin)]
---- {-@ type AdjacencyList a = gr:[(a, Set (Fin {listLength gr}))] @-}
----
---- {-@ type LL = xs:[{i:Int | i == len xs}] @-}
---- {-@ x :: LL @-}
---- x :: [Int]
---- x = [2, 2]
----
---- type Node = Fin
---- {-@ type Node G = Fin {listLength G} @-}
----
---- -- reachable :: AdjacencyList a -> Node -> Node -> Bool
---- -- {-@ reachable :: gr:AdjacencyList a -> Node {gr} -> Node {gr} -> Bool @-}
---- -- reachable gr a b = undefined
----
---- data Event pid msg
----     = Broadcast pid msg -- Process pid sends message msg to everyone.
----     | Deliver pid msg -- Process pid delivers message msg to itself.
+-- * Execution
 
----- type AdjacencyList = Vec (Set Fin)
----- {-@ type AdjacencyList N = Vec (SetLessN (Fin {N}) {N}) {N} @-}
-----
-----
----- data Graph = Graph
-----     { graphSize :: Int
-----     , graphAdjList :: AdjacencyList
-----     }
----- {-@
----- data Graph = Graph
-----     { graphSize :: Int
-----     , graphAdjList :: AdjacencyList {graphSize}
-----     }
----- @-}
-----
----- type GraphNode = Fin
----- {-@ type GraphNode G = Fin {graphSize G} @-}
-----
----- graphNodeDegree :: Graph -> GraphNode -> Fin
----- {-@ graphNodeDegree :: g:Graph -> GraphNode {g} -> Int @-}
----- -- {-@ graphNodeDegree :: g:Graph -> GraphNode {g} -> Fin {graphSize g} @-}
----- graphNodeDegree Graph{graphAdjList} node = setSize (listIndex graphAdjList node)
-----
----- -- graphEdges :: Graph -> S.Set (Fin, Fin)
----- -- graphEdges [] = S.empty
----- -- graphEdges (dsts:graph) = S.empty
----- --   where
----- --     src = listLength graph
----- --     cons x xs = S.singleton x `S.union` xs
-----
----- -- data Event pid msg
----- --     = Broadcast pid msg -- Process pid sends message msg to everyone.
----- --     | Deliver pid msg -- Process pid delivers message msg to itself.
----- --
----- -- data Execution pid msg = Execution
----- --     { events :: [Event pid msg]
----- --     , dependencies :: Graph
----- --     }
----- -- {-@
----- -- data Execution pid msg = Execution
----- --     { events :: [Event pid msg]
----- --     , dependencies :: Graph {listLength events}
----- --     }
----- -- @-}
----- --
----- --
----- --
----- --
----- -- executionEdges :: Execution p m -> S.Set (Event p m, Event p m)
----- -- executionEdges Execution{events, dependencies} =
----- --     case dependencies of
----- --         [] -> S.empty
-----
----- -- -- TODO measures to define a valid execution
----- -- --
----- -- -- events have
----- -- deliversReferToBroadcasts :: Execution pid msg -> Bool
----- -- deliversReferToBroadcasts Execution{events, dependencies} =
-----
-----
----- -- gNodeDests :: Int -> Fin -> Graph -> Set Fin
----- -- {-@ gNodeDests :: n:Int -> Fin {n} -> Graph {n} -> Set (Fin {n}) @-}
----- -- gNodeDests _ n g = listIndex g n
-----
----- -- -- | The graph `0 -> 1 <- 2`
----- -- _eg :: Graph
----- -- -- FIXME {-@ _eg :: Graph {3} @-}
----- -- _eg =
----- --     [ Set.singleton 1 -- 0 -> 1
----- --     , Set.empty       -- 1
----- --     , Set.singleton 1 -- 2 -> 1
----- --     ]
+data Event pid msg
+    = Broadcast pid msg -- Process pid sends message msg to everyone.
+    | Deliver pid -- Process pid delivers another process's message msg to itself.
+
+data Execution pid msg = Execution
+    { dependencies :: DAG
+    , events :: [Event pid msg]
+    }
+{-@
+data Execution pid msg = Execution
+    { dependencies :: DAG
+    , events ::
+        { xs : [Event pid msg]<{\x xs -> properEvent dependencies x xs}>
+        | gSize dependencies == listLength xs
+        }
+    }
+@-}
+
+{-@ reflect properEvent @-}
+properEvent :: DAG -> Event pid msg -> Event pid msg -> Bool
+properEvent dependencies x xs = True -- fixme: can we express the abstract refinement of x related to xs?
+
+------ {-@ measure isDeliverEvent @-}
+------ isDeliverEvent :: Event pid msg -> Bool
+------ isDeliverEvent (Deliver _ _) = True
+------ isDeliverEvent (Broadcast _ _) = False
+------ 
+------ -- | Every event points back to an event on the same process, unless there are no
+------ -- preceding events on the same process.
+------ properProcessOrder :: DAG -> Event pid msg -> Bool
+------ properProcessOrder = undefined
+------ 
+------ -- | Every deliver-event points to a send-event on a distinct process.
+------ properDelivery :: DAG -> Event pid msg -> Bool
+------ properDelivery = undefined
+------ 
+------ {-@
+------ type ProperEvent pid msg G =
+------     { e : Event pid msg |
+------         True
+------     }
+------ @-}
+
+--- -- https://jamboard.google.com/d/1JRk9aN0vcIwFiObGgWm1A6QMzJBkd1teWfz7ThNO6kM/viewer?f=0
+--- eg :: AdjacencyList
+--- {-@ eg :: AdjacencyListN {6} @-}
+--- eg = [ setFromList []
+---     , setFromList [0]
+---     , setFromList [0]
+---     , setFromList [2, 1]
+---     , setFromList [3]
+---     , setFromList [4, 3]
+---     ]
