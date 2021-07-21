@@ -4,18 +4,33 @@ module Causal.CBCAST.Execution2Bespoke where
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined
 
--- | Define a cons-list of execution events, each referencing by index
--- (executionLookup) some previous events to form a DAG.
+-- | Define a cons-list of execution events. Use two cons-tructors to represent
+-- broadcast and deliver events in the execution. Each cons-cell has the
+-- execution tail and also references by index (executionLookup) some previous
+-- events to form a DAG.
+--
+--  * Enforce that bPreviousProcessEvent, dPreviousProcessEvent, and
+--    dMessageBroadcastEvent form a DAG over all the events in the list by
+--    constraining them to reference only events in bExecutionTail or
+--    dExecutionTail respectively.
+--
+--  * Additionally enforce that bPreviousProcessEvent and dPreviousProcessEvent
+--    both reference the most-recent-event on the process with PID
+--    broadcastSender or deliverReceiver, respectively, iff such an event exists.
+--
+--  * Finally enforce that dMessageBroadcastEvent references a broadcast event
+--    on a distinct process from deliverReceiver.
+--
 data Execution pid msg
     = ExNil
     | ExBroadcast
-        { broadcastSender :: pid
-        , broadcastMessage :: msg
+        { broadcastSender :: pid -- Process where this event occurs.
+        , broadcastMessage :: msg -- Message sent by this event.
         , bExecutionTail :: Execution pid msg
         , bPreviousProcessEvent :: Maybe Fin
         }
     | ExDeliver
-        { deliverReceiver :: pid
+        { deliverReceiver :: pid -- Process where this event occurs.
         , dExecutionTail :: Execution pid msg
         , dPreviousProcessEvent :: Maybe Fin
         , dMessageBroadcastEvent :: Fin
@@ -27,49 +42,33 @@ data Execution [executionSize] pid msg
         { broadcastSender :: pid
         , broadcastMessage :: msg
         , bExecutionTail :: Execution pid msg
-        , bPreviousProcessEvent :: ProcessOrderEvent {bExecutionTail} {broadcastSender}
+        , bPreviousProcessEvent :: PreviousProcessEvent {bExecutionTail} {broadcastSender}
         }
     | ExDeliver
         { deliverReceiver :: pid
         , dExecutionTail :: Execution pid msg
-        , dPreviousProcessEvent :: ProcessOrderEvent {dExecutionTail} {deliverReceiver}
-        , dMessageBroadcastEvent :: MessageSendEvent {dExecutionTail} {deliverReceiver}
+        , dPreviousProcessEvent :: PreviousProcessEvent {dExecutionTail} {deliverReceiver}
+        , dMessageBroadcastEvent :: MessageBroadcastEvent {dExecutionTail} {deliverReceiver}
         }
 @-}
 
--- | Enforce that bPreviousProcessEvent, dPreviousProcessEvent, and
--- dMessageBroadcastEvent form a DAG over indexes (executionLookup) to all the
--- events in the list by constraining them to refernce only events in
--- bExecutionTail or dExecutionTail respectively.
---
--- Additionally enforce that bPreviousProcessEvent and dPreviousProcessEvent
--- both reference the most-recent-event on the process with PID broadcastSender
--- or deliverReceiver, respectively, iff such an event exists.
---
--- Finally enforce that dMessageBroadcastEvent references a broadcast event on
--- a distinct process from deliverReceiver.
---
 {-@
 type Edge EX = Fin {executionSize EX}
 
-type EdgeToProcess EX PID =
-    { e : Edge {EX}
-    | eventProcess (executionLookup EX e) == PID }
-type MostRecentEventOnProcess EX PID =
-    { e : EdgeToProcess {EX} {PID}
-    | e == executionSize (latestProcessEvent EX PID) }
-type OptionalIfNoProcessEvents a EX PID =
-    { m : Maybe a
-    | hasProcess EX PID <=> isJust m }
-type ProcessOrderEvent EX PID =
-    OptionalIfNoProcessEvents (MostRecentEventOnProcess {EX} {PID}) {EX} {PID}
+type PreviousProcessEvent EX PID =
+    { m : Maybe
+            ({ e : Edge {EX}
+                 | e == executionSize (executionLastestProcessEvent EX PID)
+                && PID == eventProcess (executionLookup EX e)
+            })
+        | executionHasProcess EX PID <=> isJust m
+    }
 
-type EdgeToDistinct EX PID =
+type MessageBroadcastEvent EX PID =
     { e : Edge {EX}
-    | eventProcess (executionLookup EX e) /= PID }
-type MessageSendEvent EX PID =
-    { e : EdgeToDistinct {EX} {PID}
-    | isBroadcast (executionLookup EX e) }
+        | PID /= eventProcess (executionLookup EX e)
+       && eventIsBroadcast (executionLookup EX e)
+    }
 @-}
 
 -- | How many events are in the execution?
@@ -95,10 +94,10 @@ eventProcess ExBroadcast{broadcastSender} = broadcastSender
 eventProcess ExDeliver{deliverReceiver} = deliverReceiver
 
 -- | Is this event a broadcast?
-{-@ reflect isBroadcast @-}
-isBroadcast :: Execution pid msg -> Bool
-isBroadcast ExBroadcast{} = True
-isBroadcast _ = False
+{-@ reflect eventIsBroadcast @-}
+eventIsBroadcast :: Execution pid msg -> Bool
+eventIsBroadcast ExBroadcast{} = True
+eventIsBroadcast _ = False
 
 -- Ask LH to add an extra assertion everywhere: An execution has nonzero size IFF it is non-nil.
 {-@
@@ -119,28 +118,28 @@ executionLookup ex i
     exTail = executionTail ex
 
 -- | Does the execution include the process?
-{-@ reflect hasProcess @-}
-hasProcess :: Eq pid => Execution pid msg -> pid -> Bool
-hasProcess ExNil _p = False
-hasProcess ex p = eventProcess ex == p || hasProcess (executionTail ex) p
+{-@ reflect executionHasProcess @-}
+executionHasProcess :: Eq pid => Execution pid msg -> pid -> Bool
+executionHasProcess ExNil _p = False
+executionHasProcess ex p = eventProcess ex == p || executionHasProcess (executionTail ex) p
 
-{-@ hasProcessImpliesNonNil :: ex:Execution pid msg -> {p:pid | hasProcess ex p} -> {ex /= ExNil} @-}
+{-@ hasProcessImpliesNonNil :: ex:Execution pid msg -> {p:pid | executionHasProcess ex p} -> {ex /= ExNil} @-}
 hasProcessImpliesNonNil :: Execution pid msg -> pid -> Proof
 hasProcessImpliesNonNil _ _ = {-@ ple hasProcessImpliesNonNil @-} ()
 
-{-@ hasProcessAndNotHeadThenTailHasProcess :: ex:Execution pid msg -> {p:pid | hasProcess ex p && not (eventProcess ex) == p} -> {hasProcess (executionTail ex) p} @-}
+{-@ hasProcessAndNotHeadThenTailHasProcess :: ex:Execution pid msg -> {p:pid | executionHasProcess ex p && not (eventProcess ex) == p} -> {executionHasProcess (executionTail ex) p} @-}
 hasProcessAndNotHeadThenTailHasProcess :: Execution pid msg -> pid -> Proof
 hasProcessAndNotHeadThenTailHasProcess _ _ = {-@ ple hasProcessAndNotHeadThenTailHasProcess @-} ()
 
 -- | Return the latest event in the execution occuring on the process.
-{-@ reflect latestProcessEvent @-}
-{-@ latestProcessEvent :: ex:Execution pid msg -> {p:pid | hasProcess ex p} -> Execution pid msg @-}
-latestProcessEvent :: Eq pid => Execution pid msg -> pid -> Execution pid msg
-latestProcessEvent ex p
+{-@ reflect executionLastestProcessEvent @-}
+{-@ executionLastestProcessEvent :: ex:Execution pid msg -> {p:pid | executionHasProcess ex p} -> Execution pid msg @-}
+executionLastestProcessEvent :: Eq pid => Execution pid msg -> pid -> Execution pid msg
+executionLastestProcessEvent ex p
     | p == eventProcess ex' = ex'
     | otherwise = let
             p' = p `with` hasProcessAndNotHeadThenTailHasProcess ex p
-        in latestProcessEvent (executionTail ex') p'
+        in executionLastestProcessEvent (executionTail ex') p'
   where
     ex' = ex `with` hasProcessImpliesNonNil ex p
 
