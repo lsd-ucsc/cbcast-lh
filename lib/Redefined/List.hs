@@ -126,3 +126,14 @@ listIndex (x:xs) i
     | i == 0    = x
     | otherwise = listIndex xs (i-1)
 
+-- | Implementation of 'filter' lifted to specifications. Implemented with
+-- foldr; no idea if this matches what's in 'Prelude'.
+--
+-- prop> filter p xs == listFilter p xs
+{-@ reflect listFilter @-}
+listFilter :: (a -> Bool) -> [a] -> [a]
+listFilter p = listFoldr (listFilterImpl p) []
+
+{-@ reflect listFilterImpl @-}
+listFilterImpl :: (a -> Bool) -> a -> [a] -> [a]
+listFilterImpl p x xs = if p x then x:xs else xs

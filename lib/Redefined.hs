@@ -7,6 +7,7 @@ module Redefined
 ) where
 
 import Redefined.Bool as X
+import Redefined.Tuple as X
 import Redefined.List as X
 import Redefined.Fin as X
 import Redefined.Set as X

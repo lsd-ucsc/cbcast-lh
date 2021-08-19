@@ -83,3 +83,14 @@ setDelete _ (Set []) = setEmpty
 setDelete el (Set (x:xs))
     | el == x = Set xs
     | otherwise = let ys = setDelete el (Set xs) in setSingleton x `setUnion` ys
+
+-- | Subset checking implemented as O(n^2) membership check.
+--
+-- prop> isSubsetOf (fromList xs) (fromList ys) == setIsSubsetOf (setFromList xs) (setFromList ys)
+{-@ reflect setIsSubsetOf @-}
+setIsSubsetOf :: Eq a => Set a -> Set a -> Bool
+setIsSubsetOf smaller bigger = listFoldr (setIsSubsetOfImpl bigger) True (setAscList smaller)
+
+{-@ reflect setIsSubsetOfImpl @-}
+setIsSubsetOfImpl :: Eq a => Set a -> a -> Bool -> Bool
+setIsSubsetOfImpl bigger x ok = ok && setMember x bigger
