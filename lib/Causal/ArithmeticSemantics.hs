@@ -1,48 +1,61 @@
 {-# LANGUAGE GADTs #-}
--- {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE KindSignatures, DataKinds #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE LambdaCase, ScopedTypeVariables #-}
+-- {-# LANGUAGE RankNTypes #-}
 -- {-# LANGUAGE TypeFamilies #-}
 module Causal.ArithmeticSemantics where
 
-{-@ data Peano = Z | S { unS :: Peano } @-}
-data Peano = Z | S { unS :: Peano }
+import Data.Proxy
 
----- -- data a :==> b where
----- --     (:+) :: a -> b -> a :==> b
----- 
+data Peano = Z | S Peano
 
-data Add1Relation :: Peano -> Peano -> * where
-    Add1 :: forall p. Add1Relation p ('S p)
-    AddZ :: Add1Relation 'Z ('S 'Z) -- A redundant rule, consistent with Add1, but makes Add1Relation's semantics nondeterministic.
+z :: Proxy 'Z
+z = Proxy
+
+s :: Proxy p -> Proxy ('S p)
+s Proxy = Proxy
+
+data Add1Rel :: Peano -> Peano -> * where
+    Add1 :: Proxy p -> Add1Rel p ('S p)
+    AddZ :: Add1Rel 'Z ('S 'Z) -- A redundant rule, consistent with Add1, but makes Add1Relation's semantics nondeterministic.
 
 data Add1RelTRC :: Peano -> Peano -> * where
-    Lift :: forall p1 p2. Add1Relation p1 p2 -> Add1RelTRC p1 p2
-    Refl :: forall p. Add1RelTRC p p
-    Tran :: forall a b c. Add1RelTRC a b -> Add1RelTRC b c -> Add1RelTRC a c
+    Lift :: Add1Rel p1 p2 -> Add1RelTRC p1 p2
+    Refl :: Add1RelTRC p p
+    Tran :: Add1RelTRC a b -> Add1RelTRC b c -> Add1RelTRC a c
 
-type Reachable (p :: Peano) = Add1RelTRC 'Z p
+type Reachable p = Add1RelTRC 'Z p
 
 foo :: Add1RelTRC 'Z ('S 'Z)
 foo = Lift AddZ
 
 foo' :: Add1RelTRC 'Z ('S 'Z)
-foo' = Lift Add1
+foo' = Lift (Add1 z)
 
 foo'' :: Add1RelTRC 'Z ('S 'Z)
-foo'' = Tran Refl (Lift Add1)
+foo'' = Tran Refl (Lift $ Add1 z)
 
 foo''' :: Add1RelTRC 'Z ('S 'Z)
-foo''' = Tran (Tran (Refl :: Add1RelTRC 'Z 'Z) (Lift Add1)) (Refl :: Add1RelTRC ('S 'Z) ('S 'Z))
+foo''' = Tran (Tran (Refl :: Add1RelTRC 'Z 'Z) (Lift $ Add1 z)) (Refl :: Add1RelTRC ('S 'Z) ('S 'Z))
 
-allNatsReachable :: forall (p :: Peano). Reachable p
-allNatsReachable = undefined -- Gan says: Case split on p (but we can't do that, because it's a type)
+class AllNatsReachable a where
+    allNatsReachable :: Proxy a -> Reachable a
 
+instance AllNatsReachable 'Z where
+    allNatsReachable Proxy = Refl
 
-data PlusEquals :: Peano -> Peano -> Peano -> * where
-    PlusZ :: forall p. PlusEquals 'Z p p
-    PlusS1 :: forall a b c. PlusEquals a b c -> PlusEquals ('S a) b ('S c)
-    PlusS2 :: forall a b c. PlusEquals a b c -> PlusEquals a ('S b) ('S c)
+instance AllNatsReachable p => AllNatsReachable ('S p) where
+    allNatsReachable Proxy =
+        let hyp = allNatsReachable (Proxy :: Proxy p)
+            nxt = Lift $ Add1 (Proxy :: Proxy p)
+        in Tran hyp nxt
+
+-- -- `PlusEquals a b c` describes `a + b = c`
+-- data PlusEquals :: Peano -> Peano -> Peano -> * where
+--     PlusZ :: Peano -> PlusEquals 'Z p p
+--     PlusS1 :: PlusEquals a b c -> PlusEquals ('S a) b ('S c)
+--     PlusS2 :: PlusEquals a b c -> PlusEquals a ('S b) ('S c)
 
 
 ---- -- data family PE2 :: Peano -> Peano -> Peano -> *
