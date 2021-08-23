@@ -10,12 +10,6 @@ import Data.Proxy
 
 data Peano = Z | S Peano
 
-z :: Proxy 'Z
-z = Proxy
-
-s :: Proxy p -> Proxy ('S p)
-s Proxy = Proxy
-
 data Add1Rel :: Peano -> Peano -> * where
     Add1 :: Proxy p -> Add1Rel p ('S p)
     AddZ :: Add1Rel 'Z ('S 'Z) -- A redundant rule, consistent with Add1, but makes Add1Relation's semantics nondeterministic.
@@ -26,6 +20,12 @@ data Add1RelTRC :: Peano -> Peano -> * where
     Tran :: Add1RelTRC a b -> Add1RelTRC b c -> Add1RelTRC a c
 
 type Reachable p = Add1RelTRC 'Z p
+
+z :: Proxy 'Z
+z = Proxy
+
+s :: Proxy p -> Proxy ('S p)
+s Proxy = Proxy
 
 foo :: Add1RelTRC 'Z ('S 'Z)
 foo = Lift AddZ
