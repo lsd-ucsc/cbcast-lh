@@ -1,5 +1,9 @@
 module Redefined.Tuple where
 
+-- $setup
+--
+-- >>> import Data.Tuple
+
 -- |
 --
 -- prop> fst t == tupleFirst t
@@ -13,3 +17,10 @@ tupleFirst (a, _b) = a
 {-@ reflect tupleSecond @-}
 tupleSecond :: (a, b) -> b
 tupleSecond (_a, b) = b
+
+-- |
+--
+-- prop> swap t == tupleSwap t
+{-@ reflect tupleSwap @-}
+tupleSwap :: (a, b) -> (b, a)
+tupleSwap (a, b) = (b, a)

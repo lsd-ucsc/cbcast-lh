@@ -2,40 +2,7 @@
 module Causal.CausalDeliverySemantics where
 
 import Redefined
-
-
--- * Tools for semantics
-
--- ** Tuples
-
-{-@ reflect firstEquals @-}
-firstEquals :: Eq a => a -> (a, b) -> Bool
-firstEquals a' (a, _b) = a' == a
-
--- ** Relations
-
-type Relation a b = Set (a, b)
-
-{-@ reflect domain @-}
-domain :: Ord a => Relation a b -> Set a
-domain = setFromList . listMap tupleFirst . setAscList
-
-{-@ reflect range @-}
-range :: Ord b => Relation a b -> Set b
-range = setFromList . listMap tupleSecond . setAscList
-
-{-@ reflect rangeFor @-}
--- | Analogue to calling a function, except that a relation can return a set of
--- values for an input.
-rangeFor :: (Eq a, Ord b) => a -> Relation a b -> Set b
-rangeFor a = setFromList . listMap tupleSecond . listFilter (firstEquals a) . setAscList
---TODO implement with setMap(?) and setFilter
-
-{-@ reflect withRange @-}
--- | Use a value as the domain for an existing range.
-withRange :: (Ord a, Ord b) => a -> Set b -> Relation a b
-withRange a = setFromList . listMap ((,) a) . setAscList
----TODO withRange :: a -> x:Set b -> {y:Relation a b | setSize x == setSize y} @-}
+import BinaryRelation
 
 -- * Causal Delivery semantics
 
@@ -43,8 +10,8 @@ newtype Process = Process Integer deriving (Eq, Ord)
 newtype Message = Message Integer deriving (Eq, Ord)
 
 data State = State
-    { delivered :: Relation Process Message -- The process delivered the message.
-    , requires :: Relation Message Message -- The first message requires the second message.
+    { delivered :: BinaryRelation Process Message -- The process delivered the message.
+    , requires :: BinaryRelation Message Message -- The first message requires the second message.
     }
     deriving Eq
 
