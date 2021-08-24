@@ -95,7 +95,7 @@ causalDeliverySemantics State{delivered,requires} Send{sender,message}
         { delivered = delivered `setUnion` setSingleton (message, sender)
         , requires = requires `setUnion` withRange message (domainFor sender delivered)
         }
-causalDeliverySemantics state@State{delivered,requires} Deliver{receiver,message}
+causalDeliverySemantics state@State{delivered,requires=_} Deliver{receiver,message}
     = state
         { delivered = delivered `setUnion` setSingleton (message, receiver)
         }

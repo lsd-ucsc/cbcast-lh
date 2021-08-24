@@ -1,7 +1,5 @@
 module Causal.GenericSemantics where
 
-import Redefined
-
 {-
 
 type S
