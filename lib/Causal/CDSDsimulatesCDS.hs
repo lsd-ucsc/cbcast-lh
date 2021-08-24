@@ -14,30 +14,35 @@ convertState _ = Spec.State setEmpty setEmpty -- TODO
 convertAction :: Impl.Rule -> Spec.Rule
 convertAction _ = Spec.Send (Spec.Process 0) (Spec.Message 0) -- TODO
 
+{-@ ple convertPreservesApplicability @-}
 {-@
-implSimulatesSpecVerbose
-
-    ::   implAction : Impl.Rule
-    ->   implState0 : Impl.State
-    -> { implState1 : Impl.State | implState1 == Impl.causalDeliverySemantics implState0 implAction }
-
-    -> { specAction : Spec.Rule  | specAction == convertAction implAction }
-    -> { specState0 : Spec.State | specState0 == convertState implState0 }
-    -> { specState1 : Spec.State | specState1 == Spec.causalDeliverySemantics specState0 specAction }
-
-    -> { specState1 == convertState implState1 }
+convertPreservesApplicability
+    ::  s:Impl.State
+    -> {r:Impl.Rule | Impl.premisesHold s r}
+    -> { Spec.premisesHold (convertState s) (convertAction r) }
 @-}
-implSimulatesSpecVerbose
-    :: Impl.Rule -> Impl.State -> Impl.State
-    -> Spec.Rule -> Spec.State -> Spec.State
-    -> Proof
-implSimulatesSpecVerbose _ _ _ _ _ _ = () *** Admit
+convertPreservesApplicability :: Impl.State -> Impl.Rule -> Proof
+convertPreservesApplicability _ _ = ()
 
--- TODO: write it down again, but generate all the parts which are derived
+{-@ reflect implSimulatesSpecB @-}
+{-@ implSimulatesSpecB :: s:Impl.State -> {r:Impl.Rule | Impl.premisesHold s r} -> Bool @-}
+implSimulatesSpecB :: Impl.State -> Impl.Rule -> Bool
+implSimulatesSpecB implState0 implAction =
+    let
+        implState1 = Impl.causalDeliverySemantics implState0 implAction
+        -- Now simulate that in the spec.
+        specState0 = convertState implState0 `proofConst` convertPreservesApplicability implState0 implAction
+        specAction = convertAction implAction
+        specState1 = Spec.causalDeliverySemantics specState0 specAction
+    in
+        -- Finally, assert that the two semantics arrive at the same state in the spec.
+        specState1 == convertState implState1
 
--- FIXME: make sure to state somewhere:
---
--- Impl.premisesHold implState0 implAction
--- Spec.premisesHold specState0 specAction
---
--- And this probably requires a proof about the premises holding THROUGH the conversion functions...
+{-@
+implSimulatesSpec
+    :: implState0:Impl.State
+    -> implAction:Impl.Rule
+    -> { implSimulatesSpecB implState0 implAction }
+@-}
+implSimulatesSpec :: Impl.State -> Impl.Rule -> Proof
+implSimulatesSpec _ _ = () *** Admit

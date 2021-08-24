@@ -5,7 +5,7 @@ import Redefined.List
 -- $setup
 -- >>> import Data.Set
 
-data Set a = Set [a]
+data Set a = Set [a] deriving Eq
 {-@ data Set a = Set [a]<{\x y -> x < y}> @-}
 
 instance Show a => Show (Set a) where

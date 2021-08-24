@@ -46,6 +46,7 @@ data State = State
     { delivered :: Relation Process Message -- The process delivered the message.
     , requires :: Relation Message Message -- The first message requires the second message.
     }
+    deriving Eq
 
 data Rule
     = Send{sender::Process, message::Message}
