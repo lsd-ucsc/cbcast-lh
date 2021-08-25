@@ -2,6 +2,7 @@ module Redefined.List where
 
 import Redefined.Bool
 import Redefined.Fin ()
+import Language.Haskell.Liquid.ProofCombinators
 
 -- $setup
 -- >>> :set -XFlexibleInstances
@@ -137,3 +138,24 @@ listFilter p = listFoldr (listFilterImpl p) []
 {-@ reflect listFilterImpl @-}
 listFilterImpl :: (a -> Bool) -> a -> [a] -> [a]
 listFilterImpl p x xs = if p x then x:xs else xs
+
+-- * Examples, proofs, and properties
+
+-- | A list is [] if and only if its length is zero.
+--
+{-@ ple listEmptyIffLengthZero @-}
+{-@ reflect listEmptyIffLengthZero @-}
+{-@ listEmptyIffLengthZero :: xs:[a] -> { [] == xs <=> 0 == listLength xs } @-}
+listEmptyIffLengthZero :: [a] -> Proof
+listEmptyIffLengthZero [] = ()
+listEmptyIffLengthZero (_:_) = ()
+
+-- | The head of a strictly-ascending list does not appear in the tail.
+--
+{-@ ple ordListHeadNotInTail @-}
+{-@ reflect ordListHeadNotInTail @-}
+{-@ ordListHeadNotInTail :: {xs:[a]<{\x y -> x < y}> | 0 < listLength xs} -> { not (listElem (head xs) (tail xs)) } @-}
+ordListHeadNotInTail :: [a] -> Proof
+ordListHeadNotInTail (x:[]) = () -- x is not in empty list
+ordListHeadNotInTail (x:y:[]) = () -- x is not y
+ordListHeadNotInTail (x:y:zs) = ordListHeadNotInTail (x:zs) -- x is not y and <inductive hypothesis>

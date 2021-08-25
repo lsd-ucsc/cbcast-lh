@@ -1,6 +1,8 @@
 module Redefined.Set where
 
 import Redefined.List
+import Redefined.Proof
+import Language.Haskell.Liquid.ProofCombinators
 
 -- $setup
 -- >>> import Data.Set
@@ -94,3 +96,38 @@ setIsSubsetOf smaller bigger = listFoldr (setIsSubsetOfImpl bigger) True (setAsc
 {-@ reflect setIsSubsetOfImpl @-}
 setIsSubsetOfImpl :: Eq a => Set a -> a -> Bool -> Bool
 setIsSubsetOfImpl bigger x ok = ok && setMember x bigger
+
+-- | Proof helper for deconstructing a set.
+--
+{-@ ple setUncons @-}
+{-@ reflect setUncons @-}
+{-@ setUncons :: {s:Set a | 0 < setSize s} -> (a, Set a)<{\x xs -> not (setMember x xs) }> @-}
+setUncons :: Set a -> (a, Set a)
+setUncons (Set (x:xs)) = (x, Set xs) `proofConst` ordListHeadNotInTail (x:xs)
+
+-- * Examples, proofs, and properties
+
+set_ex1 :: Set Char
+set_ex1 = Set ('a':'b':[])
+
+{-@ fail set_ex2 @-}
+set_ex2 :: Set Char
+set_ex2 = Set ('b':'a':[])
+
+{-@ set_propMembersAreAscending :: {s:Set a | 2 == setSize s} -> {b:Bool | b <=> True} @-}
+set_propMembersAreAscending :: Ord a => Set a -> Bool
+set_propMembersAreAscending (Set (a:b:[])) = a < b
+
+{-@ set_propHeadNotInTail :: {s:Set a | 0 < setSize s} -> {b:Bool | b <=> True} @-}
+set_propHeadNotInTail :: Ord a => Set a -> Bool
+set_propHeadNotInTail (Set (x:xs)) = not (x `listElem` xs) ? ordListHeadNotInTail (x:xs)
+
+{-@ ple set_propHeadNotInTail2 @-}
+{-@ set_propHeadNotInTail2 :: {s:Set a | 0 < setSize s} -> {b:Bool | b <=> True} @-}
+set_propHeadNotInTail2 :: Ord a => Set a -> Bool
+set_propHeadNotInTail2 (Set (x:xs)) = not (x `setMember` Set xs) ? ordListHeadNotInTail (x:xs)
+
+{-@ ple setEmptyIffSizedZero @-}
+{-@ setEmptyIffSizedZero :: s:Set a -> { setEmpty == s <=> 0 == setSize s } @-}
+setEmptyIffSizedZero :: Set a -> Proof
+setEmptyIffSizedZero (Set xs) = () `proofConst` listEmptyIffLengthZero xs

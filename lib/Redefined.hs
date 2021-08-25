@@ -11,6 +11,7 @@ import Redefined.Tuple as X
 import Redefined.List as X
 import Redefined.Fin as X
 import Redefined.Set as X
+import Redefined.Proof as X
 
 -- $setup
 -- >>> :set -XFlexibleInstances
@@ -25,19 +26,6 @@ import Redefined.Set as X
 {-@ reflect funFlip @-}
 funFlip :: (a -> b -> c) -> b -> a -> c
 funFlip f b a = f a b
-
--- * LiquidHaskell proof-combinators reimplemented
-
--- | Implementation of 'impossible' lifted to specifications. similar to the
--- one in 'Language.Haskell.Liquid.ProofCombinators'.
-{-@ inline impossibleConst @-}
-{-@ impossibleConst :: a -> {v:b | false } -> a @-}
-impossibleConst :: a -> b -> a
-impossibleConst a _ = a
-
-{-@ inline proofConst @-}
-proofConst :: a -> b -> a
-proofConst x _ = x
 
 -- * Racket things reimplemented
 
