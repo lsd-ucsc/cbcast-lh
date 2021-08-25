@@ -1,6 +1,7 @@
 module BinaryRelation where
 
 import Redefined
+import Language.Haskell.Liquid.ProofCombinators
 
 type BinaryRelation a b = Set (a, b)
 
@@ -31,6 +32,46 @@ domainFor b = setFromList . listMap tupleFirst . listFilter (secondEquals b) . s
 withRange :: (Ord a, Ord b) => a -> Set b -> BinaryRelation a b
 withRange a = setFromList . listMap ((,) a) . setAscList
 ---TODO withRange :: a -> x:Set b -> {y:Relation a b | setSize x == setSize y} @-}
+
+-- | A fully reversible swap of domain and range.
+{-@ reflect swapDomainRange @-}
+-- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | ab == swapDomainRange ba} @-}
+-- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | setSize ab == setSize ba} @-}
+swapDomainRange :: (Ord a, Ord b) => BinaryRelation a b -> BinaryRelation b a
+swapDomainRange = setFromList . listMap tupleSwap . setAscList
+
+{-@ ple setMemberDistributesOverUnion @-}
+{-@ setMemberDistributesOverUnion :: z:a -> xs:Set a -> ys:Set a
+        -> { setMember z (setUnion xs ys) <=> setMember z xs || setMember z ys }
+        / [setSize xs + setSize ys]
+@-}
+setMemberDistributesOverUnion :: Ord a => a -> Set a -> Set a -> Proof
+setMemberDistributesOverUnion _ _ (Set []) = () -- Base case for setUnion
+setMemberDistributesOverUnion _ (Set []) _ = () -- Base case for setUnion
+setMemberDistributesOverUnion z (Set (x:xs)) (Set (y:ys)) -- Inductive hypothesises for setUnion recursive cases
+    | x < y = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
+    | y < x = setMemberDistributesOverUnion z (Set (x:xs)) (Set ys)
+    | otherwise = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
+
+{-@ ple swapPreservesMember @-}
+{-@ swapPreservesMember :: t:(a, b) -> r:BinaryRelation a b
+        -> { setMember t r <=> setMember (tupleSwap t) (swapDomainRange r) }
+        / [setSize r]
+@-}
+swapPreservesMember :: (Ord a, Ord b) => (a, b) -> BinaryRelation a b -> Proof
+swapPreservesMember _ (Set []) = () -- Base case for setMember
+swapPreservesMember (a, b) (Set (x:xs))
+    =   setMember (tupleSwap (a, b)) (swapDomainRange (Set (x:xs)))
+    === setMember (b, a) (setFromList (listMap tupleSwap (x:xs)))
+    === setMember (b, a) (setFromList (tupleSwap x : listMap tupleSwap xs))
+    === setMember (b, a) (Set [tupleSwap x] `setUnion` setFromList (listMap tupleSwap xs))
+        ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap x]) (setFromList (listMap tupleSwap xs))
+    === ( setMember (b, a) (Set [tupleSwap x]) || setMember (b, a) (setFromList (listMap tupleSwap xs)) )
+    === ( setMember (b, a) (Set [tupleSwap x]) || setMember (b, a) (swapDomainRange (Set xs)) )
+        ? swapPreservesMember (a, b) (Set xs)
+    === ( setMember (b, a) (Set [tupleSwap x]) || setMember (a, b) (Set xs) )
+    -- How can we complete the left part?
+    *** Admit
 
 -- * Tuples
 
