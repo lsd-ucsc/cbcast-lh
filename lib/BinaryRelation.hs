@@ -60,23 +60,10 @@ setMemberDistributesOverUnion z (Set (x:xs)) (Set (y:ys)) -- Inductive hypothesi
 @-}
 swapPreservesMember :: (Ord a, Ord b) => (a, b) -> BinaryRelation a b -> Proof
 swapPreservesMember _ (Set []) = () -- Base case for setMember
-swapPreservesMember (a, b) (Set (x@(a', b'):xs))
-    =   setMember (tupleSwap (a, b)) (swapDomainRange (Set (x:xs)))
-    === setMember (b, a) (setFromList (listMap tupleSwap (x:xs)))
-    === setMember (b, a) (setFromList (tupleSwap x : listMap tupleSwap xs))
-    === setMember (b, a) (Set [tupleSwap x] `setUnion` setFromList (listMap tupleSwap xs))
-        ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap x]) (setFromList (listMap tupleSwap xs))
-    === ( setMember (b, a) (Set [tupleSwap x]) || setMember (b, a) (setFromList (listMap tupleSwap xs)) )
-    === ( setMember (b, a) (Set [tupleSwap x]) || setMember (b, a) (swapDomainRange (Set xs)) )
+swapPreservesMember (a, b) (Set ((a', b'):xs))
+    = ()
+        ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap (a', b')]) (setFromList (listMap tupleSwap xs))
         ? swapPreservesMember (a, b) (Set xs)
-    === ( setMember (b, a) (Set [tupleSwap x]) || setMember (a, b) (Set xs) )
-    === ( listElem (b, a) [tupleSwap x] || setMember (a, b) (Set xs) )
-    === ( (b, a) == (tupleSwap x) || setMember (a, b) (Set xs) )
-    === ( (b, a) == (tupleSwap (a', b')) || setMember (a, b) (Set xs) )
-    === ( (b, a) == (b', a') || setMember (a, b) (Set xs) )
-    === ( (a, b) == (a', b') || setMember (a, b) (Set xs) )
-    *** QED
-    *** Admit
 
 -- * Tuples
 
