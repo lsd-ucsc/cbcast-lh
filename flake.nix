@@ -26,8 +26,6 @@
 
         overlays = {
           upgradeServant = final: prev: haskellPackagesOverlay ghc final prev (self: super:
-            # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
-            let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
             with prev.haskell.lib; {
               http-media = doJailbreak super.http-media;
               servant = self.callHackage "servant" "0.18.2" { };
@@ -36,13 +34,11 @@
               servant-server = self.callHackage "servant-server" "0.18.2" { };
             });
           addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (self: super:
-            # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
-            let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
             with prev.haskell.lib; {
               cbcast-lh =
                 let
                   src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "*.cabal" "deploy/" ] ./.;
-                  drv = callCabal2nix "cbcast-lh" src { };
+                  drv = super.callCabal2nix "cbcast-lh" src { };
                 in
                 overrideCabal drv (old: {
                   enableLibraryProfiling = false;

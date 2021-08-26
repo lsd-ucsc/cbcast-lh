@@ -14,8 +14,8 @@ range :: Ord b => BinaryRelation a b -> Set b
 range = setFromList . listMap tupleSecond . setAscList
 
 {-@ reflect rangeFor @-}
--- | Analogue to calling a function, except that a relation can return a set of
--- values for an input.
+-- | Analogue to calling a function, except that a relation may associate a set
+-- of values with some input.
 rangeFor :: (Eq a, Ord b) => a -> BinaryRelation a b -> Set b
 rangeFor a = setFromList . listMap tupleSecond . listFilter (firstEquals a) . setAscList
 --TODO implement with setMap(?) and setFilter
@@ -35,10 +35,10 @@ withRange a = setFromList . listMap ((,) a) . setAscList
 
 -- | A fully reversible swap of domain and range.
 {-@ reflect swapDomainRange @-}
--- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | ab == swapDomainRange ba} @-}
--- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | setSize ab == setSize ba} @-}
 swapDomainRange :: (Ord a, Ord b) => BinaryRelation a b -> BinaryRelation b a
 swapDomainRange = setFromList . listMap tupleSwap . setAscList
+-- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | ab == swapDomainRange ba} @-}
+-- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | setSize ab == setSize ba} @-}
 
 {-@ ple setMemberDistributesOverUnion @-}
 {-@ setMemberDistributesOverUnion :: z:a -> xs:Set a -> ys:Set a
@@ -64,6 +64,31 @@ swapPreservesMember (a, b) (Set ((a', b'):xs))
     = ()
         ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap (a', b')]) (setFromList (listMap tupleSwap xs))
         ? swapPreservesMember (a, b) (Set xs)
+
+{-@ ple swapPreservesRelation @-}
+{-@ swapPreservesRelation :: r:BinaryRelation a b
+        -> { r == swapDomainRange (swapDomainRange r) }
+        / [setSize r]
+@-}
+swapPreservesRelation :: (Ord a, Ord b) => BinaryRelation a b -> Proof
+swapPreservesRelation (Set []) = ()
+swapPreservesRelation (Set ((a, b):xs))
+    =   swapDomainRange (swapDomainRange (Set ((a, b):xs)))
+    === swapDomainRange (setFromList (listMap tupleSwap ((a, b):xs)))
+    === swapDomainRange (setFromList (tupleSwap (a, b) : listMap tupleSwap xs))
+    === swapDomainRange (setSingleton (tupleSwap (a, b)) `setUnion` setFromList (listMap tupleSwap xs))
+--      ? swapDistributesOverUnion
+    *** Admit
+---- swapPreservesRelation (Set (x:xs))
+----  =   setMember  swapPreservesMember x (Set xs)
+----  *** Admit
+
+{-@ ple swapDistributesOverUnion @-}
+{-@ swapDistributesOverUnion :: xs:BinaryRelation a b -> ys:BinaryRelation a b
+        -> { setUnion (swapDomainRange xs) (swapDomainRange ys) == swapDomainRange (setUnion xs ys) }
+@-}
+swapDistributesOverUnion :: BinaryRelation a b -> BinaryRelation a b -> Proof
+swapDistributesOverUnion _ _ = () *** Admit
 
 -- * Tuples
 

@@ -62,6 +62,7 @@ setFromList [] = setEmpty
 setFromList (x:xs) = setSingleton x `setUnion` setFromList xs
 
 {-@ reflect setAscList @-}
+{-@ setAscList :: ps:Set a -> {qs:[a] | setSize ps == listLength qs} @-}
 setAscList :: Set a -> [a]
 setAscList (Set xs) = xs
 
@@ -131,3 +132,60 @@ set_propHeadNotInTail2 (Set (x:xs)) = not (x `setMember` Set xs) ? ordListHeadNo
 {-@ setEmptyIffSizedZero :: s:Set a -> { setEmpty == s <=> 0 == setSize s } @-}
 setEmptyIffSizedZero :: Set a -> Proof
 setEmptyIffSizedZero (Set xs) = () `proofConst` listEmptyIffLengthZero xs
+
+-- {-@ setUnionUndoesUncons :: {s:Set a | 0 < setSize s} -> (a, Set a)<{\x xs -> s == setUnion (setSingleton x) xs }> @-}
+-- setUnionUndoesUncons :: Set a -> Proof
+-- setUnionUndoesUncons _ = ()
+
+{-@ ple setIntensionalGivesExtensional @-}
+{-@ setIntensionalGivesExtensional :: xs:Set a -> ys:Set a
+        -> { z:a | setMember z xs <=> setMember z ys }
+        -> { xs == ys }
+@-}
+setIntensionalGivesExtensional :: Eq a => Set a -> Set a -> a -> Proof
+setIntensionalGivesExtensional _ _ _ = () *** Admit
+--  | (Set []) == ys = ()
+--  | (Set []) /= ys
+--      =   ys
+--          ? (setMember z ys === False)
+--      === (Set [])
+
+--- setIntensionalIffExtensional _ (Set []) _
+---     = () *** Admit
+--- setIntensionalIffExtensional (Set (x:xs)) (Set (y:ys)) z
+---     = () *** Admit
+--- 
+--- --- {-@ ple setWithoutMembersEmpty @-}
+--- --- {-@ setWithoutMembersEmpty :: xs:Set a -> {z:a | not (setMember z xs)} -> { xs == Set [] } @-}
+--- --- setWithoutMembersEmpty :: Set a -> a -> Proof
+--- --- setWithoutMembersEmpty (Set []) z = () -- easy
+--- --- setWithoutMembersEmpty (Set (x:xs)) z = setMember x (Set (x:xs))
+--- 
+--- 
+--- {-@ blah :: xs:Set a -> (z:a -> { not (setMember z xs) }) -> { xs == Set [] } @-}
+--- blah :: Eq a => Set a -> (a -> Proof) -> Proof
+--- blah (Set []) f = ()
+--- blah (Set (x:xs)) f
+---     = () *** Admit
+--- --  =   setMember x (Set (x:xs))
+--- --  === True
+--- --      ? f x
+--- --  *** QED ---  ? blah (Set xs) f
+--- 
+--- -- {-@ consedMemberIsMember :: x:a -> xs:[a]<{\a b -> x < a && a < b}> -> { setMember x (Set (x:xs)) } @-}
+--- -- consedMemberIsMember :: a -> [a] -> Proof
+--- -- consedMemberIsMember _ _ = () *** Admit
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 
+--- 

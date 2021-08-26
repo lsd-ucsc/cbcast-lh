@@ -35,6 +35,7 @@ listReplicate n x
 --
 -- prop> map f xs == listMap f xs
 {-@ reflect listMap @-}
+{-@ listMap :: _ -> ps:[a] -> {qs:[b] | listLength ps == listLength qs} @-}
 listMap :: (a -> b) -> [a] -> [b]
 listMap f (x:xs) = f x:listMap f xs
 listMap _ [] = []
