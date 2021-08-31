@@ -51,47 +51,66 @@ import qualified Causal.CBCAST.Protocol
 --      any message m, for any deliver_p(m) in H, deliverable(m,s) holds, where
 --      s is the state of p prior to deliver_p(m).
 
+-- | Are the broadcast events of the messages ordered under happens before?
+{-@ reflect causallyBefore @-}
+causallyBefore :: Message r -> Message r -> Bool
+causallyBefore m1 m2 = mSent m1 `vcLess` mSent m2
+
 data Event r
-    = Broadcast -- ^ A broadcast event; Not used in the proof
-    | Delivery -- ^ A delivery event
-        { deliveryP :: Process r -- ^ The process just prior to delivery
-        , deliveryM :: Message r -- ^ The message which is delivered
+    = Broadcast -- ^ Not used in proof
+        { eventBroadcastMessage :: Message r -- ^ Message which was broadcast
+        }
+    | Deliver -- ^ A `deliver_p(m)` event
+        { eventDeliverMessage :: Message r -- ^ Message which was delivered
         }
     deriving Eq
-{-@ measure deliveryP :: Event r -> Process r @-}
-{-@ measure deliveryM :: Event r -> Message r @-}
+{-@ measure eventBroadcastMessage :: Event r -> Message r @-}
+{-@ measure eventDeliverMessage :: Event r -> Message r @-}
 
-type ProcessState r = (Process r, [Event r])
+-- | Sequence of events on a process in reverse process-order. The head is the
+-- most recent event. The tail is the prior process state.
+type ProcessState r = [Event r]
 
--- | Is the event a delivery event contained in the process state?
-{-@ reflect delivery @-}
-{-@ delivery :: Event r -> ProcessState r -> Bool @-}
-delivery :: Eq r => Event r -> ProcessState r -> Bool
-delivery Broadcast _ = False
-delivery e@Delivery{} (_p, es) = listElem e es
+-- | The process-order relation is expressed by the sort order in each process
+-- state. The happens before relation is expressed by the VCs on each message
+-- in each event.
+type Execution r = [ProcessState r]
+
+{-@ reflect isDeliver @-}
+isDeliver :: Event r -> Bool
+isDeliver Deliver{} = True
+isDeliver Broadcast{} = False
+
+{-@ ple priorState @-} -- One case is necessary after expanding listElem.
+{-@ reflect priorState @-}
+{-@ priorState :: s:ProcessState r -> {e:Event r | listElem e s} -> ProcessState r @-}
+priorState :: Eq r => ProcessState r -> Event r -> ProcessState r
+priorState (e:es) e'
+    | e == e' = es
+    | otherwise = priorState es e'
+
+{-@
+type GuardedByProp r X D
+    =  { e : Event r | isDeliver e }
+    -> { s : ProcessState r | listElem e s && listElem s X }
+    -> { D (eventDeliverMessage e) (priorState s e) }
+@-}
+type GuardedByProp r = Event r -> ProcessState r -> Proof
 
 -- | Has the message been delivered? (Is the message contained in a delivery
 -- event in the process state?)
 {-@ reflect delivered @-}
 delivered :: Eq r => Message r -> ProcessState r -> Bool
-delivered m (_p, es) = listOrMap (messageMatchesDelivery m) es
+delivered m s = listOrMap (messageMatchesEvent m) s
 
--- | Is the event a delivery, and does it contain the message?
-{-@ reflect messageMatchesDelivery @-}
-messageMatchesDelivery :: Eq r => Message r -> Event r -> Bool
-messageMatchesDelivery m Broadcast = False
-messageMatchesDelivery m Delivery{deliveryM} = m == deliveryM
-
-{-@ reflect causallyBefore @-}
-causallyBefore :: Message r -> Message r -> Bool
-causallyBefore m1 m2 = mSent m1 `vcLess` mSent m2
-
-{-@ reflect observesCausalDelivery @-}
-observesCausalDelivery :: ProcessState r -> Bool
-observesCausalDelivery _ = True
+{-@ reflect messageMatchesEvent @-}
+messageMatchesEvent :: Eq r => Message r -> Event r -> Bool
+messageMatchesEvent m Deliver{eventDeliverMessage} = m == eventDeliverMessage
+messageMatchesEvent m Broadcast{eventBroadcastMessage} = m == eventBroadcastMessage
 
 type DeliverablePredicate r = Message r -> ProcessState r -> Bool
 
+-- | Property of a 'DeliverablePredicate'.
 {-@
 type CausallySafeProp r D
     =    m1 : Message r
@@ -101,20 +120,23 @@ type CausallySafeProp r D
 @-}
 type CausallySafeProp r = Message r -> Message r -> ProcessState r -> Proof
 
-{-@
-type GuardedByProp r S D
-    =  { e : Event r | delivery e S }
-    -> { D (deliveryM e) (deliveryP e, []) }
-@-}
-type GuardedByProp r = Event r -> Proof
+-- | Are all m1 before m2 delivered in that order?
+{-@ reflect observesCausalDelivery @-}
+observesCausalDelivery :: Execution r -> Bool
+observesCausalDelivery _ = True -- TODO
 
 {-@
 theorem1
     ::   d : DeliverablePredicate r
-    ->   s : ProcessState r
+    ->   x : Execution r
     ->   CausallySafeProp r {d}
-    ->   GuardedByProp r {s} {d}
-    -> { observesCausalDelivery s }
+    ->   GuardedByProp r {x} {d}
+    -> { observesCausalDelivery x }
 @-}
-theorem1 :: DeliverablePredicate r -> ProcessState r -> CausallySafeProp r -> GuardedByProp r -> Proof
+theorem1 :: DeliverablePredicate r -> Execution r -> CausallySafeProp r -> GuardedByProp r -> Proof
 theorem1 = undefined
+
+--{-@ processVC :: ProcCount -> ProcessState r -> VC @-}
+--processVC :: Int -> ProcessState r -> VC
+--processVC n [] = vcNew n
+--processVC _ ((vc, _message):_rest) = vc
