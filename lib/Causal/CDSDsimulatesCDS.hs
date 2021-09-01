@@ -1,8 +1,9 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs BinaryRelation to be imported for specs
 {-# LANGUAGE NamedFieldPuns #-}
 module Causal.CDSDsimulatesCDS where
 
 import Redefined
-import BinaryRelation -- Required to fix LH "free vars" error
+import qualified BinaryRelation -- Required to fix LH "free vars" error
 import Language.Haskell.Liquid.ProofCombinators
 
 import qualified Causal.CausalDeliverySemantics as Spec
@@ -18,7 +19,7 @@ convertMessage (Impl.Message n) = Spec.Message n
 
 {-@ reflect convertState @-}
 convertState :: Impl.State -> Spec.State
-convertState Impl.State{Impl.delivered,Impl.requires} = Spec.State
+convertState Impl.State{{-Impl.delivered,Impl.requires-}} = Spec.State
     { Spec.delivered = setEmpty -- delivered
     , Spec.requires = setEmpty -- requires
     }

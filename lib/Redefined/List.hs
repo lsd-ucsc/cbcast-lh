@@ -157,6 +157,6 @@ listEmptyIffLengthZero (_:_) = ()
 {-@ reflect ordListHeadNotInTail @-}
 {-@ ordListHeadNotInTail :: {xs:[a]<{\x y -> x < y}> | 0 < listLength xs} -> { not (listElem (head xs) (tail xs)) } @-}
 ordListHeadNotInTail :: [a] -> Proof
-ordListHeadNotInTail (x:[]) = () -- x is not in empty list
-ordListHeadNotInTail (x:y:[]) = () -- x is not y
-ordListHeadNotInTail (x:y:zs) = ordListHeadNotInTail (x:zs) -- x is not y and <inductive hypothesis>
+ordListHeadNotInTail (_x:[]) = () -- x is not in empty list
+ordListHeadNotInTail (_x:_y:[]) = () -- x is not y
+ordListHeadNotInTail (x:_y:zs) = ordListHeadNotInTail (x:zs) -- x is not y and <inductive hypothesis>
