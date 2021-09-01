@@ -5,7 +5,7 @@ module Causal.CBCAST.Theorem1 where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import Data.Maybe (fromJust)
+import Data.Maybe (isJust, fromJust)
 import Redefined
 import BinaryRelation
 ---- import Causal.CBCAST.VectorClock
@@ -184,27 +184,42 @@ premisesAlwaysHoldHelper rule (ok, execution)
     | ok && premisesHold rule execution = (True, semantics rule execution)
     | otherwise = (False, execution)
 
+-- TODO: shorten this with PLE (it'll be faster to check)
+{-@ reachableExecutionTailIsJust :: {re:ReachableExecution p m | fst re /= []} -> { isJust (applyRules (tail (fst re))) } @-}
+reachableExecutionTailIsJust :: (Ord p, Ord m) => RulesAndExecution p m -> Proof
+reachableExecutionTailIsJust (r:rs, execution) =
+    case applyRules rs of
+        Just _execution
+            ->  ()
+            *** QED
+        Nothing
+            ->  Just execution
+            === applyRules (r:rs)
+            === listFoldr applyRulesHelper (Just execution0) (r:rs)
+            === applyRulesHelper r (applyRules rs)
+            === applyRulesHelper r Nothing
+            === Nothing
+            *** QED -- contradiction
+
+-- | Obtain the previous step in producing a reachable execution.
+{-@ reachableExecutionTail :: {re:ReachableExecution p m | fst re /= []} -> ReachableExecution p m @-}
+reachableExecutionTail :: (Ord p, Ord m) => RulesAndExecution p m -> RulesAndExecution p m
+reachableExecutionTail (r:rs, execution') = (rs, execution)
+  where
+    Just execution = applyRules rs
+        `proofConst` reachableExecutionTailIsJust (r:rs, execution')
+
 {-@ ple reachableExecutionPremisesAlwaysHold @-}
 {-@ reachableExecutionPremisesAlwaysHold :: re:ReachableExecution p m -> { premisesAlwaysHold (fst re) } @-}
 reachableExecutionPremisesAlwaysHold :: (Ord p, Ord m) => RulesAndExecution p m -> Proof
 reachableExecutionPremisesAlwaysHold (rs@[], _execution) = ()
 reachableExecutionPremisesAlwaysHold (r:rs, execution)
-    =   part1
-    &&& part2
-  where
-    part1
-        =   Just execution
-        === applyRules (r:rs)
-        === listFoldr applyRulesHelper (Just execution0) (r:rs)
-        === applyRulesHelper r (listFoldr applyRulesHelper (Just execution0) rs)
-        === applyRulesHelper r (applyRules rs)
-        *** Admit
-    part2
-        =   premisesAlwaysHold (r:rs)
-        === tupleFirst (listFoldr premisesAlwaysHoldHelper (True, execution0) (r:rs))
-        === tupleFirst (premisesAlwaysHoldHelper r (listFoldr premisesAlwaysHoldHelper (True, execution0) rs))
-            ? reachableExecutionPremisesAlwaysHold (rs, fromJust (applyRules rs))
-        *** Admit
+    =   premisesAlwaysHold (r:rs)
+    === tupleFirst (listFoldr premisesAlwaysHoldHelper (True, execution0) (r:rs))
+    === tupleFirst (premisesAlwaysHoldHelper r (listFoldr premisesAlwaysHoldHelper (True, execution0) rs))
+--      ? reachableExecutionPremisesAlwaysHold (reachableExecutionTail (r:rs, execution))
+--      "no decreasing parameter"
+    *** Admit
 
 
 ---- -- | Sequence of events on a process in reverse process-order. The head is the
