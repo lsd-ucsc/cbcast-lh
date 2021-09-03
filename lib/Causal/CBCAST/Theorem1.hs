@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs DelayQueue to be imported for specs
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 module Causal.CBCAST.Theorem1 where
@@ -8,11 +7,6 @@ import Language.Haskell.Liquid.ProofCombinators
 import Data.Maybe (isJust, fromJust)
 import Redefined
 import BinaryRelation
----- import Causal.CBCAST.VectorClock
----- import Causal.CBCAST.Message
----- import qualified Causal.CBCAST.DelayQueue -- Required by LH for symbol resolution
----- import Causal.CBCAST.Process
----- import qualified Causal.CBCAST.Protocol
 
 
 -- * Execution type
@@ -223,7 +217,6 @@ type GuardedByProp p m = Event p m -> ProcessState p m -> Proof
 
 
 -- ** Test out the props
-
 
 -- | Dummy deliverable predicate used for testing the LH type aliases.
 {-@ reflect exConstHB @-}
