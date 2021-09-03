@@ -14,9 +14,308 @@ import BinaryRelation
 ---- import Causal.CBCAST.Process
 ---- import qualified Causal.CBCAST.Protocol
 
--- * Helper type
+
+-- * Execution type
+
+data Event p m
+    = Broadcast {broadcastMessage::m} -- ^ broadcast(m)
+    | Deliver {deliverProcess::p, deliverMessage::m} -- ^ deliver_p(m)
+    deriving (Eq, Ord)
+{-@
+data Event p m
+    = Broadcast {broadcastMessage::m}
+    | Deliver {deliverProcess::p, deliverMessage::m}
+@-} -- To create measures for each field.
+
+-- | Events in reverse order of their taking place on the process. New events
+-- are cons'd to the left. The tail is prior process state.
+type ProcessState p m = [Event p m]
+
+data Execution p m = Execution
+    { events :: Set (Event p m)
+    , processes :: Assoc p (ProcessState p m)
+    , happensBeforeRelation :: BinaryRelation (Event p m) (Event p m)
+    }
+{-@
+data Execution p m = Execution
+    { events :: Set (Event p m)
+    , processes :: Assoc p (ProcessState p m)
+    , happensBeforeRelation :: BinaryRelation (Event p m) (Event p m)
+    }
+@-} -- To create measures for each field.
+
+{-@ reflect execution0 @-}
+execution0 :: Execution p m
+execution0 = Execution setEmpty [] setEmpty
+
+
+-- * Execution semantics
+
+data Rule p m
+    = BroadcastRule p m -- A broadcast(m) event occurs on p
+    | DeliverRule p m -- A deliver_p(m) event occurs
+
+-- | Convert a rule in the semantics to a corresponding event in an execution.
+-- This is necessary because both rules require a process, but not both events.
+{-@ reflect ruleEvent @-}
+ruleEvent :: Rule p m -> Event p m
+ruleEvent (BroadcastRule _p m) = Broadcast m
+ruleEvent (DeliverRule p m) = Deliver p m
+
+{-@ reflect premisesHold @-}
+premisesHold :: (Eq p, Eq m) => Rule p m -> Execution p m -> Bool
+premisesHold rule@(BroadcastRule process message) Execution{..}
+    = let event = ruleEvent rule
+    in not (event `setMember` events) -- The event is not already part of the execution
+    -- TODO
+premisesHold rule@(DeliverRule process message) Execution{..}
+    = let event = ruleEvent rule
+    in not (event `setMember` events) -- The event is not already part of the execution
+    && Broadcast message `setMember` events -- There is broadcast event which corresponds to this deliver event
+    -- TODO
+
+{-@ reflect semantics @-}
+{-@ semantics :: r:Rule p m -> {s:Execution p m | premisesHold r s} -> Execution p m @-}
+semantics :: (Ord p, Ord m) => Rule p m -> Execution p m -> Execution p m
+semantics rule@(BroadcastRule process message) Execution{..}
+    = let event = ruleEvent rule
+    in Execution
+        { events = setSingleton event `setUnion` events
+        , processes = assocCons processes process event
+        , happensBeforeRelation = happensBeforeRelation ---  TODO
+        }
+semantics rule@(DeliverRule process message) Execution{..}
+    = let event = ruleEvent rule
+    in Execution
+        { events = setSingleton event `setUnion` events
+        , processes = assocCons processes process event
+        , happensBeforeRelation = happensBeforeRelation ---  TODO
+        }
+
+
+-- * Reachable execution
+
+-- | Apply the rules via the semantics in foldr/cons-order to obtain a final
+-- execution, unless the premises of some rule for some intermediate execution
+-- do not hold.
+--
+-- (foldr f x [a,b,c]) is like (f a (f b (f c x)))
+--
+{-@ reflect applyRules @-}
+applyRules :: (Ord p, Ord m) => [Rule p m] -> Maybe (Execution p m)
+applyRules rules = listFoldr applyRulesHelper (Just execution0) rules
+-- | Apply the rule via the semantics to the execution, unless the premises do
+-- not hold or there's already no execution.
+{-@ reflect applyRulesHelper @-}
+applyRulesHelper :: (Ord p, Ord m) => Rule p m -> Maybe (Execution p m) -> Maybe (Execution p m)
+applyRulesHelper rule (Just execution) = if premisesHold rule execution then Just (semantics rule execution) else Nothing
+applyRulesHelper _rule Nothing = Nothing
+
+-- | Rules in reverse order of their application to an execution. Rules applied
+-- later are cons'd to the left.
+{-@
+type ValidRules p m =
+    { rules : [Rule p m] |
+        isJust (applyRules rules)
+    }
+@-}
+
+{-@ reflect applyValidRules @-}
+{-@ applyValidRules :: (Ord p, Ord m) => ValidRules p m -> Execution p m @-}
+applyValidRules :: (Ord p, Ord m) => [Rule p m] -> Execution p m
+applyValidRules rules = case applyRules rules of
+    Just execution -> execution
+
+{-@ ple validRulesAreDeep @-}
+{-@ validRulesAreDeep
+        :: { rules : ValidRules p m | rules /= [] }
+        -> { isJust (applyRules (tail rules)) } @-}
+validRulesAreDeep :: (Ord p, Ord m) => [Rule p m] -> Proof
+validRulesAreDeep (r:rs) = case applyRules rs of
+    Just _execution -> () *** QED
+    Nothing
+        ->  isJust (applyRules (r:rs)) -- premise
+        === isJust (applyRulesHelper r (applyRules rs))
+        === isJust (applyRulesHelper r Nothing) -- by the case split
+        === isJust Nothing
+        *** QED
+
+---- -- Causes LH crash
+---- {-@
+---- using [Rule p m] as
+----     { rules : [Rule p m] |
+----         isJust (applyRules rules) && rules /= []
+----             => isJust (applyRules (tail rules))
+----     }
+---- @-}
+
+{-@ reflect validRulesTail @-}
+{-@ validRulesTail :: {rules:ValidRules p m | rules /= []} -> ValidRules p m @-}
+validRulesTail :: (Ord p, Ord m) => [Rule p m] -> [Rule p m]
+validRulesTail (r:rs) = rs `proofConst` validRulesAreDeep (r:rs)
+
+{-@ ple rulesEx0 @-}
+{-@ rulesEx0 :: ValidRules p m @-}
+rulesEx0 :: [Rule p m]
+rulesEx0 = []
+
+{-@ ple rulesEx1 @-}
+{-@ rulesEx1 :: ValidRules Int String @-}
+rulesEx1 :: [Rule Int String]
+rulesEx1 = [BroadcastRule 1 "hello world"]
+
+{-@ ple rulesEx2 @-}
+{-@ rulesEx2 :: ValidRules Int String @-}
+rulesEx2 :: [Rule Int String]
+rulesEx2 = tail [BroadcastRule 1 "hello world"]
+
+---- -- LH doesn't know that rulesEx1 /= [] ??
+---- {-@ ple rulesEx3 @-}
+---- {-@ rulesEx3 :: ValidRules Int String @-}
+---- rulesEx3 :: [Rule Int String]
+---- rulesEx3 = validRulesTail rulesEx1
+
+
+-- * Theorem 1
+
+type DeliverablePredicate p m = m -> ProcessState p m -> Bool
+
+
+-- ** Causally Safe
+
+-- | Has the message been delivered? (Is the message contained in a delivery
+-- event in the process state?)
+{-@ reflect delivered @-}
+delivered :: Eq m => m -> ProcessState p m -> Bool
+delivered m s = listOrMap (eventDeliversMessage m) s
+
+-- | Is the event a delivery of the message?
+{-@ reflect eventDeliversMessage @-}
+eventDeliversMessage :: Eq m => m -> Event p m -> Bool
+eventDeliversMessage message (Deliver _p m) = message == m
+eventDeliversMessage message (Broadcast _m) = False
+
+-- | Property of a 'DeliverablePredicate' @D@ given some happens-before
+-- relation @HB@.
+{-@
+type CausallySafeProp p m HB D
+    =    m1 : m
+    -> { m2 : m | HB m1 m2 }
+    -> { s : ProcessState p m | D m2 s }
+    -> { delivered m1 s }
+@-}
+type CausallySafeProp p m = m -> m -> ProcessState p m -> Proof
+
+
+-- ** Guarded by Deliverable
+
+{-@ reflect isDeliver @-}
+isDeliver :: Event p m -> Bool
+isDeliver Deliver{} = True
+isDeliver Broadcast{} = False
+{-@
+type GuardedByProp p m X D
+    =  { e : Event p m | isDeliver e && assocKey (processes X) (deliverProcess e) }
+    -> { s : ProcessState p m | listElem e s && s == assocKeyLookup (processes X) (deliverProcess e) }
+    -> { D (deliverMessage e) (tailAfter e s) }
+@-}
+type GuardedByProp p m = Event p m -> ProcessState p m -> Proof
+
+
+-- ** Test out the props
+
+
+-- | Dummy deliverable predicate used for testing the LH type aliases.
+{-@ reflect exConstHB @-}
+exConstHB :: m -> m -> Bool
+exConstHB _m1 _m2 = True
+
+-- | Dummy deliverable predicate used for testing the LH type aliases.
+{-@ reflect exConstDP @-}
+exConstDP :: DeliverablePredicate p m
+exConstDP _m _s = True
+
+{-@ exCausallySafeConst :: CausallySafeProp p m {exConstHB} {exConstDP} @-}
+exCausallySafeConst :: CausallySafeProp p m
+exCausallySafeConst _m1 _m2 _s = () *** Admit
+
+{-@ exExecution0GuardedByConst :: GuardedByProp p m {execution0} {exConstDP} @-}
+exExecution0GuardedByConst :: GuardedByProp p m
+exExecution0GuardedByConst e s = () *** Admit
+
+
+-- ** Theorem1Prop
+
+{-@ reflect happensBefore @-}
+happensBefore :: (Eq m, Eq p) => Execution p m -> m -> m -> Bool
+happensBefore Execution{happensBeforeRelation} m1 m2
+    = setMember (Broadcast m1, Broadcast m2) happensBeforeRelation
+
+-- | Are all m1 before m2 delivered in that order?
+{-@ reflect observesCausalDelivery @-}
+observesCausalDelivery :: Execution p m -> Bool
+observesCausalDelivery _ = True -- TODO
+
+{-@
+theorem1One
+    ::   d : DeliverablePredicate p m
+    ->  vr : ValidRules p m
+    -> { x : Execution p m | x == applyValidRules vr }
+    ->   CausallySafeProp p m {happensBefore x} {d}
+    ->   GuardedByProp p m {x} {d}
+    -> { p : p | assocKey (processes x) p }
+    -> { s : ProcessState p m | s == assocKeyLookup (processes x) p }
+    -> {m1 : m | delivered m1 s }
+    -> {m2 : m | delivered m2 s && happensBefore x m1 m2 }
+    -> { observesCausalDelivery x }
+@-}
+theorem1One
+    :: DeliverablePredicate p m -> [Rule p m] -> Execution p m -> CausallySafeProp p m -> GuardedByProp p m
+    -> p -> ProcessState p m -> m -> m -> Proof
+theorem1One _d _vr _x _csP _gbP _p _s _m1 _m2 = () *** Admit -- TODO
+
+{-@
+theorem1
+    ::   d : DeliverablePredicate p m
+    ->  vr : ValidRules p m
+    ->   CausallySafeProp p m {happensBefore (applyValidRules vr)} {d}
+    ->   GuardedByProp p m {(applyValidRules vr)} {d}
+    -> { observesCausalDelivery (applyValidRules vr) }
+@-}
+theorem1
+    :: DeliverablePredicate p m -> [Rule p m] -> CausallySafeProp p m -> GuardedByProp p m
+    -> Proof
+theorem1 _d _vr _csP _gbP = () *** Admit -- TODO: iterate over all processes, states, and pairs of messages calling theorem1One
+
+
+-- * Helper functions
+
+{-@ reflect tailAfter @-}
+{-@ ple tailAfter @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
+{-@ tailAfter :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
+tailAfter :: Eq a => a -> [a] -> [a]
+tailAfter _target [] = []
+tailAfter target (x:xs) = if target == x then xs else tailAfter target xs
+
+
+-- * Helper Assoc list type
 
 type Assoc k v = [(k, v)]
+
+{-@ reflect assocKey @-}
+assocKey :: Eq k => Assoc k v -> k -> Bool
+assocKey assoc key = listOrMap (firstEquals key) assoc
+
+{-@ reflect assocValue @-}
+assocValue :: Eq v => Assoc k v -> v -> Bool
+assocValue assoc value = listOrMap (secondEquals value) assoc
+
+{-@ ple assocKeyLookupIsJust @-}
+{-@ assocKeyLookupIsJust :: a:Assoc k v -> {key:k | assocKey a key} -> { isJust (assocLookup a key)} @-}
+assocKeyLookupIsJust :: Eq k => Assoc k v -> k -> Proof
+assocKeyLookupIsJust (kv:kvs) key = case assocLookup (kv:kvs) key of
+    Just _ -> () *** QED
+    Nothing -> () *** Admit -- TODO
 
 -- | Look for a value associated with the key.
 {-@ reflect assocLookup @-}
@@ -27,6 +326,13 @@ assocLookup assoc key = listFoldr (assocLookupHelper key) Nothing assoc
 assocLookupHelper :: Eq k => k -> (k, v) -> Maybe v -> Maybe v
 assocLookupHelper key (k, v) Nothing = if key == k then Just v else Nothing
 assocLookupHelper _key _item found@Just{} = found
+
+{-@ reflect assocKeyLookup @-}
+{-@ assocKeyLookup :: a:Assoc k v -> {key:k | assocKey a key} -> v @-}
+assocKeyLookup :: Eq k => Assoc k v -> k -> v
+assocKeyLookup assoc key =
+    case assocLookup assoc key `proofConst` assocKeyLookupIsJust assoc key of
+        Just v -> v
 
 -- | Call the function to update the value associated with the key, or insert a new one.
 {-@ reflect assocUpdate @-}
@@ -45,285 +351,3 @@ assocCons assoc key x = assocUpdate assoc key (assocConsHelper x)
 assocConsHelper :: a -> Maybe [a] -> [a]
 assocConsHelper x (Just xs) = x:xs
 assocConsHelper x Nothing = x:[]
-
--- Discussion of Theorem 1 from our POPL22 submission:
---
--- Process state is defined:
---
---      "The state of a process p is the sequence of events that have occurred
---      on p. The state of p prior to a given event on p is the subsequence of
---      events on p that precede e."
---
--- Process state must facilitate answering:
---
---      * @delivered(message,state):bool@ -- Is deliver_p(m) an event in state?
---      * @deliverable(message,state):bool@ -- Can m be delivered at a process in the given state?
---      * @prior(deliver_p(m)):state@ -- Obtain state prior to delivery event.
---
--- Execution is defined:
---
---      "An execution of a distributed system consists of the set of all events
---      on all processes, together with the process order relation @->_p@ over
---      events in each process @p@ and the happens-before relation @->@ over
---      all events."
---
--- That is:
---
---      * @{Event}@ containing events all processes
---      * @Event ->_p Event@ to order events in each process
---      * @Event -> Event@ to order events by happens-before
---
--- Executions may be *guarded by* a deliverable predicate, meaning:
---
---      "We say that an execution X is guarded by a given deliverable predicate
---      if, for any message m and process p, for any deliver_p(m) event in X,
---      deliverable(m,s) holds, where s is the state of p prior to
---      deliver_p(m)."
---
--- Instead of a full execution, we will proceed with a process history, or
--- process state. Our new "guarded by" statement is:
---
---      A process history H is guarded by a given deliverable predicate if, for
---      any message m, for any deliver_p(m) in H, deliverable(m,s) holds, where
---      s is the state of p prior to deliver_p(m).
-
--- * Execution type
-
-data Event p m
-    = Broadcast m -- ^ broadcast(m)
-    | Deliver p m -- ^ deliver_p(m)
-    deriving (Eq, Ord)
-
-type ProcessState p m = [Event p m]
-
-data Execution p m = Execution
-    { events :: Set (Event p m)
-    , processes :: Assoc p (ProcessState p m)
-    , happensBefore :: BinaryRelation (Event p m) (Event p m)
-    }
-    deriving Eq
-
-{-@ reflect execution0 @-}
-execution0 :: Execution p m
-execution0 = Execution setEmpty [] setEmpty
-
--- * Execution semantics
-
-data Rule p m
-    = BroadcastRule p m -- A broadcast(m) event occurs on p
-    | DeliverRule p m -- A deliver_p(m) event occurs
-
-{-@ reflect ruleEvent @-}
-ruleEvent :: Rule p m -> Event p m
-ruleEvent (BroadcastRule p m) = Broadcast m
-ruleEvent (DeliverRule p m) = Deliver p m
-
-{-@ reflect premisesHold @-}
-premisesHold :: (Eq p, Eq m) => Rule p m -> Execution p m -> Bool
-premisesHold (BroadcastRule process message) Execution{..}
-    = let event = ruleEvent (BroadcastRule process message)
-    in not (event `setMember` events) -- The event is not already part of the execution
-premisesHold (DeliverRule process message) Execution{..}
-    = let event = ruleEvent (DeliverRule process message)
-    in not (event `setMember` events) -- The event is not already part of the execution
-    && Broadcast message `setMember` events -- There is broadcast event which corresponds to this deliver event
-
-{-@ reflect semantics @-}
-{-@ semantics :: r:Rule p m -> {s:Execution p m | premisesHold r s} -> Execution p m @-}
-semantics :: (Ord p, Ord m) => Rule p m -> Execution p m -> Execution p m
-semantics (BroadcastRule process message) Execution{..}
-    = let event = ruleEvent (BroadcastRule process message)
-    in Execution
-        { events = setSingleton event `setUnion` events
-        , processes = assocCons processes process event
-        , happensBefore = happensBefore ---  TODO
-        }
-semantics (DeliverRule process message) Execution{..}
-    = let event = ruleEvent (DeliverRule process message)
-    in Execution
-        { events = setSingleton event `setUnion` events
-        , processes = assocCons processes process event
-        , happensBefore = happensBefore ---  TODO
-        }
-
--- * Reachable execution
-
--- | Apply the rules via the semantics in foldr/cons-order to obtain a final
--- execution, unless the premises of some rule for some intermediate execution
--- do not hold.
---
--- (foldr f x [a,b,c]) is like (f a (f b (f c x)))
---
-{-@ reflect applyRules @-}
-applyRules :: (Ord p, Ord m) => [Rule p m] -> Maybe (Execution p m)
-applyRules rules = listFoldr applyRulesHelper (Just execution0) rules
--- | Apply the rule via the semantics to the execution unless the premises do not hold.
-{-@ reflect applyRulesHelper @-}
-applyRulesHelper :: (Ord p, Ord m) => Rule p m -> Maybe (Execution p m) -> Maybe (Execution p m)
-applyRulesHelper rule (Just execution) = if premisesHold rule execution then Just (semantics rule execution) else Nothing
-applyRulesHelper _rule Nothing = Nothing
-
--- | An execution obtained by applying some rules to the initial execution.
-{-@ type ReachableExecution p m = ([Rule p m], Execution p m)<{
-        \rules x -> applyRules rules == Just x }> @-}
-type RulesAndExecution p m = ([Rule p m], Execution p m)
-{-@ type ReachableExecutionBroken p m = ([Rule p m], Execution p m)<{
-        \rules x -> listFoldr semantics execution0 rules == x }> @-}
-
--- | Do the premises of the rule hold for each successive application of the semantics to the execution?
---
--- This more or less does the same thing as 
---
-{-@ reflect premisesAlwaysHold @-}
-premisesAlwaysHold :: (Ord p, Ord m) => [Rule p m] -> Bool
-premisesAlwaysHold rules = tupleFirst (listFoldr premisesAlwaysHoldHelper (True, execution0) rules)
--- | If there's been no failure, show that the premises hold and apply the rule to get the next execution.
-{-@ reflect premisesAlwaysHoldHelper @-}
-premisesAlwaysHoldHelper :: (Ord p, Ord m) => Rule p m -> (Bool, Execution p m) -> (Bool, Execution p m)
-premisesAlwaysHoldHelper rule (ok, execution)
-    | ok && premisesHold rule execution = (True, semantics rule execution)
-    | otherwise = (False, execution)
-
--- TODO: shorten this with PLE (it'll be faster to check)
-{-@ reachableExecutionTailIsJust :: {re:ReachableExecution p m | fst re /= []} -> { isJust (applyRules (tail (fst re))) } @-}
-reachableExecutionTailIsJust :: (Ord p, Ord m) => RulesAndExecution p m -> Proof
-reachableExecutionTailIsJust (r:rs, execution) =
-    case applyRules rs of
-        Just _execution
-            ->  ()
-            *** QED
-        Nothing
-            ->  Just execution
-            === applyRules (r:rs)
-            === listFoldr applyRulesHelper (Just execution0) (r:rs)
-            === applyRulesHelper r (applyRules rs)
-            === applyRulesHelper r Nothing
-            === Nothing
-            *** QED -- contradiction
-
--- | Obtain the previous step in producing a reachable execution.
-{-@ reachableExecutionTail :: {re:ReachableExecution p m | fst re /= []} -> ReachableExecution p m @-}
-reachableExecutionTail :: (Ord p, Ord m) => RulesAndExecution p m -> RulesAndExecution p m
-reachableExecutionTail (r:rs, execution') = (rs, execution)
-  where
-    Just execution = applyRules rs
-        `proofConst` reachableExecutionTailIsJust (r:rs, execution')
-
-{-@ ple reachableExecutionPremisesAlwaysHold @-}
-{-@ reachableExecutionPremisesAlwaysHold :: re:ReachableExecution p m -> { premisesAlwaysHold (fst re) } @-}
-reachableExecutionPremisesAlwaysHold :: (Ord p, Ord m) => RulesAndExecution p m -> Proof
-reachableExecutionPremisesAlwaysHold (rs@[], _execution) = ()
-reachableExecutionPremisesAlwaysHold (r:rs, execution)
-    =   premisesAlwaysHold (r:rs)
-    === tupleFirst (listFoldr premisesAlwaysHoldHelper (True, execution0) (r:rs))
-    === tupleFirst (premisesAlwaysHoldHelper r (listFoldr premisesAlwaysHoldHelper (True, execution0) rs))
---      ? reachableExecutionPremisesAlwaysHold (reachableExecutionTail (r:rs, execution))
---      "no decreasing parameter"
-    *** Admit
-
-
----- -- | Sequence of events on a process in reverse process-order. The head is the
----- -- most recent event. The tail is the prior process state.
----- type ProcessState r = [Event r]
----- 
----- -- | The process-order relation is expressed by the sort order in each process
----- -- state. The happens before relation is expressed by the VCs on each message
----- -- in each event.
----- type Execution r = [ProcessState r]
----- 
----- {-@ reflect isDeliver @-}
----- isDeliver :: Event r -> Bool
----- isDeliver Deliver{} = True
----- isDeliver Broadcast{} = False
----- 
----- {-@ ple priorState @-} -- One case is necessary after expanding listElem.
----- {-@ reflect priorState @-}
----- {-@ priorState :: s:ProcessState r -> {e:Event r | listElem e s} -> ProcessState r @-}
----- priorState :: Eq r => ProcessState r -> Event r -> ProcessState r
----- priorState (e:es) e'
-----     | e == e' = es
-----     | otherwise = priorState es e'
----- 
----- {-@
----- type GuardedByProp r X D
-----     =  { e : Event r | isDeliver e }
-----     -> { s : ProcessState r | listElem e s && listElem s X }
-----     -> { D (eventDeliverMessage e) (priorState s e) }
----- @-}
----- type GuardedByProp r = Event r -> ProcessState r -> Proof
----- 
----- -- | Has the message been delivered? (Is the message contained in a delivery
----- -- event in the process state?)
----- {-@ reflect delivered @-}
----- delivered :: Eq r => Message r -> ProcessState r -> Bool
----- delivered eventDeliverMessage s = listElem Deliver{eventDeliverMessage} s
----- ---- | Has the message been delivered? (Is the message contained in a delivery
----- ---- event in the process state?)
----- --{-@ reflect delivered @-}
----- --delivered :: Eq r => Message r -> ProcessState r -> Bool
----- --delivered m s = listOrMap (messageMatchesEvent m) s
----- --
----- --{-@ reflect messageMatchesEvent @-}
----- --messageMatchesEvent :: Eq r => Message r -> Event r -> Bool
----- --messageMatchesEvent m Deliver{eventDeliverMessage} = m == eventDeliverMessage
----- --messageMatchesEvent m Broadcast{eventBroadcastMessage} = m == eventBroadcastMessage
----- 
----- type DeliverablePredicate r = Message r -> ProcessState r -> Bool
----- 
----- -- | Property of a 'DeliverablePredicate'.
----- {-@
----- type CausallySafeProp r D
-----     =    m1 : Message r
-----     -> { m2 : Message r | causallyBefore m1 m2 }
-----     -> { s : ProcessState r | D m2 s }
-----     -> { delivered m1 s }
----- @-}
----- type CausallySafeProp r = Message r -> Message r -> ProcessState r -> Proof
----- 
----- -- | Are all m1 before m2 delivered in that order?
----- {-@ reflect observesCausalDelivery @-}
----- observesCausalDelivery :: Execution r -> Bool
----- observesCausalDelivery _ = True -- TODO
----- 
----- -- TODO: express, somewhere, the relationship between the order of events in
----- -- process state and their "priorness"
----- --
----- -- TODO: implement observes causal delivery
----- -- 
----- -- ADD FORALL m1 m2 and p (s?) to theorem1 ???
----- --
----- -- do we need a lemma which takes m1 m2 and process state, and relates them
----- -- as in theorem1 below?
----- 
----- {-@
----- theorem1'
-----     ::   d : DeliverablePredicate r
-----     ->   x : Execution r
-----     ->   CausallySafeProp r {d}
-----     ->   GuardedByProp r {x} {d}
-----     -> { s : ProcessState r | listElem s x }
-----     -> {m1 : Message r | delivered m1 s }
-----     -> {m2 : Message r | delivered m2 s && causallyBefore m1 m2 }
-----     -> { observesCausalDelivery x }
----- @-}
----- theorem1'
-----     :: DeliverablePredicate r -> Execution r -> CausallySafeProp r -> GuardedByProp r
-----     -> ProcessState r -> Message r -> Message r -> Proof
----- theorem1' d execution causallySafeProp guardedByProp s m1 m2
-----     = undefined
----- 
----- {-@
----- theorem1
-----     ::   d : DeliverablePredicate r
-----     ->   x : Execution r
-----     ->   CausallySafeProp r {d}
-----     ->   GuardedByProp r {x} {d}
-----     -> { observesCausalDelivery x }
----- @-}
----- theorem1 :: DeliverablePredicate r -> Execution r -> CausallySafeProp r -> GuardedByProp r -> Proof
----- theorem1 = undefined
----- 
----- --{-@ processVC :: ProcCount -> ProcessState r -> VC @-}
----- --processVC :: Int -> ProcessState r -> VC
----- --processVC n [] = vcNew n
----- --processVC _ ((vc, _message):_rest) = vc
