@@ -2,7 +2,7 @@
 module Causal.CausalDeliverySemanticsDummy where
 
 import Redefined
-import BinaryRelation
+import Data.BinaryRelation
 
 -- NOTE 
 --

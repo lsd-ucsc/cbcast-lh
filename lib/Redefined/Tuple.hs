@@ -24,3 +24,13 @@ tupleSecond (_a, b) = b
 {-@ reflect tupleSwap @-}
 tupleSwap :: (a, b) -> (b, a)
 tupleSwap (a, b) = (b, a)
+
+-- * Functions that don't exist in prelude
+
+{-@ reflect firstEquals @-}
+firstEquals :: Eq a => a -> (a, b) -> Bool
+firstEquals a' (a, _b) = a' == a
+
+{-@ reflect secondEquals @-}
+secondEquals :: Eq b => b -> (a, b) -> Bool
+secondEquals b' (_a, b) = b' == b

@@ -1,4 +1,4 @@
-module BinaryRelation where
+module Data.BinaryRelation where
 
 import Redefined
 import Language.Haskell.Liquid.ProofCombinators
@@ -89,13 +89,3 @@ swapPreservesRelation (Set ((a, b):xs))
 @-}
 swapDistributesOverUnion :: BinaryRelation a b -> BinaryRelation a b -> Proof
 swapDistributesOverUnion _ _ = () *** Admit
-
--- * Tuples
-
-{-@ reflect firstEquals @-}
-firstEquals :: Eq a => a -> (a, b) -> Bool
-firstEquals a' (a, _b) = a' == a
-
-{-@ reflect secondEquals @-}
-secondEquals :: Eq b => b -> (a, b) -> Bool
-secondEquals b' (_a, b) = b' == b

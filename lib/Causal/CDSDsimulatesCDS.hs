@@ -3,7 +3,7 @@
 module Causal.CDSDsimulatesCDS where
 
 import Redefined
-import qualified BinaryRelation -- Required to fix LH "free vars" error
+import qualified Data.BinaryRelation -- Required to fix LH "free vars" error
 import Language.Haskell.Liquid.ProofCombinators
 
 import qualified Causal.CausalDeliverySemantics as Spec
