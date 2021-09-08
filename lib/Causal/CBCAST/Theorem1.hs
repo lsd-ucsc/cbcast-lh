@@ -4,9 +4,10 @@ module Causal.CBCAST.Theorem1 where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (isJust{-, fromJust-})
 import Redefined
-import BinaryRelation
+import Data.BinaryRelation
+import Data.Assoc
 
 
 -- * Execution type
@@ -58,11 +59,11 @@ ruleEvent (DeliverRule p m) = Deliver p m
 
 {-@ reflect premisesHold @-}
 premisesHold :: (Eq p, Eq m) => Rule p m -> Execution p m -> Bool
-premisesHold rule@(BroadcastRule process message) Execution{..}
+premisesHold rule@(BroadcastRule _process _message) Execution{..}
     = let event = ruleEvent rule
     in not (event `setMember` events) -- The event is not already part of the execution
     -- TODO
-premisesHold rule@(DeliverRule process message) Execution{..}
+premisesHold rule@(DeliverRule _process message) Execution{..}
     = let event = ruleEvent rule
     in not (event `setMember` events) -- The event is not already part of the execution
     && Broadcast message `setMember` events -- There is broadcast event which corresponds to this deliver event
@@ -71,14 +72,14 @@ premisesHold rule@(DeliverRule process message) Execution{..}
 {-@ reflect semantics @-}
 {-@ semantics :: r:Rule p m -> {s:Execution p m | premisesHold r s} -> Execution p m @-}
 semantics :: (Ord p, Ord m) => Rule p m -> Execution p m -> Execution p m
-semantics rule@(BroadcastRule process message) Execution{..}
+semantics rule@(BroadcastRule process _message) Execution{..}
     = let event = ruleEvent rule
     in Execution
         { events = setSingleton event `setUnion` events
         , processes = assocCons processes process event
         , happensBeforeRelation = happensBeforeRelation ---  TODO
         }
-semantics rule@(DeliverRule process message) Execution{..}
+semantics rule@(DeliverRule process _message) Execution{..}
     = let event = ruleEvent rule
     in Execution
         { events = setSingleton event `setUnion` events
@@ -187,7 +188,7 @@ delivered m s = listOrMap (eventDeliversMessage m) s
 {-@ reflect eventDeliversMessage @-}
 eventDeliversMessage :: Eq m => m -> Event p m -> Bool
 eventDeliversMessage message (Deliver _p m) = message == m
-eventDeliversMessage message (Broadcast _m) = False
+eventDeliversMessage _message (Broadcast _m) = False
 
 -- | Property of a 'DeliverablePredicate' @D@ given some happens-before
 -- relation @HB@.
@@ -234,7 +235,7 @@ exCausallySafeConst _m1 _m2 _s = () *** Admit
 
 {-@ exExecution0GuardedByConst :: GuardedByProp p m {execution0} {exConstDP} @-}
 exExecution0GuardedByConst :: GuardedByProp p m
-exExecution0GuardedByConst e s = () *** Admit
+exExecution0GuardedByConst _e _s = () *** Admit
 
 
 -- ** Theorem1Prop
