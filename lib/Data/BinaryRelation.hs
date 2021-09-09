@@ -5,87 +5,205 @@ import Language.Haskell.Liquid.ProofCombinators
 
 type BinaryRelation a b = Set (a, b)
 
-{-@ reflect domain @-}
-domain :: Ord a => BinaryRelation a b -> Set a
-domain = setFromList . listMap tupleFirst . setAscList
+{-@ reflect brEmpty @-}
+brEmpty :: BinaryRelation a b
+brEmpty = setEmpty
 
-{-@ reflect range @-}
-range :: Ord b => BinaryRelation a b -> Set b
-range = setFromList . listMap tupleSecond . setAscList
+{-@ reflect brDomain @-}
+brDomain :: Ord a => BinaryRelation a b -> Set a
+brDomain = setFromList . listMap tupleFirst . setAscList
 
-{-@ reflect rangeFor @-}
+{-@ reflect brRange @-}
+brRange :: Ord b => BinaryRelation a b -> Set b
+brRange = setFromList . listMap tupleSecond . setAscList
+
+{-@ reflect brRangeFor @-}
 -- | Analogue to calling a function, except that a relation may associate a set
 -- of values with some input.
-rangeFor :: (Eq a, Ord b) => a -> BinaryRelation a b -> Set b
-rangeFor a = setFromList . listMap tupleSecond . listFilter (firstEquals a) . setAscList
+brRangeFor :: (Eq a, Ord b) => a -> BinaryRelation a b -> Set b
+brRangeFor a = setFromList . listMap tupleSecond . listFilter (firstEquals a) . setAscList
 --TODO implement with setMap(?) and setFilter
 
-{-@ reflect domainFor @-}
+{-@ reflect brDomainFor @-}
 -- | Like running a function backwards to get the set of inputs which
 -- correspond to an output.
-domainFor :: (Eq b, Ord a) => b -> BinaryRelation a b -> Set a
-domainFor b = setFromList . listMap tupleFirst . listFilter (secondEquals b) . setAscList
+brDomainFor :: (Eq b, Ord a) => b -> BinaryRelation a b -> Set a
+brDomainFor b = setFromList . listMap tupleFirst . listFilter (secondEquals b) . setAscList
 --TODO implement with setMap(?) and setFilter
 
-{-@ reflect withRange @-}
+{-@ reflect brWithRange @-}
 -- | Use a value as the domain for an existing range.
-withRange :: (Ord a, Ord b) => a -> Set b -> BinaryRelation a b
-withRange a = setFromList . listMap ((,) a) . setAscList
+brWithRange :: (Ord a, Ord b) => a -> Set b -> BinaryRelation a b
+brWithRange a = setFromList . listMap ((,) a) . setAscList
 ---TODO withRange :: a -> x:Set b -> {y:Relation a b | setSize x == setSize y} @-}
 
--- | A fully reversible swap of domain and range.
-{-@ reflect swapDomainRange @-}
-swapDomainRange :: (Ord a, Ord b) => BinaryRelation a b -> BinaryRelation b a
-swapDomainRange = setFromList . listMap tupleSwap . setAscList
--- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | ab == swapDomainRange ba} @-}
--- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | setSize ab == setSize ba} @-}
+---- -- | Given (a,b), for every (b,c) in the relation add an (a,c) to the result.
+---- --
+---- -- a -> b -> c
+---- --
+---- -- >>> brTransitive $ Set [(1,2),(2,3)]
+---- -- {(1,2),(1,3),(2,3)}
+---- --
+---- -- !!! a -> b -> c
+---- -- !!!        `-> c'
+---- --
+---- -- !!! >>> brTransitive $ Set [(1,2),(2,3),(2,999)]
+---- -- !!! {(1,2),(1,3),(1,999),(2,3),(2,999)}
+---- --
+---- -- a -> b -> c -> d
+---- --
+---- -- >>> brTransitive $ Set [(1,2),(2,3),(3,4)]
+---- -- {(1,2),(1,3),(1,4),(2,3),(2,4),(3,4)}
+---- --
+---- {-@ reflect brTransitive @-}
+---- {-@ brTransitive :: br:BinaryRelation a a -> BinaryRelation a a / [setSize br] @-}
+---- brTransitive :: Eq a => BinaryRelation a a -> BinaryRelation a a
+---- brTransitive (Set []) = Set []
+---- brTransitive (Set ((a,b):rest)) =
+----     let Set done = brTransitivitySweep (a,b) (brTransitive (Set rest))
+----     in Set ((a,b):done)
 
-{-@ ple setMemberDistributesOverUnion @-}
-{-@ setMemberDistributesOverUnion :: z:a -> xs:Set a -> ys:Set a
-        -> { setMember z (setUnion xs ys) <=> setMember z xs || setMember z ys }
-        / [setSize xs + setSize ys]
-@-}
-setMemberDistributesOverUnion :: Ord a => a -> Set a -> Set a -> Proof
-setMemberDistributesOverUnion _ _ (Set []) = () -- Base case for setUnion
-setMemberDistributesOverUnion _ (Set []) _ = () -- Base case for setUnion
-setMemberDistributesOverUnion z (Set (x:xs)) (Set (y:ys)) -- Inductive hypothesises for setUnion recursive cases
-    | x < y = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
-    | y < x = setMemberDistributesOverUnion z (Set (x:xs)) (Set ys)
-    | otherwise = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
+---- -- | Given (b,c), for every (a,b) in the relation add an (a,c) to the result.
+---- --
+---- -- >>> brTransitivitySweep (2,3) (Set [(1,2)])
+---- -- {(1,2),(2,3)}
+---- --
+---- -- >>> brTransitivitySweep (2,3) $ Set [(2,999)]
+---- -- {(2,999)}
+---- --
+---- -- >>> brTransitivitySweep (1,2) $ Set [(2,999)]
+---- -- {(1,999),(2,999)}
+---- --
+---- -- >>> brTransitivitySweep (1,2) $ Set [(2,3),(2,999)]
+---- -- {(1,3),(2,3),(1,999),(2,999)}
+---- --
+---- {-@ reflect brTransitivitySweep @-}
+---- brTransitivitySweep :: Eq a => BinaryRelation a a -> (a, a) -> BinaryRelation a a
+---- brTransitivitySweep (Set []) _ = Set []
+---- brTransitivitySweep (Set ((a,b):rest)) (b',c)
+----     | b == b'   = let Set done = brTransitivitySweep (Set rest) (b',c) in Set ((a,b):(a,c):done)
+----     | otherwise = let Set done = brTransitivitySweep (Set rest) (b',c) in Set ((a,b):      done)
+---- 
+---- -- | Given (a,b), for every (b,c) in the relation add an (a,c) to the result.
+---- --
+---- -- >>> brTransitivitySweepOld (1,2) (Set [(2,3)])
+---- -- {(1,3),(2,3)}
+---- --
+---- -- >>> brTransitivitySweepOld (2,3) $ Set [(2,999)]
+---- -- {(2,999)}
+---- --
+---- -- >>> brTransitivitySweepOld (1,2) $ Set [(2,999)]
+---- -- {(1,999),(2,999)}
+---- --
+---- -- >>> brTransitivitySweepOld (1,2) $ Set [(2,3),(2,999)]
+---- -- {(1,3),(2,3),(1,999),(2,999)}
+---- --
+---- {-@ reflect brTransitivitySweepOld @-}
+---- {-@ brTransitivitySweepOld :: (a, a) -> br:BinaryRelation a a -> BinaryRelation a a / [setSize br] @-}
+---- brTransitivitySweepOld :: Eq a => (a, a) -> BinaryRelation a a -> BinaryRelation a a
+---- brTransitivitySweepOld _ (Set []) = Set []
+---- brTransitivitySweepOld (a,b) (Set ((b',c):rest))
+----     | b == b'   = let Set done = brTransitivitySweepOld (a,b) (Set rest) in Set ((a,c):(b',c):done)
+----     | otherwise = let Set done = brTransitivitySweepOld (a,b) (Set rest) in Set (      (b',c):done)
 
-{-@ ple swapPreservesMember @-}
-{-@ swapPreservesMember :: t:(a, b) -> r:BinaryRelation a b
-        -> { setMember t r <=> setMember (tupleSwap t) (swapDomainRange r) }
-        / [setSize r]
-@-}
-swapPreservesMember :: (Ord a, Ord b) => (a, b) -> BinaryRelation a b -> Proof
-swapPreservesMember _ (Set []) = () -- Base case for setMember
-swapPreservesMember (a, b) (Set ((a', b'):xs))
-    = ()
-        ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap (a', b')]) (setFromList (listMap tupleSwap xs))
-        ? swapPreservesMember (a, b) (Set xs)
+burabura :: (a, a) -> BinaryRelation a a -> BinaryRelation a a
+burabura (a,b) (Set br) = Set ((a,b):br)
 
-{-@ ple swapPreservesRelation @-}
-{-@ swapPreservesRelation :: r:BinaryRelation a b
-        -> { r == swapDomainRange (swapDomainRange r) }
-        / [setSize r]
-@-}
-swapPreservesRelation :: (Ord a, Ord b) => BinaryRelation a b -> Proof
-swapPreservesRelation (Set []) = ()
-swapPreservesRelation (Set ((a, b):xs))
-    =   swapDomainRange (swapDomainRange (Set ((a, b):xs)))
-    === swapDomainRange (setFromList (listMap tupleSwap ((a, b):xs)))
-    === swapDomainRange (setFromList (tupleSwap (a, b) : listMap tupleSwap xs))
-    === swapDomainRange (setSingleton (tupleSwap (a, b)) `setUnion` setFromList (listMap tupleSwap xs))
---      ? swapDistributesOverUnion
-    *** Admit
----- swapPreservesRelation (Set (x:xs))
-----  =   setMember  swapPreservesMember x (Set xs)
-----  *** Admit
+burabura_ :: (a, a) -> Set (a,a) -> Set (a,a)
+burabura_ (a,b) (Set br) = Set ((a,b):br)
 
-{-@ ple swapDistributesOverUnion @-}
-{-@ swapDistributesOverUnion :: xs:BinaryRelation a b -> ys:BinaryRelation a b
-        -> { setUnion (swapDomainRange xs) (swapDomainRange ys) == swapDomainRange (setUnion xs ys) }
-@-}
-swapDistributesOverUnion :: BinaryRelation a b -> BinaryRelation a b -> Proof
-swapDistributesOverUnion _ _ = () *** Admit
+---- -- TODO: state this property more generally? like, can we state transitivity as
+---- -- a property of a relation and then prove that the result of brTransitive
+---- -- satisfies it?
+---- {-@
+---- brTransitiveTransitivity
+----     ::   br:BinaryRelation a a
+----     ->   x:a
+----     -> { y:a | setMember (x,y)   br }
+----     -> { z:a | setMember   (y,z) br }
+----     -> {       setMember (x,  z) (brTransitive br) }
+----     /  [setSize br]
+---- @-}
+---- {-@ ple brTransitiveTransitivity @-}
+---- brTransitiveTransitivity :: Eq a => BinaryRelation a a -> a -> a -> a -> Proof
+---- brTransitiveTransitivity (Set []) _x _y _z = ()
+---- brTransitiveTransitivity (Set ((a,b):rest)) x y z
+----     | setMember (x,z) (brTransitive (Set ((a,b):rest))) = ()
+----     | otherwise
+----         =   False
+----         === setMember (x,z) (brTransitive (Set ((a,b):rest)))
+----         === setMember (x,z) (let Set done = brTransitivitySweep (a,b) (brTransitive (Set rest)) in Set ((a,b):done))
+----         === setMember (x,z) (Set ((a,b) : (let Set done = brTransitivitySweep (a,b) (brTransitive (Set rest)) in done)))
+----         === listElem (x,z) ((a,b) : (let Set done = brTransitivitySweep (a,b) (brTransitive (Set rest)) in done))
+----         === 
+----         *** Admit
+
+
+---- {-@
+---- type Transitive
+----     =  br:BinaryRelation a a
+----     -> x:a
+----     -> y:a
+----     -> z:a
+----     -> { setMember (x,y) br && setMember (y,z) br => setMember (x,z) br }
+---- @-}
+---- 
+---- {-@
+---- makeTransitiveWorks ::
+
+---- -- | A fully reversible swap of domain and range.
+---- {-@ reflect swapDomainRange @-}
+---- swapDomainRange :: (Ord a, Ord b) => BinaryRelation a b -> BinaryRelation b a
+---- swapDomainRange = setFromList . listMap tupleSwap . setAscList
+---- -- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | ab == swapDomainRange ba} @-}
+---- -- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | setSize ab == setSize ba} @-}
+---- 
+---- {-@ ple setMemberDistributesOverUnion @-}
+---- {-@ setMemberDistributesOverUnion :: z:a -> xs:Set a -> ys:Set a
+----         -> { setMember z (setUnion xs ys) <=> setMember z xs || setMember z ys }
+----         / [setSize xs + setSize ys]
+---- @-}
+---- setMemberDistributesOverUnion :: Ord a => a -> Set a -> Set a -> Proof
+---- setMemberDistributesOverUnion _ _ (Set []) = () -- Base case for setUnion
+---- setMemberDistributesOverUnion _ (Set []) _ = () -- Base case for setUnion
+---- setMemberDistributesOverUnion z (Set (x:xs)) (Set (y:ys)) -- Inductive hypothesises for setUnion recursive cases
+----     | x < y = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
+----     | y < x = setMemberDistributesOverUnion z (Set (x:xs)) (Set ys)
+----     | otherwise = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
+---- 
+---- {-@ ple swapPreservesMember @-}
+---- {-@ swapPreservesMember :: t:(a, b) -> r:BinaryRelation a b
+----         -> { setMember t r <=> setMember (tupleSwap t) (swapDomainRange r) }
+----         / [setSize r]
+---- @-}
+---- swapPreservesMember :: (Ord a, Ord b) => (a, b) -> BinaryRelation a b -> Proof
+---- swapPreservesMember _ (Set []) = () -- Base case for setMember
+---- swapPreservesMember (a, b) (Set ((a', b'):xs))
+----     = ()
+----         ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap (a', b')]) (setFromList (listMap tupleSwap xs))
+----         ? swapPreservesMember (a, b) (Set xs)
+---- 
+---- {-@ ple swapPreservesRelation @-}
+---- {-@ swapPreservesRelation :: r:BinaryRelation a b
+----         -> { r == swapDomainRange (swapDomainRange r) }
+----         / [setSize r]
+---- @-}
+---- swapPreservesRelation :: (Ord a, Ord b) => BinaryRelation a b -> Proof
+---- swapPreservesRelation (Set []) = ()
+---- swapPreservesRelation (Set ((a, b):xs))
+----     =   swapDomainRange (swapDomainRange (Set ((a, b):xs)))
+----     === swapDomainRange (setFromList (listMap tupleSwap ((a, b):xs)))
+----     === swapDomainRange (setFromList (tupleSwap (a, b) : listMap tupleSwap xs))
+----     === swapDomainRange (setSingleton (tupleSwap (a, b)) `setUnion` setFromList (listMap tupleSwap xs))
+---- --      ? swapDistributesOverUnion
+----     *** Admit
+---- ---- swapPreservesRelation (Set (x:xs))
+---- ----  =   setMember  swapPreservesMember x (Set xs)
+---- ----  *** Admit
+---- 
+---- {-@ ple swapDistributesOverUnion @-}
+---- {-@ swapDistributesOverUnion :: xs:BinaryRelation a b -> ys:BinaryRelation a b
+----         -> { setUnion (swapDomainRange xs) (swapDomainRange ys) == swapDomainRange (setUnion xs ys) }
+---- @-}
+---- swapDistributesOverUnion :: BinaryRelation a b -> BinaryRelation a b -> Proof
+---- swapDistributesOverUnion _ _ = () *** Admit

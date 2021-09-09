@@ -29,9 +29,9 @@ data Rule
 {-@ reflect messageIsFresh @-}
 messageIsFresh :: State -> Message -> Bool
 messageIsFresh State{delivered,requires} msg
-    =  not (msg `setMember` domain delivered)
-    && not (msg `setMember` domain requires)
-    && not (msg `setMember` range requires)
+    =  not (msg `setMember` brDomain delivered)
+    && not (msg `setMember` brDomain requires)
+    && not (msg `setMember` brRange requires)
 
 {-@ reflect premisesHold @-}
 premisesHold :: State -> Rule -> Bool
@@ -41,7 +41,7 @@ premisesHold State{delivered,requires} Deliver{p0,receiver,message}
     =  p0 /= receiver -- A message is delivered to its own sender in the send rule.
     && (message, p0) `setMember` delivered -- The message is a real message sent by some process using the send rule (not necessarily p0).
     && not ((message, receiver) `setMember` delivered) -- The message has not yet been delivered by the receiver (exactly once delivery).
-    && rangeFor message requires `setIsSubsetOf` domainFor receiver delivered
+    && brRangeFor message requires `setIsSubsetOf` brDomainFor receiver delivered
 
 {-@ reflect causalDeliverySemantics @-}
 {-@ causalDeliverySemantics :: s:State -> {r:Rule | premisesHold s r} -> State @-}
@@ -49,7 +49,7 @@ causalDeliverySemantics :: State -> Rule -> State
 causalDeliverySemantics State{delivered,requires} Send{sender,message}
     = State
         { delivered = delivered `setUnion` setSingleton (message, sender)
-        , requires = requires `setUnion` withRange message (domainFor sender delivered)
+        , requires = requires `setUnion` brWithRange message (brDomainFor sender delivered)
         }
 causalDeliverySemantics state@State{delivered,requires=_} Deliver{receiver,message}
     = state

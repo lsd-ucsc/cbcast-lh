@@ -5,6 +5,10 @@ import Language.Haskell.Liquid.ProofCombinators
 
 type Assoc k v = [(k, v)]
 
+{-@ reflect assocEmpty @-}
+assocEmpty :: Assoc k v
+assocEmpty = []
+
 {-@ reflect assocKey @-}
 assocKey :: Eq k => Assoc k v -> k -> Bool
 assocKey assoc key = listOrMap (firstEquals key) assoc
