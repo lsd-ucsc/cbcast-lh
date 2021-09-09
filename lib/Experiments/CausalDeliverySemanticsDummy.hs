@@ -1,7 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CausalDeliverySemanticsDummy where
+module Experiments.CausalDeliverySemanticsDummy where
 
-import Redefined
+import Redefined.Set
+
 import Data.BinaryRelation
 
 -- NOTE 

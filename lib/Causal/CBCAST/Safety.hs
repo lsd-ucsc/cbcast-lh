@@ -8,7 +8,10 @@ module Causal.CBCAST.Safety where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import Redefined
+import qualified Redefined.Bool -- Required to prevent LH elaborate makeKnowledge crash
+import qualified Redefined.List -- Required to prevent LH elaborate makeKnowledge crash
+import Redefined.Fin
+
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 

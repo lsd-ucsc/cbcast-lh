@@ -1,4 +1,4 @@
-module Causal.CBCASTSemantics where
+module Experiments.CBCASTSemantics where
 
 -- define an execution type (start with tuple)
 --

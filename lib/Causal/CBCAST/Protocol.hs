@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs listInitLast in scope
 module Causal.CBCAST.Protocol where
 
-import Redefined
+import Redefined.List
+
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue

@@ -1,13 +1,16 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs BinaryRelation to be imported for specs
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CDSDsimulatesCDS where
+module Experiments.CDSDsimulatesCDS where
 
-import Redefined
-import qualified Data.BinaryRelation -- Required to fix LH "free vars" error
 import Language.Haskell.Liquid.ProofCombinators
 
-import qualified Causal.CausalDeliverySemantics as Spec
-import qualified Causal.CausalDeliverySemanticsDummy as Impl
+import Redefined.Proof
+import Redefined.Set
+
+import qualified Data.BinaryRelation -- Required to fix LH "free vars" error
+
+import qualified Experiments.CausalDeliverySemantics as Spec
+import qualified Experiments.CausalDeliverySemanticsDummy as Impl
 
 {-@ reflect convertProcess @-}
 convertProcess :: Impl.Process -> Spec.Process

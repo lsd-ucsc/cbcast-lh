@@ -1,7 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CBCAST.Execution where
+module Data.DAG where
 
-import Redefined
+import Redefined.Fin
+import Redefined.List
+import Redefined.Set
 
 -- * Graph
 
@@ -139,59 +141,3 @@ gReachable graph src dest = case graph of
         || listOrMap (\s -> gReachable gTail s dest) (setAscList srcNeighbors)
   where
     srcNeighbors = gNeighbors graph src
-
--- * Execution
-
------ data Event pid msg
------     = Broadcast pid msg -- Process pid sends message msg to everyone.
------     | Deliver pid -- Process pid delivers another process's message msg to itself.
------ 
------ data Execution pid msg = Execution
------     { dependencies :: DAG
------     , events :: [Event pid msg]
------     }
------ {-@
------ data Execution pid msg = Execution
------     { dependencies :: DAG
------     , events ::
------         { xs : [Event pid msg]<{\x xs -> properEvent dependencies x xs}>
------         | gSize dependencies == listLength xs
------         }
------     }
------ @-}
------ 
------ {-@ reflect properEvent @-}
------ properEvent :: DAG -> Event pid msg -> Event pid msg -> Bool
------ properEvent dependencies x xs = True -- fixme: can we express the abstract refinement of x related to xs?
------ 
------ ------ {-@ measure isDeliverEvent @-}
------ ------ isDeliverEvent :: Event pid msg -> Bool
------ ------ isDeliverEvent (Deliver _ _) = True
------ ------ isDeliverEvent (Broadcast _ _) = False
------ ------ 
------ ------ -- | Every event points back to an event on the same process, unless there are no
------ ------ -- preceding events on the same process.
------ ------ properProcessOrder :: DAG -> Event pid msg -> Bool
------ ------ properProcessOrder = undefined
------ ------ 
------ ------ -- | Every deliver-event points to a send-event on a distinct process.
------ ------ properDelivery :: DAG -> Event pid msg -> Bool
------ ------ properDelivery = undefined
------ ------ 
------ ------ {-@
------ ------ type ProperEvent pid msg G =
------ ------     { e : Event pid msg |
------ ------         True
------ ------     }
------ ------ @-}
------ 
------ --- -- https://jamboard.google.com/d/1JRk9aN0vcIwFiObGgWm1A6QMzJBkd1teWfz7ThNO6kM/viewer?f=0
------ --- eg :: AdjacencyList
------ --- {-@ eg :: AdjacencyListN {6} @-}
------ --- eg = [ setFromList []
------ ---     , setFromList [0]
------ ---     , setFromList [0]
------ ---     , setFromList [2, 1]
------ ---     , setFromList [3]
------ ---     , setFromList [4, 3]
------ ---     ]

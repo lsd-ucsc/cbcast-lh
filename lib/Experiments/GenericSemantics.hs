@@ -1,4 +1,4 @@
-module Causal.GenericSemantics where
+module Experiments.GenericSemantics where
 
 {-
 

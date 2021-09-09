@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase, ScopedTypeVariables #-}
 -- {-# LANGUAGE RankNTypes #-}
 -- {-# LANGUAGE TypeFamilies #-}
-module Causal.ArithmeticSemantics where
+module Experiments.ArithmeticSemantics where
 
 import Data.Proxy
 

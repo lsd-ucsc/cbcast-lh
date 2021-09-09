@@ -1,7 +1,11 @@
 module Data.Assoc where
 
-import Redefined
 import Language.Haskell.Liquid.ProofCombinators
+
+import qualified Redefined.Bool -- Required to prevent LH elaborate makeKnowledge crash
+import Redefined.Tuple
+import Redefined.Proof
+import Redefined.List
 
 type Assoc k v = [(k, v)]
 

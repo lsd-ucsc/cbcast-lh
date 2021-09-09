@@ -1,7 +1,10 @@
 module Data.BinaryRelation where
 
-import Redefined
 import Language.Haskell.Liquid.ProofCombinators
+
+import Redefined.Tuple
+import Redefined.List
+import Redefined.Set
 
 type BinaryRelation a b = Set (a, b)
 
@@ -106,11 +109,11 @@ brWithRange a = setFromList . listMap ((,) a) . setAscList
 ----     | b == b'   = let Set done = brTransitivitySweepOld (a,b) (Set rest) in Set ((a,c):(b',c):done)
 ----     | otherwise = let Set done = brTransitivitySweepOld (a,b) (Set rest) in Set (      (b',c):done)
 
-burabura :: (a, a) -> BinaryRelation a a -> BinaryRelation a a
-burabura (a,b) (Set br) = Set ((a,b):br)
-
-burabura_ :: (a, a) -> Set (a,a) -> Set (a,a)
-burabura_ (a,b) (Set br) = Set ((a,b):br)
+--burabura :: (a, a) -> BinaryRelation a a -> BinaryRelation a a
+--burabura (a,b) (Set br) = Set ((a,b):br)
+--
+--burabura_ :: (a, a) -> Set (a,a) -> Set (a,a)
+--burabura_ (a,b) (Set br) = Set ((a,b):br)
 
 ---- -- TODO: state this property more generally? like, can we state transitivity as
 ---- -- a property of a relation and then prove that the result of brTransitive
@@ -151,59 +154,3 @@ burabura_ (a,b) (Set br) = Set ((a,b):br)
 ---- {-@
 ---- makeTransitiveWorks ::
 
----- -- | A fully reversible swap of domain and range.
----- {-@ reflect swapDomainRange @-}
----- swapDomainRange :: (Ord a, Ord b) => BinaryRelation a b -> BinaryRelation b a
----- swapDomainRange = setFromList . listMap tupleSwap . setAscList
----- -- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | ab == swapDomainRange ba} @-}
----- -- {-@ swapDomainRange :: ab:BinaryRelation a b -> {ba:BinaryRelation b a | setSize ab == setSize ba} @-}
----- 
----- {-@ ple setMemberDistributesOverUnion @-}
----- {-@ setMemberDistributesOverUnion :: z:a -> xs:Set a -> ys:Set a
-----         -> { setMember z (setUnion xs ys) <=> setMember z xs || setMember z ys }
-----         / [setSize xs + setSize ys]
----- @-}
----- setMemberDistributesOverUnion :: Ord a => a -> Set a -> Set a -> Proof
----- setMemberDistributesOverUnion _ _ (Set []) = () -- Base case for setUnion
----- setMemberDistributesOverUnion _ (Set []) _ = () -- Base case for setUnion
----- setMemberDistributesOverUnion z (Set (x:xs)) (Set (y:ys)) -- Inductive hypothesises for setUnion recursive cases
-----     | x < y = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
-----     | y < x = setMemberDistributesOverUnion z (Set (x:xs)) (Set ys)
-----     | otherwise = setMemberDistributesOverUnion z (Set xs) (Set (y:ys))
----- 
----- {-@ ple swapPreservesMember @-}
----- {-@ swapPreservesMember :: t:(a, b) -> r:BinaryRelation a b
-----         -> { setMember t r <=> setMember (tupleSwap t) (swapDomainRange r) }
-----         / [setSize r]
----- @-}
----- swapPreservesMember :: (Ord a, Ord b) => (a, b) -> BinaryRelation a b -> Proof
----- swapPreservesMember _ (Set []) = () -- Base case for setMember
----- swapPreservesMember (a, b) (Set ((a', b'):xs))
-----     = ()
-----         ? setMemberDistributesOverUnion (b, a) (Set [tupleSwap (a', b')]) (setFromList (listMap tupleSwap xs))
-----         ? swapPreservesMember (a, b) (Set xs)
----- 
----- {-@ ple swapPreservesRelation @-}
----- {-@ swapPreservesRelation :: r:BinaryRelation a b
-----         -> { r == swapDomainRange (swapDomainRange r) }
-----         / [setSize r]
----- @-}
----- swapPreservesRelation :: (Ord a, Ord b) => BinaryRelation a b -> Proof
----- swapPreservesRelation (Set []) = ()
----- swapPreservesRelation (Set ((a, b):xs))
-----     =   swapDomainRange (swapDomainRange (Set ((a, b):xs)))
-----     === swapDomainRange (setFromList (listMap tupleSwap ((a, b):xs)))
-----     === swapDomainRange (setFromList (tupleSwap (a, b) : listMap tupleSwap xs))
-----     === swapDomainRange (setSingleton (tupleSwap (a, b)) `setUnion` setFromList (listMap tupleSwap xs))
----- --      ? swapDistributesOverUnion
-----     *** Admit
----- ---- swapPreservesRelation (Set (x:xs))
----- ----  =   setMember  swapPreservesMember x (Set xs)
----- ----  *** Admit
----- 
----- {-@ ple swapDistributesOverUnion @-}
----- {-@ swapDistributesOverUnion :: xs:BinaryRelation a b -> ys:BinaryRelation a b
-----         -> { setUnion (swapDomainRange xs) (swapDomainRange ys) == swapDomainRange (setUnion xs ys) }
----- @-}
----- swapDistributesOverUnion :: BinaryRelation a b -> BinaryRelation a b -> Proof
----- swapDistributesOverUnion _ _ = () *** Admit

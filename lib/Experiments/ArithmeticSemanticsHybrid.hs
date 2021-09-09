@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs #-}
-module Causal.ArithmeticSemanticsHybrid where
+module Experiments.ArithmeticSemanticsHybrid where
 
 data Peano = Z | S Peano deriving Eq
 

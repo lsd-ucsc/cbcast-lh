@@ -1,8 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CBCAST.Execution2Bespoke where
+module Data.ExecutionDAG where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined
+
+import Redefined.Fin
 
 -- | Define a cons-list of execution events. Use two cons-tructors to represent
 -- broadcast and deliver events in the execution. Each cons-cell has the

@@ -5,7 +5,9 @@
 -- Safety.hs.
 module Causal.CBCAST.VectorClock where
 
-import Redefined
+import Redefined.Fin
+import Redefined.List
+import Redefined.Vec
 
 
 -- * Types

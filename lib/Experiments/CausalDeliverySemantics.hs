@@ -1,7 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.CausalDeliverySemantics where
+module Experiments.CausalDeliverySemantics where
 
-import Redefined
+import Redefined.Set
+
 import Data.BinaryRelation
 
 -- * Causal Delivery semantics

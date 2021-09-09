@@ -1,8 +1,9 @@
 module Redefined.Set where
 
-import Redefined.List
-import Redefined.Proof
 import Language.Haskell.Liquid.ProofCombinators
+
+import Redefined.Proof
+import Redefined.List
 
 -- $setup
 -- >>> import Data.Set

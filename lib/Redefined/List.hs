@@ -1,8 +1,9 @@
 module Redefined.List where
 
-import Redefined.Bool
-import Redefined.Fin ()
 import Language.Haskell.Liquid.ProofCombinators
+
+import qualified Redefined.Fin () -- Required to prevent LH matchTyCon error
+import Redefined.Bool
 
 -- $setup
 -- >>> :set -XFlexibleInstances
@@ -139,6 +140,16 @@ listFilter p = listFoldr (listFilterImpl p) []
 {-@ reflect listFilterImpl @-}
 listFilterImpl :: (a -> Bool) -> a -> [a] -> [a]
 listFilterImpl p x xs = if p x then x:xs else xs
+
+-- * Racket things reimplemented
+
+{-@ reflect listAndMap @-}
+listAndMap :: (a -> Bool) -> [a] -> Bool
+listAndMap f xs = listAnd (listMap f xs)
+
+{-@ reflect listOrMap @-}
+listOrMap :: (a -> Bool) -> [a] -> Bool
+listOrMap f xs = listOr (listMap f xs)
 
 -- * Examples, proofs, and properties
 

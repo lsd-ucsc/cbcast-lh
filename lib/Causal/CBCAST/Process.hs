@@ -1,7 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Causal.CBCAST.Process where
 
-import Redefined
+import Redefined.List
+
 import Causal.CBCAST.VectorClock
 import Causal.CBCAST.Message
 import Causal.CBCAST.DelayQueue

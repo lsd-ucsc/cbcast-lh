@@ -1,13 +1,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
-module Causal.CBCAST.Theorem1 where
+module Causal.Theorem1 where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import Data.Maybe (isJust{-, fromJust-})
-import Redefined
-import Data.BinaryRelation
 import Data.Assoc
+import Data.BinaryRelation
+import Data.Maybe (isJust{-, fromJust-})
+
+import Redefined.Proof
+import Redefined.List
+import Redefined.Set
 
 
 -- * Execution type

@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Causal.ArithmeticSemanticsFun where
+module Experiments.ArithmeticSemanticsFun where
 
 data Peano = Z | S Peano
     deriving Eq
