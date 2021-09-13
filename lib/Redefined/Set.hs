@@ -9,7 +9,7 @@ import Redefined.List
 -- >>> import Data.Set
 
 data Set a = Set [a] deriving Eq
-{-@ data Set a = Set [a]<{\x y -> x < y}> @-}
+{-@ data Set [setSize] a = Set [a]<{\x y -> x < y}> @-}
 
 instance Show a => Show (Set a) where
     show (Set []) = "{}"
@@ -134,59 +134,107 @@ set_propHeadNotInTail2 (Set (x:xs)) = not (x `setMember` Set xs) ? ordListHeadNo
 setEmptyIffSizedZero :: Set a -> Proof
 setEmptyIffSizedZero (Set xs) = () `proofConst` listEmptyIffLengthZero xs
 
--- {-@ setUnionUndoesUncons :: {s:Set a | 0 < setSize s} -> (a, Set a)<{\x xs -> s == setUnion (setSingleton x) xs }> @-}
--- setUnionUndoesUncons :: Set a -> Proof
--- setUnionUndoesUncons _ = ()
-
-{-@ ple setIntensionalGivesExtensional @-}
-{-@ setIntensionalGivesExtensional :: xs:Set a -> ys:Set a
-        -> { z:a | setMember z xs <=> setMember z ys }
-        -> { xs == ys }
+{-@ ple setUnionCommutative @-}
+{-@
+setUnionCommutative
+    :: xs:Set a
+    -> ys:Set a
+    -> { setUnion xs ys == setUnion ys xs }
+    / [setSize xs + setSize ys]
 @-}
-setIntensionalGivesExtensional :: Eq a => Set a -> Set a -> a -> Proof
-setIntensionalGivesExtensional _ _ _ = () *** Admit
---  | (Set []) == ys = ()
---  | (Set []) /= ys
---      =   ys
---          ? (setMember z ys === False)
---      === (Set [])
+setUnionCommutative :: Ord a => Set a -> Set a -> Proof
+setUnionCommutative (Set []) (Set []) = ()
+setUnionCommutative xs (Set []) = ()
+--  = setUnion xs (Set []) === xs === setUnion (Set []) xs *** QED
+setUnionCommutative (Set []) ys = ()
+--  = setUnion (Set []) ys === ys === setUnion ys (Set []) *** QED
+setUnionCommutative (Set (x:xs)) (Set (y:ys))
+    | x < y = setUnionCommutative (Set xs) (Set (y:ys))
+--      = setUnion (Set (x:xs)) (Set (y:ys))
+--      === (let Set zs = setUnion (Set xs) (Set (y:ys)) in Set (x:zs))
+--      === Set (x:(let Set zs = setUnion (Set xs) (Set (y:ys)) in zs))
+--          ? setUnionCommutative (Set xs) (Set (y:ys))
+--      === Set (x:(let Set zs = setUnion (Set (y:ys)) (Set xs) in zs))
+--      *** QED
+    | y < x = setUnionCommutative (Set (x:xs)) (Set ys)
+--      =   setUnion (Set (x:xs)) (Set (y:ys))
+--      === (let Set zs = setUnion (Set (x:xs)) (Set ys) in Set (y:zs))
+--      === Set (y:(let Set zs = setUnion (Set (x:xs)) (Set ys) in zs))
+--          ? setUnionCommutative (Set (x:xs)) (Set ys)
+--      === Set (y:(let Set zs = setUnion (Set ys) (Set (x:xs)) in zs))
+--      *** QED
 
---- setIntensionalIffExtensional _ (Set []) _
----     = () *** Admit
---- setIntensionalIffExtensional (Set (x:xs)) (Set (y:ys)) z
----     = () *** Admit
---- 
---- --- {-@ ple setWithoutMembersEmpty @-}
---- --- {-@ setWithoutMembersEmpty :: xs:Set a -> {z:a | not (setMember z xs)} -> { xs == Set [] } @-}
---- --- setWithoutMembersEmpty :: Set a -> a -> Proof
---- --- setWithoutMembersEmpty (Set []) z = () -- easy
---- --- setWithoutMembersEmpty (Set (x:xs)) z = setMember x (Set (x:xs))
---- 
---- 
---- {-@ blah :: xs:Set a -> (z:a -> { not (setMember z xs) }) -> { xs == Set [] } @-}
---- blah :: Eq a => Set a -> (a -> Proof) -> Proof
---- blah (Set []) f = ()
---- blah (Set (x:xs)) f
----     = () *** Admit
---- --  =   setMember x (Set (x:xs))
---- --  === True
---- --      ? f x
---- --  *** QED ---  ? blah (Set xs) f
---- 
---- -- {-@ consedMemberIsMember :: x:a -> xs:[a]<{\a b -> x < a && a < b}> -> { setMember x (Set (x:xs)) } @-}
---- -- consedMemberIsMember :: a -> [a] -> Proof
---- -- consedMemberIsMember _ _ = () *** Admit
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
---- 
+    | otherwise
+        =   () *** Admit
+--      =   setUnion (Set (x:xs)) (Set (y:ys))
+--          ? (True === x == y)
+--      === setUnion (Set xs) (Set (y:ys))
+--          ? setUnionCommutative (Set xs) (Set (y:ys))
+--      === setUnion (Set (y:ys)) (Set xs)
+--      *** Admit
+
+--  | otherwise = case xs of
+--      []
+--          ->  setUnion (Set (x:xs)) (Set (y:ys))
+--          === setUnion (Set xs) (Set (y:ys))
+--          === setUnion (Set []) (Set (y:ys))
+--              ? setUnionCommutative (Set []) (Set (y:ys))
+--          === setUnion (Set (y:ys)) (Set [])
+--          *** Admit
+--      (b:bs)
+--          -> undefined
+--          ->  setUnion (Set (x:xs)) (Set (y:ys))
+--          === setUnion (Set xs) (Set (y:ys))
+--              ? setUnionCommutative (Set xs) (Set (y:ys))
+--          === Set (y:(let Set zs = setUnion (Set xs) (Set ys) in zs))
+--              ? setUnionCommutative (Set xs) (Set ys)
+--          === Set (y:(let Set zs = setUnion (Set ys) (Set xs) in zs))
+--          === Set (x:(let Set zs = setUnion (Set ys) (Set xs) in zs))
+--          === (let Set zs = setUnion (Set ys) (Set xs) in Set (x:zs))
+--          === setUnion (Set (x:ys)) (Set xs)
+--          === setUnion (Set (y:ys)) (Set xs)
+--          *** Admit
+
+-- {-@ ple setUnionMembership @-}
+-- {-@
+-- setUnionMembership
+--     ::    q:a
+--     ->   xs:Set a
+--     ->   ys:Set a
+--     -> { setMember q xs || setMember q ys
+--             => setMember q (setUnion xs ys) }
+-- @-}
+-- setUnionMembership :: Ord a => a -> Set a -> Set a -> Proof
+-- setUnionMembership q xs (Set []) = ()
+-- setUnionMembership q (Set []) ys = ()
+-- setUnionMembership q (Set (x:xs)) (Set (y:ys))
+--     | setMember q (Set (x:xs)) = () *** Admit
+--     | setMember q (Set (y:ys)) =
+--         ()
+--             ? setUnionCommutative (Set (x:xs)) (Set (y:ys))
+--             ? setUnionMembership q (Set (ys)) (Set (xs))
+--         *** Admit
+--     | otherwise = ()
+
+--  | x < y
+--      =   
+--      (   setMember q (setUnion (Set (x:xs)) (Set (y:ys)))
+--      === setMember q (let Set zs = setUnion (Set xs) (Set (y:ys)) in Set (x:zs))
+--      === listElem q (let Set zs = setUnion (Set xs) (Set (y:ys)) in x:zs)
+--      === listElem q (x:(let Set zs = setUnion (Set xs) (Set (y:ys)) in zs))
+--      === (q==x || listElem q (let Set zs = setUnion (Set xs) (Set (y:ys)) in zs))
+--      === (q==x || setMember q (setUnion (Set xs) (Set (y:ys))))
+--      *** QED
+--      )
+--      &&&
+--      (   if q==x
+--      then () *** QED
+--      else setUnionMembership q (Set xs) (Set (y:ys))
+--      )
+--  | y < x = () *** Admit
+--  | otherwise = () *** Admit
+
+----  =   setMember q (setUnion (Set (x:xs)) (Set (y:ys)))
+----  === 
+----  -- () ? setMemberUnionLeft q (Set xs) (Set ys)
+----  *** Admit

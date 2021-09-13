@@ -41,6 +41,13 @@ listMap :: (a -> b) -> [a] -> [b]
 listMap f (x:xs) = f x:listMap f xs
 listMap _ [] = []
 
+{-@ ple listMap2 @-} -- To know that the argument to the function is a member of the list.
+{-@ reflect listMap2 @-}
+{-@ listMap2 :: ps:[a] -> ({x:a | listElem x ps} -> b) -> {qs:[b] | listLength ps == listLength qs} @-}
+listMap2 :: [a] -> (a -> b) -> [b]
+listMap2 (x:xs) f = f x:listMap2 xs f
+listMap2 [] _ = []
+
 -- | Implementation of 'foldr' lifted to specifications. Probably same as
 -- 'Prelude'.
 --
@@ -151,6 +158,15 @@ listAndMap f xs = listAnd (listMap f xs)
 listOrMap :: (a -> Bool) -> [a] -> Bool
 listOrMap f xs = listOr (listMap f xs)
 
+-- * Other things
+
+{-@ reflect tailAfter @-}
+{-@ ple tailAfter @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
+{-@ tailAfter :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
+tailAfter :: Eq a => a -> [a] -> [a]
+tailAfter _target [] = []
+tailAfter target (x:xs) = if target == x then xs else tailAfter target xs
+
 -- * Examples, proofs, and properties
 
 -- | A list is [] if and only if its length is zero.
@@ -171,3 +187,8 @@ ordListHeadNotInTail :: [a] -> Proof
 ordListHeadNotInTail (_x:[]) = () -- x is not in empty list
 ordListHeadNotInTail (_x:_y:[]) = () -- x is not y
 ordListHeadNotInTail (x:_y:zs) = ordListHeadNotInTail (x:zs) -- x is not y and <inductive hypothesis>
+
+-- {-@ ple ordListHeadLessThanTail @-}
+-- {-@ ordListHeadLessThanTail :: {xs:[a]<{\x y -> x < y}> | 0 < listLength xs} -> { listOrMap ((head xs) <) (tail xs) } @-}
+-- ordListHeadLessThanTail :: [a] -> Proof
+-- ordListHeadLessThanTail _ = ()

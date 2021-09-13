@@ -287,12 +287,5 @@ theorem1 _d _vr _csP _gbP = () *** Admit -- TODO: iterate over all processes, st
 
 -- * Helper functions
 
-{-@ reflect tailAfter @-}
-{-@ ple tailAfter @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
-{-@ tailAfter :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
-tailAfter :: Eq a => a -> [a] -> [a]
-tailAfter _target [] = []
-tailAfter target (x:xs) = if target == x then xs else tailAfter target xs
-
 
 -- * Helper Assoc list type

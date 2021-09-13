@@ -62,3 +62,33 @@ assocCons assoc key x = assocUpdate assoc key (assocConsHelper x)
 assocConsHelper :: a -> Maybe [a] -> [a]
 assocConsHelper x (Just xs) = x:xs
 assocConsHelper x Nothing = x:[]
+
+---- {-@ reflect assocKeys @-}
+---- -- {-@ assocKeys :: a:Assoc k v -> [{key:k | assocKey a key}] @-}
+---- assocKeys :: (Eq k, Eq v) => Assoc k v -> [k]
+---- assocKeys assoc = listMap (assocKeysHelper assoc) assoc -- `proofConst` listMap (assocKeysAreKeysLemma assoc 
+---- 
+---- {-@ ple assocKeysHelper @-} -- To know that tupleFirst returns just the first component of the tuple.
+---- {-@ reflect assocKeysHelper @-}
+---- {-@ assocKeysHelper :: a:Assoc k v -> {item:(k, v) | listElem item a} -> {key:k | assocKey a key} @-}
+---- assocKeysHelper :: (Eq k, Eq v) => Assoc k v -> (k, v) -> k
+---- assocKeysHelper assoc item = tupleFirst item `proofConst` assocKeysHelperProp assoc item
+---- 
+---- -- | To know that the keys returned are assoc keys.
+---- {-@ ple assocKeysHelperProp @-}
+---- {-@ assocKeysHelperProp :: a:Assoc k v -> {item:(k, v) | listElem item a} -> { assocKey a (assocKeysHelper a item) } @-}
+---- assocKeysHelperProp :: (Eq k, Eq v) => Assoc k v -> (k, v) -> Proof
+---- assocKeysHelperProp [] item = ()
+---- assocKeysHelperProp (_:rest) item
+----     | listElem item rest = assocKeysHelperProp rest item
+----     | otherwise = ()
+---- 
+---- -- assocKeysAreKeys :: a:Assoc k v -> { assocKey a key }
+---- 
+---- {-@ ple assocKeysAreKeysLemma @-}
+---- {-@ assocKeysAreKeysLemma :: a:Assoc k v -> {key:k | listElem key (assocKeys a)} -> { assocKey a key } @-}
+---- assocKeysAreKeysLemma :: Eq k => Assoc k v -> k -> Proof
+---- assocKeysAreKeysLemma [] key = ()
+---- assocKeysAreKeysLemma ((k,v):rest) key
+----     | k == key = ()
+----     | otherwise = assocKeysAreKeysLemma rest key
