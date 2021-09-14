@@ -30,9 +30,9 @@ applyRules rules = listFoldr applyRulesHelper (Just execution0) rules
 {-@ reflect applyRulesHelper @-}
 applyRulesHelper :: (Ord p, Ord m) => Rule p m -> Maybe (Execution p m) -> Maybe (Execution p m)
 applyRulesHelper _rule Nothing = Nothing
-applyRulesHelper rule (Just execution) =
-    if premisesHold rule execution
-    then Just (semantics rule execution)
+applyRulesHelper rule (Just x) =
+    if premisesHold rule x
+    then Just (semantics rule x)
     else Nothing
 
 -- | Rules which produce an execution because the premises hold at each step.
