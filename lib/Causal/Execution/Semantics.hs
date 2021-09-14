@@ -30,3 +30,10 @@ ruleEvent (DeliverRule p m) = Deliver p m
 --     && Broadcast message `setMember` events -- There is broadcast event which corresponds to this deliver event
 --     -- TODO
 
+-- TODO: get premisesHold and semantics over here from Theorem1.hs
+-- 
+-- TODO: complete make sure to implement the PREMISES described in the theorem1.pdf
+--
+-- TODO: simplify the semantics according to discussion with @lkuper (don't store {Event}; don't put all events into eventOrder)
+--
+-- REACHABILITY GOES IN ANOTHER FILE
