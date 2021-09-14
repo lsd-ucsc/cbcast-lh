@@ -1,6 +1,12 @@
 module Causal.Execution.Properties where
 -- | Properties of reachable executions
 
+import Redefined.Set
+
+import Data.Assoc
+import Data.BinaryRelation
+
+import Causal.Execution.Type
 import Causal.Execution.Reachable
 
 -- NOTE: for gomes' we have defn

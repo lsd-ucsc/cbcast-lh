@@ -1,6 +1,7 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs the qualified imports for SMT things
 module Causal.Execution.Type where
 
-import Redefined.Bool
+import qualified Redefined.Bool
 import Redefined.Tuple
 import Redefined.List
 import Redefined.Set
