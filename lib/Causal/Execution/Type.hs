@@ -64,6 +64,14 @@ execution0 = Execution assocEmpty brEmpty
 
 -- ** Values derived from an execution
 
+-- | The sequence of events which have taken place on the process (or the empty
+-- sequence).
+{-@ reflect xProcessState @-}
+xProcessState :: Eq p => Execution p m -> p -> ProcessState p m
+xProcessState x p = case assocLookup (xProcesses x) p of
+    Just s -> s
+    Nothing -> []
+
 -- | The set of all events in all process-states in an execution.
 {-@ reflect xEvents @-}
 xEvents :: (Ord p, Ord m) => Execution p m -> Set (Event p m)

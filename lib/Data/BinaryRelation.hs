@@ -2,8 +2,7 @@ module Data.BinaryRelation where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import Redefined.Proof
-import Redefined.Bool
+import Redefined.Function
 import Redefined.Tuple
 import Redefined.List
 import Redefined.Set
@@ -25,22 +24,28 @@ brRange = setFromList . listMap tupleSecond . setAscList
 {-@ reflect brRangeFor @-}
 -- | Analogue to calling a function, except that a relation may associate a set
 -- of values with some input.
-brRangeFor :: (Eq a, Ord b) => a -> BinaryRelation a b -> Set b
-brRangeFor a = setFromList . listMap tupleSecond . listFilter (firstEquals a) . setAscList
+brRangeFor :: (Eq a, Ord b) => BinaryRelation a b -> a -> Set b
+brRangeFor br a = setFromList . listMap tupleSecond . listFilter (firstEquals a) . setAscList $ br
 --TODO implement with setMap(?) and setFilter
 
 {-@ reflect brDomainFor @-}
 -- | Like running a function backwards to get the set of inputs which
 -- correspond to an output.
-brDomainFor :: (Eq b, Ord a) => b -> BinaryRelation a b -> Set a
-brDomainFor b = setFromList . listMap tupleFirst . listFilter (secondEquals b) . setAscList
+brDomainFor :: (Eq b, Ord a) => BinaryRelation a b -> b -> Set a
+brDomainFor br b = setFromList . listMap tupleFirst . listFilter (secondEquals b) . setAscList $ br
 --TODO implement with setMap(?) and setFilter
 
 {-@ reflect brWithRange @-}
 -- | Use a value as the domain for an existing range.
 brWithRange :: (Ord a, Ord b) => a -> Set b -> BinaryRelation a b
-brWithRange a = setFromList . listMap ((,) a) . setAscList
+brWithRange a bs = setFromList . listMap ((,) a) . setAscList $ bs
 ---TODO withRange :: a -> x:Set b -> {y:Relation a b | setSize x == setSize y} @-}
+
+{-@ reflect brWithDomain @-}
+-- | Use a value as the range for an existing domain.
+brWithDomain :: (Ord a, Ord b) => Set a -> b -> BinaryRelation a b
+brWithDomain as b = setFromList . listMap (funFlip (,) b) . setAscList $ as
+
 
 -- | Make a relation transitive.
 --

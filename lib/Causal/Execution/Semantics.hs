@@ -18,22 +18,31 @@ ruleEvent :: Rule p m -> Event p m
 ruleEvent (BroadcastRule _p m) = Broadcast m
 ruleEvent (DeliverRule p m) = Deliver p m
 
--- {-@ reflect premisesHold @-}
--- premisesHold :: (Eq p, Eq m) => Rule p m -> Execution p m -> Bool
--- premisesHold rule@(BroadcastRule _process _message) Execution{..}
---     = let event = ruleEvent rule
---     in not (event `setMember` events) -- The event is not already part of the execution
---     -- TODO
--- premisesHold rule@(DeliverRule _process message) Execution{..}
---     = let event = ruleEvent rule
---     in not (event `setMember` events) -- The event is not already part of the execution
---     && Broadcast message `setMember` events -- There is broadcast event which corresponds to this deliver event
---     -- TODO
+{-@ reflect premisesHold @-}
+premisesHold :: (Ord p, Ord m) => Rule p m -> Execution p m -> Bool
+premisesHold rule@(BroadcastRule _process _message) x =
+    let event = ruleEvent rule
+    in not (event `setMember` xEvents x) -- The event is not already part of the execution
+premisesHold rule@(DeliverRule _process message) x =
+    let event = ruleEvent rule
+    in not (event `setMember` xEvents x) -- The event is not already part of the execution
+    && Broadcast message `setMember` xEvents x-- There is already a broadcast event for this message
 
--- TODO: get premisesHold and semantics over here from Theorem1.hs
--- 
--- TODO: complete make sure to implement the PREMISES described in the theorem1.pdf
---
--- TODO: simplify the semantics according to discussion with @lkuper (don't store {Event}; don't put all events into eventOrder)
---
--- REACHABILITY GOES IN ANOTHER FILE
+{-@ reflect semantics @-}
+{-@ semantics :: r:Rule p m -> {s:Execution p m | premisesHold r s} -> Execution p m @-}
+semantics :: (Ord p, Ord m) => Rule p m -> Execution p m -> Execution p m
+semantics rule@(BroadcastRule process _message) x =
+    let event = ruleEvent rule
+    in Execution
+        { xProcesses = assocCons (xProcesses x) process event
+        , xEventOrder = xEventOrder x -- Existing pairs
+            `setUnion` (setFromList (xProcessState x process) `brWithDomain` event) -- process history is before new event
+        }
+semantics rule@(DeliverRule process message) x =
+    let event = ruleEvent rule
+    in Execution
+        { xProcesses = assocCons (xProcesses x) process event
+        , xEventOrder = xEventOrder x
+            `setUnion` setSingleton (Broadcast message, event) -- message broadcast is before new event
+            `setUnion` (setFromList (xProcessState x process) `brWithDomain` event) -- process history is before new event
+        }

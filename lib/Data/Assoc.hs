@@ -76,7 +76,7 @@ assocKeysHelper assoc item = tupleFirst item `proofConst` assocKeysHelperProp as
 
 -- | To know that the keys returned are assoc keys.
 {-@ ple assocKeysHelperProp @-}
-{-@ assocKeysHelperProp :: a:Assoc k v -> {item:(k, v) | listElem item a} -> { assocKey a (assocKeysHelper a item) } @-}
+{-@ assocKeysHelperProp :: a:Assoc k v -> {item:(k, v) | listElem item a} -> { assocKey a (tupleFirst item) } @-}
 assocKeysHelperProp :: (Eq k, Eq v) => Assoc k v -> (k, v) -> Proof
 assocKeysHelperProp [] item = ()
 assocKeysHelperProp (x:xs) item
