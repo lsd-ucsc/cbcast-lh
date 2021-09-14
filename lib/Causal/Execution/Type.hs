@@ -84,8 +84,6 @@ happensBeforeRelation x = brTransitive (xEventOrder x)
 happensBefore :: (Ord p, Ord m) => Execution p m -> Event p m -> Event p m -> Bool
 happensBefore x e1 e2 = setMember (e1, e2) (happensBeforeRelation x)
 
-{-@ type ExecutionPID p X = {i:p | assocKey (xProcesses X) i} @-}
-
 -- | Does event @e1@ come before @e2@ on process @p@ in the execution?
 --
 -- This is Gomes' notion of comes-before: "e1 \sqrsubset^i e2 <=> \exists xs,
@@ -94,28 +92,19 @@ happensBefore x e1 e2 = setMember (e1, e2) (happensBeforeRelation x)
 -- Therefore, we say e1 comes-before e2 when e1 is in the tail after (prior
 -- state of) e2.
 {-@ reflect comesBefore @-}
-{-@ comesBefore :: x:Execution p m -> Event p m -> Event p m -> ExecutionPID p {x} -> Bool @-}
+{-@ comesBefore :: x:Execution p m -> Event p m -> Event p m -> {i:p | assocKey (xProcesses x) i} -> Bool @-}
 comesBefore :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> p -> Bool
 comesBefore x e1 e2 p =
     let history = assocKeyLookup (xProcesses x) p
     in if listElem e2 history then listElem e1 (statePriorTo history e2) else False
 
--- {-@ ple processIDs @-}
--- {-@ processIDs :: x:Execution p m -> [ExecutionPID p {x}] @-}
--- processIDs :: Execution p m -> [p]
--- processIDs x = listMap tupleFirst (xProcesses x)
-
--- {-@ processIDs :: x:Execution p m -> [{i:p | assocKey (xProcesses x) i}] @-}
--- processIDsAreAssocKeys ::
--- processIDsAreAssocKeys _ = () *** Admit
-
---- -- | Does the pair @(e1, e2)@ appear in the process-order relation? Except this
---- -- is not implemented by tracking a process relation, but by checking whether
---- -- @e1@ comes before @e2@ on any process in the execution.
---- -- {-@ reflect processOrder @-}
---- processOrder :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> Bool
---- processOrder x e1 e2
----     = listOrMap (comesBefore x e1 e2)
----     ( listMap tupleFirst
----     ( xProcesses x
----     ))
+-- | Does the pair @(e1, e2)@ appear in the process-order relation? This is not
+-- implemented by tracking a process relation, but by checking whether @e1@
+-- comes before @e2@ on any process in the execution.
+-- {-@ reflect processOrder @-}
+processOrder :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> Bool
+processOrder x e1 e2
+    = listOrMap (comesBefore x e1 e2)
+    ( assocKeys
+    ( xProcesses x
+    ))
