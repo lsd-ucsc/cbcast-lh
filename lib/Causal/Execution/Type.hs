@@ -114,6 +114,11 @@ xEvents x
 xHasProcess :: Eq p => Execution p m -> p -> Bool
 xHasProcess x p = assocKey (xProcesses x) p
 
+-- | Does the execution have a process with the state?
+{-@ reflect xHasState @-}
+xHasState :: (Eq p, Eq m) => Execution p m -> ProcessState p m -> Bool
+xHasState x s = assocValue (xProcesses x) s
+
 -- | Is the process state in the execution equal to the given process state?
 {-@ reflect xProcessHasState @-}
 xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
