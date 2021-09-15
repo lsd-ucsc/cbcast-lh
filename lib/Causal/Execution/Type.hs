@@ -30,15 +30,21 @@ data Event p m
 -- are cons'd to the left. The tail is prior process state.
 type ProcessState p m = [Event p m]
 
-{-@ priorState :: {s:ProcessState p m | s /= []} -> ProcessState p m @-}
-{-@ reflect priorState @-}
-priorState :: ProcessState p m -> ProcessState p m
-priorState (_e:es) = es
+-- | What is the state prior to the most recent event?
+--
+-- XXX function is not used anywhere
+{-@ reflect statePrior @-}
+statePrior :: ProcessState p m -> Maybe (ProcessState p m)
+statePrior (_e:es) = Just es
+statePrior [] = Nothing
 
-{-@ statePriorTo :: s:ProcessState p m -> {e:Event p m | listElem e s} -> ProcessState p m @-}
+-- | What is the state prior to the given event?
 {-@ reflect statePriorTo @-}
-statePriorTo :: (Eq p, Eq m) => ProcessState p m -> Event p m -> ProcessState p m
-statePriorTo s e = tailAfter e s
+statePriorTo :: (Eq p, Eq m) => ProcessState p m -> Event p m -> Maybe (ProcessState p m)
+statePriorTo [] _e = Nothing
+statePriorTo (e:es) event
+    | e == event = Just es
+    | otherwise = statePriorTo es event
 
 
 -- * Execution type
@@ -83,15 +89,33 @@ xEvents x
     ( xProcesses x
     )))
 
--- | The happens-before relation (transitive closure of the event-order relation).
-{-@ reflect happensBeforeRelation @-}
-happensBeforeRelation :: (Ord p, Ord m) => Execution p m -> BinaryRelation (Event p m) (Event p m)
-happensBeforeRelation x = brTransitive (xEventOrder x)
+-- *** Convenience predicates for LH signatures
 
--- | Does the pair @(e1, e2)@ appear in the happens-before relation?
-{-@ reflect happensBefore @-}
-happensBefore :: (Ord p, Ord m) => Execution p m -> Event p m -> Event p m -> Bool
-happensBefore x e1 e2 = setMember (e1, e2) (happensBeforeRelation x)
+-- | Does the execution have the process?
+{-@ reflect xHasProcess @-}
+xHasProcess :: Eq p => Execution p m -> p -> Bool
+xHasProcess x p = assocKey (xProcesses x) p
+
+-- | Is the process state in the execution equal to the given process state?
+{-@ reflect xProcessHasState @-}
+xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
+xProcessHasState x p s = xProcessState x p == s
+
+xProcessHasEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> Bool
+xProcessHasEvent x p e = listElem e (xProcessState x p)
+
+--- *** Ordering relations
+
+-- | Produce the happens-before relation (transitive closure of the event-order
+-- relation).
+{-@ reflect xHappensBeforeRelation @-}
+xHappensBeforeRelation :: (Ord p, Ord m) => Execution p m -> BinaryRelation (Event p m) (Event p m)
+xHappensBeforeRelation x = brTransitive (xEventOrder x)
+
+-- | Does the pair @e1 -> e2@ occur in the happens-before relation?
+{-@ reflect xHappensBefore @-}
+xHappensBefore :: (Ord p, Ord m) => Execution p m -> Event p m -> Event p m -> Bool
+xHappensBefore x e1 e2 = setMember (e1, e2) (xHappensBeforeRelation x)
 
 -- | Does event @e1@ come before @e2@ on process @p@ in the execution?
 --
@@ -100,20 +124,17 @@ happensBefore x e1 e2 = setMember (e1, e2) (happensBeforeRelation x)
 -- are reversed (newer events are cons'd to the left; tail is prior state).
 -- Therefore, we say e1 comes-before e2 when e1 is in the tail after (prior
 -- state of) e2.
-{-@ reflect comesBefore @-}
-{-@ comesBefore :: x:Execution p m -> Event p m -> Event p m -> {i:p | assocKey (xProcesses x) i} -> Bool @-}
-comesBefore :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> p -> Bool
-comesBefore x e1 e2 p =
-    let history = assocKeyLookup (xProcesses x) p
-    in if listElem e2 history then listElem e1 (statePriorTo history e2) else False
+{-@ reflect xComesBefore @-}
+xComesBefore :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> p -> Bool
+xComesBefore x e1 e2 p = case statePriorTo (xProcessState x p) e2 of
+    Nothing -> False -- XXX e2 doesn't occur on p
+    Just s -> listElem e1 s -- XXX does e1 occur in s, the state prior to e2?
 
--- | Does the pair @(e1, e2)@ appear in the process-order relation? This is not
--- implemented by tracking a process relation, but by checking whether @e1@
--- comes before @e2@ on any process in the execution.
--- {-@ reflect processOrder @-}
-processOrder :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> Bool
-processOrder x e1 e2
-    = listOrMap (comesBefore x e1 e2)
+-- | Does event @e1@ come before @e2@ on any process in the execution?
+-- {-@ reflect xProcessOrder @-}
+xProcessOrder :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> Bool
+xProcessOrder x e1 e2
+    = listOrMap (xComesBefore x e1 e2)
     ( assocKeys
     ( xProcesses x
     ))
