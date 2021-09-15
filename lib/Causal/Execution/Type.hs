@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs the qualified imports for SMT things
 module Causal.Execution.Type where
+-- | Types and definitions for well-formed exections.
+
+import Language.Haskell.Liquid.ProofCombinators
 
 import qualified Redefined.Bool
 import Redefined.Tuple
@@ -30,6 +33,8 @@ data Event p m
 -- are cons'd to the left. The tail is prior process state.
 type ProcessState p m = [Event p m]
 
+-- ** Values derived from a process-state
+
 -- | What is the state prior to the most recent event?
 --
 -- XXX function is not used anywhere
@@ -45,6 +50,18 @@ statePriorTo [] _e = Nothing
 statePriorTo (e:es) event
     | e == event = Just es
     | otherwise = statePriorTo es event
+
+-- | Has the message been delivered? (Is the message contained in a delivery
+-- event in the process state?)
+{-@ reflect stateDelivered @-}
+stateDelivered :: Eq m => ProcessState p m -> m -> Bool
+stateDelivered s m = listOrMap (eventDeliversMessage m) s
+
+-- | Is the event a delivery of the message?
+{-@ reflect eventDeliversMessage @-}
+eventDeliversMessage :: Eq m => m -> Event p m -> Bool
+eventDeliversMessage message (Deliver _p m) = message == m
+eventDeliversMessage _message (Broadcast _m) = False
 
 
 -- * Execution type
@@ -89,6 +106,7 @@ xEvents x
     ( xProcesses x
     )))
 
+
 -- *** Convenience predicates for LH signatures
 
 -- | Does the execution have the process?
@@ -101,8 +119,16 @@ xHasProcess x p = assocKey (xProcesses x) p
 xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
 xProcessHasState x p s = xProcessState x p == s
 
+-- | Does the process have the event in this execution?
+{-@ reflect xProcessHasEvent @-}
 xProcessHasEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> Bool
 xProcessHasEvent x p e = listElem e (xProcessState x p)
+
+-- | Is the process state prior to the event equal to the given process state?
+{-@ reflect xProcessHasStatePriorToEvent @-}
+xProcessHasStatePriorToEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> ProcessState p m -> Bool
+xProcessHasStatePriorToEvent x p e s = statePriorTo (xProcessState x p) e == Just s
+
 
 --- *** Ordering relations
 
@@ -131,10 +157,46 @@ xComesBefore x e1 e2 p = case statePriorTo (xProcessState x p) e2 of
     Just s -> listElem e1 s -- XXX does e1 occur in s, the state prior to e2?
 
 -- | Does event @e1@ come before @e2@ on any process in the execution?
--- {-@ reflect xProcessOrder @-}
+{-@ reflect xProcessOrder @-}
 xProcessOrder :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> Bool
 xProcessOrder x e1 e2
     = listOrMap (xComesBefore x e1 e2)
     ( assocKeys
     ( xProcesses x
     ))
+
+
+-- * Causal delivery property
+
+-- | A property of an execution @X@ given a process, process state, and messages.
+{-@
+type CausalDeliveryProp p m X
+    =     p : p
+    -> {  s : ProcessState p m | xProcessHasState X p s }
+    -> { m1 : m | stateDelivered s m1 }
+    -> { m2 : m | stateDelivered s m2 && xHappensBefore X (Broadcast m1) (Broadcast m2) }
+    -> { xComesBefore X (Deliver p m1) (Deliver p m2) p }
+@-}
+type CausalDeliveryProp p m = p -> ProcessState p m -> m -> m -> Proof
+
+-- | A property of an execution @X@ given a process, process state, and
+-- messages. Except this one uses processOrder (any process) instead of
+-- comesBefore (specific process).
+{-@
+type CausalDeliveryProp2 p m X
+    =     p : p
+    -> {  s : ProcessState p m | xProcessHasState X p s }
+    -> { m1 : m | stateDelivered s m1 }
+    -> { m2 : m | stateDelivered s m2 && xHappensBefore X (Broadcast m1) (Broadcast m2) }
+    -> { xProcessOrder X (Deliver p m1) (Deliver p m2) }
+@-}
+
+{-@ ple execution0observesCausalDelivery @-}
+{-@ execution0observesCausalDelivery :: CausalDeliveryProp p m {execution0} @-}
+execution0observesCausalDelivery :: CausalDeliveryProp p m
+execution0observesCausalDelivery _p _s _m1 _m2 = ()
+
+{-@ ple execution0observesCausalDelivery2 @-}
+{-@ execution0observesCausalDelivery2 :: CausalDeliveryProp2 p m {execution0} @-}
+execution0observesCausalDelivery2 :: CausalDeliveryProp p m
+execution0observesCausalDelivery2 _p _s _m1 _m2 = ()
