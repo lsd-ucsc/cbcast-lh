@@ -8,6 +8,7 @@ import Language.Haskell.Liquid.ProofCombinators
 import qualified Data.Assoc
 import qualified Data.BinaryRelation
 
+import qualified Redefined.Bool
 import Redefined.List
 import qualified Redefined.Set
 
@@ -102,6 +103,7 @@ exGuardedByProp _m _p _s = () *** Admit
 
 -- ** Theorem 1 proof
 
+{-@ ple theorem1 @-}
 {-@
 theorem1
     ::   d : DeliverablePredicate p m
@@ -111,9 +113,41 @@ theorem1
     -> CausalDeliveryProp p m {applyValidRules vr}
 @-}
 theorem1
-    :: DeliverablePredicate p m
+    :: (Ord p, Ord m)
+    => DeliverablePredicate p m
     -> [Rule p m]
     -> CausallySafeProp p m
     -> GuardedByProp p m
     -> CausalDeliveryProp p m
-theorem1 _d _vr _csP _gbP _p _s _m1 _m2 = () *** Admit -- TODO
+theorem1 d vr csP gbP p s m1 m2
+    = case statePriorTo (xProcessState x p) (Deliver p m2) of
+        Nothing
+            ->  xComesBefore x (Deliver p m1) (Deliver p m2) p
+                -- because m2 is not delivered on p
+            === True
+            *** QED
+        Just s'
+            ->  True
+            === stateDelivered s m1
+            === stateDelivered s m2
+                ? gbP m2 p s'
+            === d m2 s'
+                ? csP m1 m2 s' -- and since m1->m2
+            === stateDelivered s' m1
+                ? stateDeliveredImpliesListElem m1 p s'
+            === listElem (Deliver p m1) s'
+            === xComesBefore x (Deliver p m1) (Deliver p m2) p
+            *** QED
+  where
+    x = applyValidRules vr
+
+-- | State delivered is actually just a membership check.
+{-@
+stateDeliveredImpliesListElem
+    ::   m : m
+    ->   p : p
+    -> { s : ProcessState p m | stateDelivered s m }
+    -> { listElem (Deliver p m) s }
+@-}
+stateDeliveredImpliesListElem :: m -> p -> ProcessState p m -> Proof
+stateDeliveredImpliesListElem _m _p _s = () *** Admit

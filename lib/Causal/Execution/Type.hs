@@ -158,8 +158,10 @@ xHappensBefore x e1 e2 = setMember (e1, e2) (xHappensBeforeRelation x)
 {-@ reflect xComesBefore @-}
 xComesBefore :: (Eq p, Eq m) => Execution p m -> Event p m -> Event p m -> p -> Bool
 xComesBefore x e1 e2 p = case statePriorTo (xProcessState x p) e2 of
-    Nothing -> False -- XXX e2 doesn't occur on p
+    Nothing -> True -- XXX e2 doesn't occur on p (Nathan: vacuous truth)
     Just s -> listElem e1 s -- XXX does e1 occur in s, the state prior to e2?
+-- Nathan: Might consider making this vacuously true in the case that e2 is not
+-- present in the process's state.
 
 -- | Does event @e1@ come before @e2@ on any process in the execution?
 {-@ reflect xProcessOrder @-}
