@@ -1,4 +1,5 @@
 module Causal.Execution.Semantics where
+-- | Semantics to construct a well-formed execution.
 
 import Redefined.Set
 
