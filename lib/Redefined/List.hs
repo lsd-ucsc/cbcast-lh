@@ -160,12 +160,29 @@ listOrMap f xs = listOr (listMap f xs)
 
 -- * Other things
 
-{-@ reflect tailAfter @-}
-{-@ ple tailAfter @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
-{-@ tailAfter :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
-tailAfter :: Eq a => a -> [a] -> [a]
-tailAfter _target [] = []
-tailAfter target (x:xs) = if target == x then xs else tailAfter target xs
+-- | Does the first list appear as a tail-sublist of the second list? The case
+-- where two equal lists are provided returns false.
+--
+-- >>> "foo" listIsTailOf "bar"
+-- False
+-- >>> "foo" listIsTailOf "foo"
+-- False
+-- prop> a `listIsTailOf` a == False
+-- >>> "lo" listIsTailOf "hello"
+-- True
+-- >>> "hell" listIsTailOf "hello"
+-- False
+--
+listIsTailOf :: Eq a => [a] -> [a] -> Bool
+listIsTailOf _smaller [] = False
+listIsTailOf smaller (_b:bigger) = smaller == bigger || smaller `listIsTailOf` bigger
+
+{-@ reflect listTailAfter @-}
+{-@ ple listTailAfter @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
+{-@ listTailAfter :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
+listTailAfter :: Eq a => a -> [a] -> [a]
+listTailAfter _target [] = []
+listTailAfter target (x:xs) = if target == x then xs else listTailAfter target xs
 
 -- * Examples, proofs, and properties
 

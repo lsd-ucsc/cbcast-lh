@@ -123,6 +123,10 @@ xHasState x s = assocValue (xProcesses x) s
 xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
 xProcessHasState x p s = xProcessState x p == s
 
+-- | Does the process' state in the execution contain the given prior state?
+xProcessHasPriorState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
+xProcessHasPriorState x p s = s `listIsTailOf` xProcessState x p
+
 -- | Does the process' state in the execution include the given event?
 {-@ reflect xProcessHasEvent @-}
 xProcessHasEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> Bool
