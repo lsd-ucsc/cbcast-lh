@@ -163,16 +163,16 @@ listOrMap f xs = listOr (listMap f xs)
 -- | Does the first list appear as a tail-sublist of the second list? The case
 -- where two equal lists are provided returns false.
 --
--- >>> "foo" listIsTailOf "bar"
+-- >>> "foo" `listIsTailOf` "foo"
 -- False
--- >>> "foo" listIsTailOf "foo"
+-- >>> "foo" `listIsTailOf` "bar"
 -- False
--- prop> a `listIsTailOf` a == False
--- >>> "lo" listIsTailOf "hello"
+-- >>> "hell" `listIsTailOf` "hello"
+-- False
+-- >>> "lo" `listIsTailOf` "hello"
 -- True
--- >>> "hell" listIsTailOf "hello"
--- False
 --
+-- prop> a `listIsTailOf` a == False
 {-@ reflect listIsTailOf @-}
 listIsTailOf :: Eq a => [a] -> [a] -> Bool
 listIsTailOf _smaller [] = False
