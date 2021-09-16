@@ -36,12 +36,11 @@ type ProcessState p m = [Event p m]
 -- ** Values derived from a process-state
 
 -- | What is the state prior to the most recent event?
---
--- XXX function is not used anywhere
 {-@ reflect statePrior @-}
 statePrior :: ProcessState p m -> Maybe (ProcessState p m)
 statePrior (_e:es) = Just es
 statePrior [] = Nothing
+-- XXX function is not used anywhere
 
 -- | What is the state prior to the given event?
 {-@ reflect statePriorTo @-}
@@ -109,30 +108,30 @@ xEvents x
 
 -- *** Convenience predicates for LH signatures
 
--- | Does the execution have the process?
+-- | Does the execution have the given process?
 {-@ reflect xHasProcess @-}
 xHasProcess :: Eq p => Execution p m -> p -> Bool
 xHasProcess x p = assocKey (xProcesses x) p
 
--- | Does the execution have a process with the state?
+-- | Does the execution have a process with the given state?
 {-@ reflect xHasState @-}
 xHasState :: (Eq p, Eq m) => Execution p m -> ProcessState p m -> Bool
 xHasState x s = assocValue (xProcesses x) s
 
--- | Is the process state in the execution equal to the given process state?
+-- | Is the process' state in the execution equal to the given process state?
 {-@ reflect xProcessHasState @-}
 xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
 xProcessHasState x p s = xProcessState x p == s
 
--- | Does the process have the event in this execution?
+-- | Does the process' state in the execution include the given event?
 {-@ reflect xProcessHasEvent @-}
 xProcessHasEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> Bool
 xProcessHasEvent x p e = listElem e (xProcessState x p)
 
--- | Is the process state prior to the event equal to the given process state?
+-- | Is the process state' in the execution, prior to the given event, equal to the given process state?
 {-@ reflect xProcessHasStatePriorToEvent @-}
-xProcessHasStatePriorToEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> ProcessState p m -> Bool
-xProcessHasStatePriorToEvent x p e s = statePriorTo (xProcessState x p) e == Just s
+xProcessHasStatePriorToEvent :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Event p m -> Bool
+xProcessHasStatePriorToEvent x p s e = statePriorTo (xProcessState x p) e == Just s
 
 
 --- *** Ordering relations
@@ -171,6 +170,7 @@ xProcessOrder x e1 e2
     ( assocKeys
     ( xProcesses x
     ))
+-- XXX function is not used anywhere
 
 
 -- * Causal delivery property
@@ -186,24 +186,7 @@ type CausalDeliveryProp p m X
 @-}
 type CausalDeliveryProp p m = p -> ProcessState p m -> m -> m -> Proof
 
--- | A property of an execution @X@ given a process, process state, and
--- messages. Except this one uses processOrder (any process) instead of
--- comesBefore (specific process).
-{-@
-type CausalDeliveryProp2 p m X
-    =     p : p
-    -> {  s : ProcessState p m | xProcessHasState X p s }
-    -> { m1 : m | stateDelivered s m1 }
-    -> { m2 : m | stateDelivered s m2 && xHappensBefore X (Broadcast m1) (Broadcast m2) }
-    -> { xProcessOrder X (Deliver p m1) (Deliver p m2) }
-@-}
-
 {-@ ple execution0observesCausalDelivery @-}
 {-@ execution0observesCausalDelivery :: CausalDeliveryProp p m {execution0} @-}
 execution0observesCausalDelivery :: CausalDeliveryProp p m
 execution0observesCausalDelivery _p _s _m1 _m2 = ()
-
-{-@ ple execution0observesCausalDelivery2 @-}
-{-@ execution0observesCausalDelivery2 :: CausalDeliveryProp2 p m {execution0} @-}
-execution0observesCausalDelivery2 :: CausalDeliveryProp p m
-execution0observesCausalDelivery2 _p _s _m1 _m2 = ()
