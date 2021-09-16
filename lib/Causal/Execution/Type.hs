@@ -118,7 +118,7 @@ xHasProcess x p = assocKey (xProcesses x) p
 xHasState :: (Eq p, Eq m) => Execution p m -> ProcessState p m -> Bool
 xHasState x s = assocValue (xProcesses x) s
 
--- | Is the process' state in the execution equal to the given process state?
+-- | Is the process' current state in the execution equal to the given process state?
 {-@ reflect xProcessHasState @-}
 xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
 xProcessHasState x p s = xProcessState x p == s
@@ -127,6 +127,11 @@ xProcessHasState x p s = xProcessState x p == s
 {-@ reflect xProcessHasPriorState @-}
 xProcessHasPriorState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
 xProcessHasPriorState x p s = s `listIsTailOf` xProcessState x p
+
+-- | Has the process' state in the execution ever been equal to the given state?
+{-@ reflect xProcessEverInState @-}
+xProcessEverInState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
+xProcessEverInState x p s = xProcessHasState x p s || xProcessHasPriorState x p s
 
 -- | Does the process' state in the execution include the given event?
 {-@ reflect xProcessHasEvent @-}

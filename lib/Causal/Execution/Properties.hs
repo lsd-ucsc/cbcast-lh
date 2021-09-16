@@ -4,7 +4,7 @@ module Causal.Execution.Properties where
 
 import Language.Haskell.Liquid.ProofCombinators
 
---import qualified Redefined.Bool
+import qualified Redefined.Bool
 import Redefined.Tuple
 import Redefined.List
 import qualified Redefined.Set
@@ -18,6 +18,34 @@ import qualified Causal.Execution.Reachable
 
 
 -- * Correctness properties
+
+-- | If a process has a state @s@ prior to an event @e@, then that process was
+-- at some point in state @s@.
+{-@
+statePriorToImpliesEverInState
+    ::  vr : ValidRules p m
+    ->   p : p
+    ->   e : Event p m
+    -> { s : ProcessState p m | xProcessHasStatePriorToEvent (applyValidRules vr) p s e }
+    -> { xProcessEverInState (applyValidRules vr) p s }
+@-}
+statePriorToImpliesEverInState :: [Rule p m] -> p -> Event p m -> ProcessState p m -> Proof
+statePriorToImpliesEverInState _vr _p _e _s = () *** Admit
+
+-- | If a process @p@ was ever in a state @s@ and message @m@ was delivered at
+-- that process state, then an event @Deliver p m@ exists in @s@.
+{-@ ple stateDeliveredImpliesListElem @-}
+{-@
+stateDeliveredImpliesListElem
+    ::  vr : ValidRules p m
+    ->   p : p
+    -> { s : ProcessState p m | xProcessEverInState (applyValidRules vr) p s }
+    -> { m : m | stateDelivered s m }
+    -> { listElem (Deliver p m) s }
+@-}
+stateDeliveredImpliesListElem :: [Rule p m] -> p -> ProcessState p m -> m -> Proof
+stateDeliveredImpliesListElem _vr _p [] _m = ()
+stateDeliveredImpliesListElem _vr _p _s _m = () *** Admit
 
 -- | An event in one process-state does not appear in another process-state.
 {-@

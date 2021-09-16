@@ -15,6 +15,7 @@ import qualified Redefined.Set
 import Causal.Execution.Type
 import Causal.Execution.Semantics
 import Causal.Execution.Reachable
+import Causal.Execution.Properties
 
 
 -- * Theorem 1
@@ -49,7 +50,7 @@ type CausallySafeProp p m = m -> m -> ProcessState p m -> Proof
 type GuardedByProp p m X D
     =    m : m
     ->   p : p
-    -> { s : ProcessState p m | xProcessHasStatePriorToEvent X p (Deliver p m) s }
+    -> { s : ProcessState p m | xProcessHasStatePriorToEvent X p s (Deliver p m) }
     -> { D m s }
 @-}
 type GuardedByProp p m = m -> p -> ProcessState p m -> Proof
@@ -134,20 +135,10 @@ theorem1 d vr csP gbP p s m1 m2
             === d m2 s'
                 ? csP m1 m2 s' -- and since m1->m2
             === stateDelivered s' m1
-                ? stateDeliveredImpliesListElem m1 p s'
+                ? statePriorToImpliesEverInState vr p (Deliver p m2) s'
+                ? stateDeliveredImpliesListElem vr p s' m1
             === listElem (Deliver p m1) s'
             === xComesBefore x (Deliver p m1) (Deliver p m2) p
             *** QED
   where
     x = applyValidRules vr
-
--- | State delivered is actually just a membership check.
-{-@
-stateDeliveredImpliesListElem
-    ::   m : m
-    ->   p : p
-    -> { s : ProcessState p m | stateDelivered s m }
-    -> { listElem (Deliver p m) s }
-@-}
-stateDeliveredImpliesListElem :: m -> p -> ProcessState p m -> Proof
-stateDeliveredImpliesListElem _m _p _s = () *** Admit
