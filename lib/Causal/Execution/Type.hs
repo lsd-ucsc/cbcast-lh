@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs the qualified imports for SMT things
 module Causal.Execution.Type where
--- | Types and definitions for well-formed exections.
+-- Types and definitions for well-formed exections.
 
 import Language.Haskell.Liquid.ProofCombinators
 
@@ -124,6 +124,7 @@ xProcessHasState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bo
 xProcessHasState x p s = xProcessState x p == s
 
 -- | Does the process' state in the execution contain the given prior state?
+{-@ reflect xProcessHasPriorState @-}
 xProcessHasPriorState :: (Eq p, Eq m) => Execution p m -> p -> ProcessState p m -> Bool
 xProcessHasPriorState x p s = s `listIsTailOf` xProcessState x p
 

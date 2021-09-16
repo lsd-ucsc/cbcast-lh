@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs the qualified imports for SMT things
 module Causal.Execution.Properties where
--- | Properties of reachable executions.
+-- Properties of reachable executions.
 
 import Language.Haskell.Liquid.ProofCombinators
 

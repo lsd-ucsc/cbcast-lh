@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs the qualified imports for SMT things
 module Causal.Execution.Reachable where
--- | Definition of a well-formed execution using the semantics.
+-- Definition of a well-formed execution using the semantics.
 
 import Language.Haskell.Liquid.ProofCombinators
 

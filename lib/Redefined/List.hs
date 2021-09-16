@@ -173,6 +173,7 @@ listOrMap f xs = listOr (listMap f xs)
 -- >>> "hell" listIsTailOf "hello"
 -- False
 --
+{-@ reflect listIsTailOf @-}
 listIsTailOf :: Eq a => [a] -> [a] -> Bool
 listIsTailOf _smaller [] = False
 listIsTailOf smaller (_b:bigger) = smaller == bigger || smaller `listIsTailOf` bigger
