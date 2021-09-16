@@ -4,6 +4,7 @@ module Causal.Execution.Properties where
 
 import Language.Haskell.Liquid.ProofCombinators
 
+import Redefined.Proof
 import qualified Redefined.Bool
 import Redefined.Tuple
 import Redefined.List
@@ -14,13 +15,37 @@ import qualified Data.BinaryRelation
 
 import Causal.Execution.Type
 import Causal.Execution.Semantics
-import qualified Causal.Execution.Reachable
+import Causal.Execution.Reachable
 
 
--- * Correctness properties
+-- * General properties
+
+-- | If the process state @s1@ prior to event @e@ is process state @s0@, then
+-- @s0@ is a tail-sublist of @s1@.
+{-@ ple statePriorToIsTailOfState @-}
+{-@
+statePriorToIsTailOfState
+    ::  s1 : ProcessState p m
+    ->   e : Event p m
+    -> {s0 : ProcessState p m | statePriorTo s1 e == Just s0 }
+    -> { listIsTailOf s0 s1 }
+@-}
+statePriorToIsTailOfState :: (Eq p, Eq m) => ProcessState p m -> Event p m -> ProcessState p m -> Proof
+statePriorToIsTailOfState [] e s0
+        = statePriorTo [] e === Nothing === Just s0
+        *** QED -- case is impossible
+statePriorToIsTailOfState (e1:es) e s0
+    | e1 == e
+        =   statePriorTo (e1:es) e
+        === Just es -- by defn of statePriorTo
+        === Just s0 -- by premises
+        *** QED
+    | otherwise
+        =   statePriorToIsTailOfState es e s0
 
 -- | If a process has a state @s@ prior to an event @e@, then that process was
 -- at some point in state @s@.
+{-@ ple statePriorToImpliesEverInState @-}
 {-@
 statePriorToImpliesEverInState
     ::  vr : ValidRules p m
@@ -29,8 +54,19 @@ statePriorToImpliesEverInState
     -> { s : ProcessState p m | xProcessHasStatePriorToEvent (applyValidRules vr) p s e }
     -> { xProcessEverInState (applyValidRules vr) p s }
 @-}
-statePriorToImpliesEverInState :: [Rule p m] -> p -> Event p m -> ProcessState p m -> Proof
-statePriorToImpliesEverInState _vr _p _e _s = () *** Admit
+statePriorToImpliesEverInState :: (Ord p, Ord m) => [Rule p m] -> p -> Event p m -> ProcessState p m -> Proof
+statePriorToImpliesEverInState vr p e s
+--  =   xProcessHasStatePriorToEvent x p s e
+--  === statePriorTo (xProcessState x p) e == Just s
+--      ? statePriorToIsTailOfState (xProcessState x p) e s
+--  === s `listIsTailOf` xProcessState x p
+--  === xProcessHasPriorState x p s
+--  === xProcessEverInState x p s
+--  *** QED
+    = statePriorToIsTailOfState (xProcessState x p) e s
+  where
+    x = applyValidRules vr
+
 
 -- | If a process @p@ was ever in a state @s@ and message @m@ was delivered at
 -- that process state, then an event @Deliver p m@ exists in @s@.
@@ -46,6 +82,9 @@ stateDeliveredImpliesListElem
 stateDeliveredImpliesListElem :: [Rule p m] -> p -> ProcessState p m -> m -> Proof
 stateDeliveredImpliesListElem _vr _p [] _m = ()
 stateDeliveredImpliesListElem _vr _p _s _m = () *** Admit
+
+
+-- * Correctness properties
 
 -- | An event in one process-state does not appear in another process-state.
 {-@
