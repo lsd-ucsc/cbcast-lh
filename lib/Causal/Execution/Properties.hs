@@ -5,7 +5,8 @@ module Causal.Execution.Properties where
 import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined.Proof
-import qualified Redefined.Bool
+import qualified Redefined.Function
+import Redefined.Bool
 import Redefined.Tuple
 import Redefined.List
 import qualified Redefined.Set
@@ -106,6 +107,59 @@ statePriorToImpliesEverInState vr p e s
     x = applyValidRules vr
 
 
+{-@ reflect eventHasMessage @-}
+eventHasMessage :: Eq m => Event p m -> m -> Bool
+eventHasMessage (Deliver _ep em) m = em == m
+eventHasMessage (Broadcast em) m = em == m
+
+{-@ reflect eventHasProcess @-}
+eventHasProcess :: Eq p => Event p m -> p -> Bool
+eventHasProcess (Deliver ep _em) p = ep == p
+eventHasProcess (Broadcast _em) _p = False
+
+{-@ ple definitionOfDeliverEvent @-}
+{-@
+definitionOfDeliverEvent
+    ::   e : Event p m
+    -> { p : p | eventHasProcess e p }
+    -> { m : m | eventHasMessage e m }
+    -> { e == Deliver p m }
+@-}
+definitionOfDeliverEvent :: Event p m -> p -> m -> Proof
+definitionOfDeliverEvent Broadcast{} p m = ()
+definitionOfDeliverEvent Deliver{} p m = ()
+
+-- | If a process @p@ was ever in state @s@ and event @e@ is in @s@, then the
+-- event is in in that process' state.
+{-@
+processHasEventsInPriorStates
+    ::  vr : ValidRules p m
+    ->   p : p
+    -> { s : ProcessState p m | xProcessEverInState (applyValidRules vr) p s }
+    -> { e : Event p m | listElem e s }
+    -> { xProcessHasEvent (applyValidRules vr) p e }
+@-}
+processHasEventsInPriorStates :: [Rule p m] -> p -> ProcessState p m -> Event p m -> Proof
+processHasEventsInPriorStates _vr _p _s _e = () *** Admit
+
+-- | If an event @e@ occured on a process @p@ in an execution then the process
+-- in the event is @p@.
+{-@ ple eventsOnProcessOwned @-}
+{-@
+eventsOnProcessOwned
+    ::  vr : ValidRules p m
+    ->   p : p
+    -> { e : Event p m | xProcessHasEvent (applyValidRules vr) p e }
+    -> { eventHasProcess e p }
+@-}
+eventsOnProcessOwned :: (Ord p, Ord m) => [Rule p m] -> p -> Event p m -> Proof
+eventsOnProcessOwned vr p e =
+    case vr of
+        [] -> () -- premise doesn't hold
+        r:rs -> () *** Admit
+  where
+    x = applyValidRules vr
+
 -- | If a process @p@ was ever in a state @s@ and message @m@ was delivered at
 -- that process state, then an event @Deliver p m@ exists in @s@.
 {-@ ple stateDeliveredImpliesListElem @-}
@@ -132,8 +186,14 @@ stateDeliveredImpliesListElem vr p (e:es) m
             ? everInStateImpliesEverInTailState vr p (e:es)
             ? stateDeliveredImpliesListElem vr p es m
     | eventDeliversMessage m e
-        =   ()
-        *** Admit
+        =   eventDeliversMessage m e
+            ? processHasEventsInPriorStates vr p (e:es) e
+            ? eventsOnProcessOwned vr p e
+        === eventHasProcess e p
+            ? definitionOfDeliverEvent e p m
+        === e == Deliver p m
+        === listElem (Deliver p m) (e:es)
+        *** QED
   where
     x = applyValidRules vr
 
