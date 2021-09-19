@@ -20,6 +20,43 @@ import Causal.Execution.Reachable
 
 -- * General properties
 
+{-@
+listIsTailOfTransitivity
+    ::   c : [a]
+    -> { b : [a] | listIsTailOf c b }
+    -> { a : [a] | listIsTailOf b a }
+    -> { listIsTailOf c a }
+@-}
+listIsTailOfTransitivity :: Eq a => [a] -> [a] -> [a] -> Proof
+
+{-@
+everInStateImpliesEverInTailState
+    ::  vr : ValidRules p m
+    ->   p : p
+    -> { s : ProcessState p m | xProcessEverInState (applyValidRules vr) p s && s /= []}
+    -> { xProcessEverInState (applyValidRules vr) p (tail s) }
+@-}
+everInStateImpliesEverInTailState :: (Ord p, Ord m) => [Rule p m] -> p -> ProcessState p m -> Proof
+everInStateImpliesEverInTailState vr p (e:es)
+    | xProcessHasState x p (e:es) -- case of xProcessEverInState
+        =   xProcessState x p == (e:es) -- definition of xProcessHasState
+        === es `listIsTailOf` xProcessState x p -- definition of xProcessHasPriorState
+        === xProcessHasPriorState x p es -- case of xProcessEverInState
+        === xProcessEverInState x p es -- conclusion
+        *** QED
+    | xProcessHasPriorState x p (e:es) -- case of xProcessEverInState
+        =   (e:es) `listIsTailOf` xProcessState x p -- definition of xProcessHasPriorState
+        === es `listIsTailOf` (e:es)
+            ? listIsTailOfTransitivity es (e:es) (xProcessState x p)
+        === es `listIsTailOf` xProcessState x p -- definition of xProcessHasPriorState
+        === xProcessHasPriorState x p es -- case of xProcessEverInState
+        === xProcessEverInState x p es -- conclusion
+        *** QED
+    | otherwise
+        = () ? xProcessEverInState x p (e:es) -- premise failed
+  where
+    x = applyValidRules vr
+
 -- | If the process state @s1@ prior to event @e@ is process state @s0@, then
 -- @s0@ is a tail-sublist of @s1@.
 {-@ ple statePriorToIsTailOfState @-}
@@ -79,9 +116,26 @@ stateDeliveredImpliesListElem
     -> { m : m | stateDelivered s m }
     -> { listElem (Deliver p m) s }
 @-}
-stateDeliveredImpliesListElem :: [Rule p m] -> p -> ProcessState p m -> m -> Proof
-stateDeliveredImpliesListElem _vr _p [] _m = ()
-stateDeliveredImpliesListElem _vr _p _s _m = () *** Admit
+stateDeliveredImpliesListElem :: (Ord p, Ord m) => [Rule p m] -> p -> ProcessState p m -> m -> Proof
+stateDeliveredImpliesListElem _vr _p [] _m = () -- premises don't hold
+stateDeliveredImpliesListElem vr p (e:es) m
+--  =   (stateDelivered (e:es) m
+--  === listOrMap (eventDeliversMessage m) (e:es)
+--  === listOr (listMap (eventDeliversMessage m) (e:es))
+--  === listFoldr boolOr False (listMap (eventDeliversMessage m) (e:es))
+--  === listFoldr boolOr False (eventDeliversMessage m e:(listMap (eventDeliversMessage m) es))
+--  === boolOr (eventDeliversMessage m e) (listFoldr boolOr False (listMap (eventDeliversMessage m) es))
+--  === boolOr (eventDeliversMessage m e) (stateDelivered es m)
+    | stateDelivered es m
+        =   ()
+            ? everInStateImpliesEverInTailState vr p (e:es)
+            ? stateDeliveredImpliesListElem vr p es m
+    | eventDeliversMessage m e
+        =   ()
+        *** Admit
+{-@ LIQUID "--check-var=stateDeliveredImpliesListElem" @-} --- FIXME
+  where
+    x = applyValidRules vr
 
 
 -- * Correctness properties
