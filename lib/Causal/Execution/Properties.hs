@@ -28,6 +28,7 @@ listIsTailOfTransitivity
     -> { listIsTailOf c a }
 @-}
 listIsTailOfTransitivity :: Eq a => [a] -> [a] -> [a] -> Proof
+listIsTailOfTransitivity _c _b _a = () *** Admit
 
 {-@
 everInStateImpliesEverInTailState
@@ -133,7 +134,6 @@ stateDeliveredImpliesListElem vr p (e:es) m
     | eventDeliversMessage m e
         =   ()
         *** Admit
-{-@ LIQUID "--check-var=stateDeliveredImpliesListElem" @-} --- FIXME
   where
     x = applyValidRules vr
 
