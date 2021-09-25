@@ -148,8 +148,10 @@ semanticsPreservesProcessStatesOwned
 semanticsPreservesProcessStatesOwned :: Rule p m -> Execution p m -> Proof
 semanticsPreservesProcessStatesOwned (BroadcastRule rp rm) x
     =   ()
+    *** Admit
 semanticsPreservesProcessStatesOwned (DeliverRule rp rm) x
     =   ()
+    *** Admit
 
 {-@ ple definitionOfDeliverEvent @-}
 {-@
