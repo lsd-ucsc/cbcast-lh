@@ -5,7 +5,7 @@ module Causal.Execution.Properties where
 import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined.Proof
-import qualified Redefined.Function
+import Redefined.Function
 import Redefined.Bool
 import Redefined.Tuple
 import Redefined.List
@@ -106,22 +106,58 @@ statePriorToImpliesEverInState vr p e s
   where
     x = applyValidRules vr
 
-
 {-@ reflect eventHasMessage @-}
 eventHasMessage :: Eq m => Event p m -> m -> Bool
 eventHasMessage (Deliver _ep em) m = em == m
 eventHasMessage (Broadcast em) m = em == m
 
-{-@ reflect eventHasProcess @-}
-eventHasProcess :: Eq p => Event p m -> p -> Bool
-eventHasProcess (Deliver ep _em) p = ep == p
-eventHasProcess (Broadcast _em) _p = False
+{-@ reflect eventIsDeliver @-}
+eventIsDeliver :: Event p m -> Bool
+eventIsDeliver Deliver{} = True
+eventIsDeliver Broadcast{} = False
+
+{-@ reflect eventIsDeliverAtProcess @-}
+eventIsDeliverAtProcess :: Eq p => Event p m -> p -> Bool
+eventIsDeliverAtProcess (Deliver ep _em) p = ep == p
+eventIsDeliverAtProcess (Broadcast _em) _p = False
+
+{-@ reflect eventIsDeliverAtProcessOrNotDeliver @-}
+eventIsDeliverAtProcessOrNotDeliver :: Eq p => Event p m -> p -> Bool
+eventIsDeliverAtProcessOrNotDeliver (Deliver ep _em) p = ep == p
+eventIsDeliverAtProcessOrNotDeliver (Broadcast _em) _p = True
+
+{-@ reflect processStateEventsAtProcess @-}
+processStateEventsAtProcess :: Eq p => ProcessState p m -> p -> Bool
+processStateEventsAtProcess s p =
+    listAndMap (funFlip eventIsDeliverAtProcessOrNotDeliver p) s
+
+{-@ reflect xProcessStatesOwned @-}
+xProcessStatesOwned :: Eq p => Execution p m -> Bool
+xProcessStatesOwned x = listAndMap xProcessStatesOwnedHelper (xProcesses x)
+{-@ reflect xProcessStatesOwnedHelper @-}
+xProcessStatesOwnedHelper :: Eq p => (p, ProcessState p m) -> Bool
+xProcessStatesOwnedHelper (p, s) = processStateEventsAtProcess s p
+
+{-@ ple semanticsPreservesProcessStatesOwned @-}
+{-@
+semanticsPreservesProcessStatesOwned
+    ::   r : Rule p m
+    -> { s : Execution p m | premisesHold r s && xProcessStatesOwned s }
+    -> { xProcessStatesOwned (semantics r s) }
+@-}
+semanticsPreservesProcessStatesOwned :: Rule p m -> Execution p m -> Proof
+semanticsPreservesProcessStatesOwned (BroadcastRule rp rm) x
+    =   ()
+    *** Admit
+semanticsPreservesProcessStatesOwned (DeliverRule rp rm) x
+    =   ()
+    *** Admit
 
 {-@ ple definitionOfDeliverEvent @-}
 {-@
 definitionOfDeliverEvent
     ::   e : Event p m
-    -> { p : p | eventHasProcess e p }
+    -> { p : p | eventIsDeliverAtProcess e p }
     -> { m : m | eventHasMessage e m }
     -> { e == Deliver p m }
 @-}
@@ -150,7 +186,7 @@ eventsOnProcessOwned
     ::  vr : ValidRules p m
     ->   p : p
     -> { e : Event p m | xProcessHasEvent (applyValidRules vr) p e }
-    -> { eventHasProcess e p }
+    -> { eventIsDeliverAtProcessOrNotDeliver e p }
 @-}
 eventsOnProcessOwned :: (Ord p, Ord m) => [Rule p m] -> p -> Event p m -> Proof
 eventsOnProcessOwned vr p e =
@@ -182,16 +218,16 @@ stateDeliveredImpliesListElem vr p (e:es) m
 --  === boolOr (eventDeliversMessage m e) (listFoldr boolOr False (listMap (eventDeliversMessage m) es))
 --  === boolOr (eventDeliversMessage m e) (stateDelivered es m)
     | stateDelivered es m
-        =   ()
+        = ()
             ? everInStateImpliesEverInTailState vr p (e:es)
             ? stateDeliveredImpliesListElem vr p es m
     | eventDeliversMessage m e
-        =   eventDeliversMessage m e
+        = eventDeliversMessage m e
             ? processHasEventsInPriorStates vr p (e:es) e
             ? eventsOnProcessOwned vr p e
-        === eventHasProcess e p
+        === eventIsDeliverAtProcess e p
             ? definitionOfDeliverEvent e p m
-        === e == Deliver p m
+        === (e == Deliver p m)
         === listElem (Deliver p m) (e:es)
         *** QED
   where
