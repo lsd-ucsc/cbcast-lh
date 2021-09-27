@@ -42,6 +42,14 @@ statePrior (_e:es) = Just es
 statePrior [] = Nothing
 -- XXX function is not used anywhere
 
+-- | What is the state at the given event?
+{-@ reflect stateAtEvent @-}
+stateAtEvent :: (Eq p, Eq m) => ProcessState p m -> Event p m -> Maybe (ProcessState p m)
+stateAtEvent [] _e = Nothing
+stateAtEvent (e:es) event
+    | e == event = Just (e:es)
+    | otherwise = stateAtEvent es event
+
 -- | What is the state prior to the given event?
 {-@ reflect statePriorTo @-}
 statePriorTo :: (Eq p, Eq m) => ProcessState p m -> Event p m -> Maybe (ProcessState p m)
@@ -49,6 +57,7 @@ statePriorTo [] _e = Nothing
 statePriorTo (e:es) event
     | e == event = Just es
     | otherwise = statePriorTo es event
+-- FIXME: replace with call to `statePrior $ stateAtEvent s e` (or so, since there's a maybe)
 
 -- | Has the message been delivered? (Is the message contained in a delivery
 -- event in the process state?)
@@ -105,6 +114,9 @@ xEvents x
     ( xProcesses x
     )))
 
+{-@ reflect xStateAtEvent @-}
+xStateAtEvent :: (Eq p, Eq m) => Execution p m -> p -> Event p m -> Maybe (ProcessState p m)
+xStateAtEvent x p e = stateAtEvent (xProcessState x p) e
 
 -- *** Convenience predicates for LH signatures
 
