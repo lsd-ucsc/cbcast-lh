@@ -2,7 +2,7 @@
   description = "CBCAST LH";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-20.09;
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
 
     flake-utils.url = github:numtide/flake-utils;
 
@@ -21,23 +21,15 @@
           };
         };
       };
-      ghc = "ghc8102";
+      ghc = "ghc8104";
       mkOutputs = system: {
 
         overlays = {
-          upgradeServant = final: prev: haskellPackagesOverlay ghc final prev (self: super:
-            with prev.haskell.lib; {
-              http-media = doJailbreak super.http-media;
-              servant = self.callHackage "servant" "0.18.2" { };
-              servant-client = self.callHackage "servant-client" "0.18.2" { };
-              servant-client-core = self.callHackage "servant-client-core" "0.18.2" { };
-              servant-server = self.callHackage "servant-server" "0.18.2" { };
-            });
           addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (self: super:
             with prev.haskell.lib; {
               cbcast-lh =
                 let
-                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "*.cabal" "deploy/" ] ./.;
+                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "build-env" "*.cabal" "deploy/" ] ./.;
                   drv = super.callCabal2nix "cbcast-lh" src { };
                 in
                 overrideCabal drv (old: {
@@ -49,7 +41,6 @@
 
         overlay = composeOverlays [
           liquidhaskell.overlay.${system}
-          self.overlays.${system}.upgradeServant
           self.overlays.${system}.addCBCASTLH
         ];
 
