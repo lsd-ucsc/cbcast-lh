@@ -109,8 +109,9 @@ setUncons (Set (x:xs)) = (x, Set xs) `proofConst` ordListHeadNotInTail (x:xs)
 
 -- * Examples, proofs, and properties
 
-set_ex1 :: Set Char
-set_ex1 = Set ('a':'b':[])
+-- set_ex1 :: Set Char
+-- set_ex1 = Set ('a':'b':[])
+-- FIXME
 
 {-@ fail set_ex2 @-}
 set_ex2 :: Set Char
