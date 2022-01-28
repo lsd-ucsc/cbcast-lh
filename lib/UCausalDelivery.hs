@@ -106,24 +106,24 @@ tick pid (x:xs) = x : tick (pid - 1) xs
 
 
 {-@
-data P = P {pid::PID, vc_p::VC, dq::DQ} @-}
-data P = P {pid::PID, vc_p::VC, dq::DQ}
+data P = P {pid::PID, vc_p::VC, dq::DQ, hist::[M]} @-}
+data P = P {pid::PID, vc_p::VC, dq::DQ, hist::[M]}
 
 -- | Put a message in the dq.
 {-@ reflect receive @-}
 receive :: M -> P -> P
-receive m P{pid,vc_p,dq} =
-    P{pid,vc_p,dq=enqueue m dq}
+receive m p@P{dq} =
+    p{dq=enqueue m dq}
 
 -- | Get a message from the dq and update the local VC.
 {-@ reflect deliver @-}
 deliver :: P -> Maybe (M, P)
-deliver P{pid,vc_p,dq} =
+deliver p@P{vc_p,dq} =
     case dequeue vc_p dq of
         Nothing -> Nothing
         Just (m@M{vc_m}, dq') ->
             let vc_p' = listZipWith ordMax vc_p vc_m -- Could use tick here.
-            in Just (m, P{pid, vc_p=vc_p', dq=dq'})
+            in Just (m, p{vc_p=vc_p', dq=dq'})
 
 -- | Prepare a message for broadcast.
 --
