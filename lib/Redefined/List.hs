@@ -148,6 +148,49 @@ listFilter p = listFoldr (listFilterImpl p) []
 listFilterImpl :: (a -> Bool) -> a -> [a] -> [a]
 listFilterImpl p x xs = if p x then x:xs else xs
 
+-- | Implementation of 'zip' lifted to specifications. Copied from 'Prelude'.
+--
+-- prop> zip xs ys == listZip xs ys
+{-@ reflect listZip @-}
+listZip :: [a] -> [b] -> [(a, b)]
+listZip [] _ = []
+listZip _ [] = []
+listZip (a:as) (b:bs) = (a, b) : listZip as bs
+
+-- | Implementation of 'zipWith' lifted to specifications. Copied from
+-- 'Prelude'.
+--
+-- prop> zipWith f xs ys == listZipWith f xs ys
+{-@ reflect listZipWith @-}
+listZipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
+listZipWith _ [] _ = []
+listZipWith _ _ [] = []
+listZipWith f (x:xs) (y:ys) = f x y : listZipWith f xs ys
+
+-- | Implementation of 'zipWith3' lifted to specifications. Copied from
+-- 'zipWith'.
+--
+-- prop> zipWith3 f xs ys zs == listZipWith3 f xs ys zs
+{-@ reflect listZipWith3 @-}
+listZipWith3 :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
+listZipWith3 _ [] _ _ = []
+listZipWith3 _ _ [] _ = []
+listZipWith3 _ _ _ [] = []
+listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
+
+-- | Implementation of 'splitAt' lifted to specifications. Copied from
+-- 'Prelude'.
+--
+-- prop> splitAt i xs == listSplitAt i xs
+{-@ reflect listSplitAt @-}
+listSplitAt :: Int -> [a] -> ([a], [a])
+listSplitAt n xs | n <= 0 = ([], xs)
+listSplitAt _ [] = ([], [])
+listSplitAt 1 (x:xs) = ([x], xs)
+listSplitAt n (x:xs) = (x:ys, zs)
+  where
+    (ys, zs) = listSplitAt (n - 1) xs
+
 -- * Racket things reimplemented
 
 {-@ reflect listAndMap @-}
