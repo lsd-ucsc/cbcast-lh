@@ -145,9 +145,9 @@ setUnionCommutative
 @-}
 setUnionCommutative :: Ord a => Set a -> Set a -> Proof
 setUnionCommutative (Set []) (Set []) = ()
-setUnionCommutative xs (Set []) = ()
+setUnionCommutative _xs (Set []) = ()
 --  = setUnion xs (Set []) === xs === setUnion (Set []) xs *** QED
-setUnionCommutative (Set []) ys = ()
+setUnionCommutative (Set []) _ys = ()
 --  = setUnion (Set []) ys === ys === setUnion ys (Set []) *** QED
 setUnionCommutative (Set (x:xs)) (Set (y:ys))
     | x < y = setUnionCommutative (Set xs) (Set (y:ys))

@@ -124,7 +124,7 @@ brTransitiveHelperTransitivity
 @-}
 brTransitiveHelperTransitivity :: Eq t => BinaryRelation t t -> t -> t -> t -> Proof
 brTransitiveHelperTransitivity (Set []) _a _b _c = ()
-brTransitiveHelperTransitivity br@(Set ((x,y):rest)) a b c = () *** Admit
+brTransitiveHelperTransitivity _br@(Set ((_x,_y):_rest)) _a _b _c = () *** Admit
 
 -- TODO: state this property more generally? like, can we state transitivity as
 -- a property of a relation and then prove that the result of brTransitive
@@ -140,7 +140,7 @@ brTransitiveTransitivity
 @-}
 brTransitiveTransitivity :: Eq t => BinaryRelation t t -> t -> t -> t -> Proof
 brTransitiveTransitivity (Set []) _a _b _c = ()
-brTransitiveTransitivity br@(Set ((x,y):rest)) a b c
+brTransitiveTransitivity _br@(Set ((_x,_y):_rest)) _a _b _c
 --  | (a,b) == (x,y) = () *** Admit
 --  | (b,c) == (x,y) = () *** Admit
 --  | otherwise = () ? brTransitiveTransitivity (Set rest) a b c

@@ -7,7 +7,7 @@ module Causal.CBCAST.VectorClock where
 
 import Redefined.Fin
 import Redefined.List
-import Redefined.Vec
+import Redefined.Vec ()
 
 
 -- * Types
