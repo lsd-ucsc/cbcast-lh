@@ -1,3 +1,4 @@
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 -- {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -5,7 +6,7 @@ module SystemModel where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Fin
-import Redefined.Vec
+import Redefined.Vec ()
 
 
 
@@ -47,11 +48,6 @@ listAnd (x:xs) = x && listAnd xs
 
 
 
-{-@ measure procCount :: Nat @-}
-{-@ type ProcCount = {n:Nat | n == procCount} @-}
-
-{-@
-type PID = Fin {procCount} @-}
 type PID = Fin
 
 data Message mm r
@@ -131,17 +127,13 @@ type Clock = {c:Integer | 0 <= c} @-}
 type Clock = Integer
 
 {-@
-type VC = Vec Clock {procCount} @-}
-type VC = Vec Clock
+type VC = [Clock] @-}
+type VC = [Clock]
+{-@ type VCsized N = {x:VC | len x == N} @-}
+{-@ type VCas X = VCsized {len X} @-}
 
 {-@
-vcSize :: VC -> ProcCount @-}
-vcSize :: VC -> Int
-vcSize = listLength
-{-@ reflect vcSize @-}
-
-{-@
-vcLessEqual :: VC -> VC -> Bool @-}
+vcLessEqual :: x:VC -> VCas {x} -> Bool @-}
 vcLessEqual :: VC -> VC -> Bool
 vcLessEqual a b = listAnd (listZipWith vcLessEqualHelper a b)
 {-@ reflect vcLessEqual @-}
@@ -150,13 +142,13 @@ vcLessEqualHelper a b = a <= b
 {-@ reflect vcLessEqualHelper @-}
 
 {-@
-vcLess :: VC -> VC -> Bool @-}
+vcLess :: x:VC -> VCas {x} -> Bool @-}
 vcLess :: VC -> VC -> Bool
 vcLess a b = vcLessEqual a b && a /= b
 {-@ reflect vcLess @-}
 
 {-@
-vcConcurrent :: VC -> VC -> Bool @-}
+vcConcurrent :: x:VC -> VCas {x} -> Bool @-}
 vcConcurrent :: VC -> VC -> Bool
 vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 {-@ reflect vcConcurrent @-}
