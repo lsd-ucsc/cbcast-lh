@@ -9,21 +9,26 @@ module Properties where
 import Language.Haskell.Liquid.ProofCombinators
 import SystemModel
 
-{-@ type Reflexive a OP = x:a -> {OP x x} @-}
+{-@ type   Reflexive a OP = x:a -> {OP x x} @-}
+{-@ type Irreflexive a OP = x:a -> {not (OP x x)} @-}
+
+{-@ type     Symmetric a OP = x:a -> {y:a | OP x y} -> {OP y x} @-}
+{-@ type    Asymmetric a OP = x:a -> {y:a | OP x y} -> {not (OP y x)} @-}
+{-@ type Antisymmetric a OP = x:a -> {y:a | OP x y && OP y x} -> {x == y} @-}
+
 {-@ type Transitive a OP = x:a -> {y:a | OP x y} -> {z:a | OP y z} -> {OP x z} @-}
-{-@ type Symmetric a OP = x:a -> {y:a | OP x y} -> {OP y x} @-}
-{-@ type AntiSymmetric a OP = x:a -> {y:a | OP x y && OP y x} -> {x == y} @-}
 {-@ type Total a OP = x:a -> y:a -> {(OP x y || OP y x) && not (OP x y && OP y x)} @-}
 
--- Preorder     : Reflexive, Transitive
--- Partial order: Reflexive, Transitive, AntiSymmetric
--- Total order  : Reflexive, Transitive, AntiSymmetric, Total
--- Equivalence  : Reflexive, Transitive, Symmetric
+-- Preorder                  : Transitive, Reflexive
+-- Partial order (non-strict): Transitive, Reflexive, Antisymmetric
+-- Total order               : Transitive, Reflexive, Antisymmetric, Total
+-- Partial order (strict)    : Transitive, (ONE-OF: Irreflexive, Asymmetric)
+-- Equivalence               : Transitive, Reflexive, Symmetric
 
 
 
 
--- * vcLessEqual partial order
+-- * vcLessEqual non-strict partial order
 
 {-@
 vcLessEqualReflexiveNoPLE :: Reflexive VC {vcLessEqual} @-}
@@ -63,7 +68,7 @@ vcLessEqualTransitive n (_x:xs) (_y:ys) (_z:zs) = vcLessEqualTransitive (n - 1) 
 
 {-@ ple vcLessEqualAntiSymmetric @-}
 {-@
-vcLessEqualAntiSymmetric :: n:Nat -> AntiSymmetric (VCsized {n}) {vcLessEqual} @-}
+vcLessEqualAntiSymmetric :: n:Nat -> Antisymmetric (VCsized {n}) {vcLessEqual} @-}
 vcLessEqualAntiSymmetric :: Int -> VC -> VC -> Proof
 vcLessEqualAntiSymmetric _n [] [] = ()
 vcLessEqualAntiSymmetric n (_x:xs) (_y:ys) = vcLessEqualAntiSymmetric (n - 1) xs ys
@@ -71,14 +76,14 @@ vcLessEqualAntiSymmetric n (_x:xs) (_y:ys) = vcLessEqualAntiSymmetric (n - 1) xs
 
 
 
--- * vcLess transitive and anti-symmetric
+-- * vcLess strict partial order
 
--- {-@ ple vcLessReflexive @-}
--- {-@
--- vcLessReflexive :: Reflexive VC {vcLess} @-}
--- vcLessReflexive :: VC -> Proof
--- vcLessReflexive [] = ()
--- vcLessReflexive (_x:xs) = vcLessReflexive xs
+{-@ ple vcLessIrreflexive @-}
+{-@
+vcLessIrreflexive :: Irreflexive VC {vcLess} @-}
+vcLessIrreflexive :: VC -> Proof
+vcLessIrreflexive [] = ()
+vcLessIrreflexive (_x:xs) = vcLessIrreflexive xs
 
 -- {-@ ple vcLessTransitive @-}
 -- {-@
@@ -89,10 +94,18 @@ vcLessEqualAntiSymmetric n (_x:xs) (_y:ys) = vcLessEqualAntiSymmetric (n - 1) xs
 
 {-@ ple vcLessAntiSymmetric @-}
 {-@
-vcLessAntiSymmetric :: n:Nat -> AntiSymmetric (VCsized {n}) {vcLess} @-}
+vcLessAntiSymmetric :: n:Nat -> Antisymmetric (VCsized {n}) {vcLess} @-}
 vcLessAntiSymmetric :: Int -> VC -> VC -> Proof
 vcLessAntiSymmetric _n [] [] = ()
 vcLessAntiSymmetric n (_x:xs) (_y:ys) = vcLessAntiSymmetric (n - 1) xs ys
+
+-- | TODO prove this using the fact that it's irreflexive and antisymmetric?
+-- {-@ ple vcLessAsymmetric @-}
+-- {-@
+-- vcLessAsymmetric :: n:Nat -> Asymmetric (VCsized {n}) {vcLess} @-}
+-- vcLessAsymmetric :: Int -> VC -> VC -> Proof
+-- vcLessAsymmetric _n [] [] = ()
+-- vcLessAsymmetric n (_x:xs) (_y:ys) = vcLessAsymmetric (n - 1) xs ys
 
 
 
