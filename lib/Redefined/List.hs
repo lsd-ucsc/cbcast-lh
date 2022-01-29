@@ -221,12 +221,12 @@ listIsTailOf :: Eq a => [a] -> [a] -> Bool
 listIsTailOf _smaller [] = False
 listIsTailOf smaller (_b:bigger) = smaller == bigger || smaller `listIsTailOf` bigger
 
-{-@ reflect listTailAfter @-}
-{-@ ple listTailAfter @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
-{-@ listTailAfter :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
-listTailAfter :: Eq a => a -> [a] -> [a]
-listTailAfter _target [] = []
-listTailAfter target (x:xs) = if target == x then xs else listTailAfter target xs
+{-@ reflect listTailForHead @-}
+--- {-@ ple listTailForHead @-} -- To show `listElem t (x:xs) && t /= x => listElem t xs`
+--- {-@ listTailForHead :: t:a -> {xs:[a] | listElem t xs} -> [a] @-}
+listTailForHead :: Eq a => a -> [a] -> [a]
+listTailForHead _target [] = []
+listTailForHead target (x:xs) = if target == x then xs else listTailForHead target xs
 
 -- * Examples, proofs, and properties
 
