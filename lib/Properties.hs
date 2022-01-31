@@ -88,12 +88,12 @@ vcLessEqualTransitive :: Int -> VC -> VC -> VC -> Proof
 vcLessEqualTransitive _n [] [] [] = ()
 vcLessEqualTransitive n (_x:xs) (_y:ys) (_z:zs) = vcLessEqualTransitive (n - 1) xs ys zs
 
-{-@ ple vcLessEqualAntiSymmetric @-}
+{-@ ple vcLessEqualAntisymmetric @-}
 {-@
-vcLessEqualAntiSymmetric :: n:Nat -> Antisymmetric (VCsized {n}) {vcLessEqual} @-}
-vcLessEqualAntiSymmetric :: Int -> VC -> VC -> Proof
-vcLessEqualAntiSymmetric _n [] [] = ()
-vcLessEqualAntiSymmetric n (_x:xs) (_y:ys) = vcLessEqualAntiSymmetric (n - 1) xs ys
+vcLessEqualAntisymmetric :: n:Nat -> Antisymmetric (VCsized {n}) {vcLessEqual} @-}
+vcLessEqualAntisymmetric :: Int -> VC -> VC -> Proof
+vcLessEqualAntisymmetric _n [] [] = ()
+vcLessEqualAntisymmetric n (_x:xs) (_y:ys) = vcLessEqualAntisymmetric (n - 1) xs ys
 
 
 
@@ -107,27 +107,30 @@ vcLessIrreflexive :: VC -> Proof
 vcLessIrreflexive [] = ()
 vcLessIrreflexive (_x:xs) = vcLessIrreflexive xs
 
--- {-@ ple vcLessTransitive @-}
--- {-@
--- vcLessTransitive :: n:Nat -> Transitive (VCsized {n}) {vcLess} @-}
--- vcLessTransitive :: Int -> VC -> VC -> VC -> Proof
--- vcLessTransitive _n [] [] [] = ()
--- vcLessTransitive n (_x:xs) (_y:ys) (_z:zs) = vcLessTransitive (n - 1) xs ys zs
-
-{-@ ple vcLessAntiSymmetric @-}
+{-@ ple vcLessTransitive @-}
 {-@
-vcLessAntiSymmetric :: n:Nat -> Antisymmetric (VCsized {n}) {vcLess} @-}
-vcLessAntiSymmetric :: Int -> VC -> VC -> Proof
-vcLessAntiSymmetric _n [] [] = ()
-vcLessAntiSymmetric n (_x:xs) (_y:ys) = vcLessAntiSymmetric (n - 1) xs ys
+vcLessTransitive :: n:Nat -> Transitive (VCsized {n}) {vcLess} @-}
+vcLessTransitive :: Int -> VC -> VC -> VC -> Proof
+vcLessTransitive _n [] [] [] = ()
+vcLessTransitive n (x:xs) (y:ys) (z:zs)
+    -- since the tails are nonequal, rely on the inductive assumption
+    | xs /= ys && ys /= zs = vcLessTransitive (n - 1) xs ys zs
+    -- since the tails might be equal, base case
+    | otherwise = ()
 
--- | TODO prove this using the fact that it's irreflexive and antisymmetric?
--- {-@ ple vcLessAsymmetric @-}
--- {-@
--- vcLessAsymmetric :: n:Nat -> Asymmetric (VCsized {n}) {vcLess} @-}
--- vcLessAsymmetric :: Int -> VC -> VC -> Proof
--- vcLessAsymmetric _n [] [] = ()
--- vcLessAsymmetric n (_x:xs) (_y:ys) = vcLessAsymmetric (n - 1) xs ys
+{-@ ple vcLessAntisymmetric @-}
+{-@
+vcLessAntisymmetric :: n:Nat -> Antisymmetric (VCsized {n}) {vcLess} @-}
+vcLessAntisymmetric :: Int -> VC -> VC -> Proof
+vcLessAntisymmetric _n [] [] = ()
+vcLessAntisymmetric n (_x:xs) (_y:ys) = vcLessAntisymmetric (n - 1) xs ys
+
+{-@ ple vcLessAsymmetric @-}
+{-@
+vcLessAsymmetric :: n:Nat -> Asymmetric (VCsized {n}) {vcLess} @-}
+vcLessAsymmetric :: Int -> VC -> VC -> Proof
+vcLessAsymmetric n =
+    irreflexiveAntisymmetric vcLess vcLessIrreflexive (vcLessAntisymmetric n)
 
 
 
