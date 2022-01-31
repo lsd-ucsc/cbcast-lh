@@ -125,7 +125,6 @@ vcLessAntisymmetric :: Int -> VC -> VC -> Proof
 vcLessAntisymmetric _n [] [] = ()
 vcLessAntisymmetric n (_x:xs) (_y:ys) = vcLessAntisymmetric (n - 1) xs ys
 
-{-@ ple vcLessAsymmetric @-}
 {-@
 vcLessAsymmetric :: n:Nat -> Asymmetric (VCsized {n}) {vcLess} @-}
 vcLessAsymmetric :: Int -> VC -> VC -> Proof
