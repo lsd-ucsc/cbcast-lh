@@ -112,7 +112,7 @@ vcLessIrreflexive (_x:xs) = vcLessIrreflexive xs
 vcLessTransitive :: n:Nat -> Transitive (VCsized {n}) {vcLess} @-}
 vcLessTransitive :: Int -> VC -> VC -> VC -> Proof
 vcLessTransitive _n [] [] [] = ()
-vcLessTransitive n (x:xs) (y:ys) (z:zs)
+vcLessTransitive n (_x:xs) (_y:ys) (_z:zs)
     -- since the tails are nonequal, rely on the inductive assumption
     | xs /= ys && ys /= zs = vcLessTransitive (n - 1) xs ys zs
     -- since the tails might be equal, base case
@@ -142,9 +142,8 @@ vcConcurrentReflexive :: VC -> Proof
 vcConcurrentReflexive [] = ()
 vcConcurrentReflexive (_x:xs) = vcConcurrentReflexive xs
 
--- {-@ ple vcConcurrentSymmetric @-}
--- {-@
--- vcConcurrentSymmetric :: n:Nat -> Symmetric (VCsized {n}) {vcConcurrent} @-}
--- vcConcurrentSymmetric :: Int -> VC -> VC -> Proof
--- vcConcurrentSymmetric _n [] [] = ()
--- vcConcurrentSymmetric n (_x:xs) (_y:ys) = vcConcurrentSymmetric (n - 1) xs ys
+{-@ ple vcConcurrentSymmetric @-}
+{-@
+vcConcurrentSymmetric :: n:Nat -> Symmetric (VCsized {n}) {vcConcurrent} @-}
+vcConcurrentSymmetric :: Int -> VC -> VC -> Proof
+vcConcurrentSymmetric _n _xs _ys = ()
