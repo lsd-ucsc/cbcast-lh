@@ -1,88 +1,98 @@
-{-@ LIQUID "--ple" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple-local" @-}
+-- {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module UCausalDelivery where
 
 import Language.Haskell.Liquid.ProofCombinators
+import Redefined.Fin
 
-import Redefined.List -- (listLength, listAnd, listZipWith, listZipWith3) -- PLE needs everything in scope
-import Redefined.Bool -- PLE needs everything in scope
-import Redefined.Fin (fin)
-import Redefined.Ord (ordMax)
-import Redefined.Proof (proofConst)
+import SystemModel
+import Properties ()
 
-
--- * Vector clocks
-
-type Clock = Integer
-
-type VC = [Clock]
-
-{-@ reflect vcLessEqual @-}
-vcLessEqual :: VC -> VC -> Bool
-vcLessEqual a b = listAnd (listZipWith vcLessEqualHelper a b)
-{-@ reflect vcLessEqualHelper @-}
-vcLessEqualHelper :: Clock -> Clock -> Bool
-vcLessEqualHelper a b = a <= b
-
-{-@ reflect vcLess @-}
-vcLess :: VC -> VC -> Bool
-vcLess a b = a `vcLessEqual` b && a /= b
-
-{-@ reflect vcConcurrent @-}
-vcConcurrent :: VC -> VC -> Bool
-vcConcurrent a b = not (a `vcLess` b) && not (b `vcLess` a)
+-- * Causal Delivery MPA
 
 
--- * Message
 
-type PID = Int
+-- ** This MPA uses VCs
+
+{-@ type VCasM M = VCsized {mProcCount M} @-}
 
 {-@
-data M = M {sender::PID, vc_m::VC, msg::String} @-}
-data M = M {sender::PID, vc_m::VC, msg::String}
+type M r = Message VCMM r @-}
+type M r = Message VCMM r
+{-@ type Msized r N = {m:M r | mProcCount m == N} @-}
+{-@ type Mas r M = Msized r {mProcCount M} @-}
+{-@ type MasV r V = Msized r {len V} @-}
 
+{-@
+type H r = ProcessHistory VCMM r @-}
+type H r = ProcessHistory VCMM r
+
+-- QQQ: Do we want to push these convenence aliases into the system model? Is
+-- the definition of PLCD hard to read?
+
+
+
+-- ** Message order
+
+{-@
+(===>) :: x:M r -> Mas r {x} -> Bool @-}
+(===>) :: M r -> M r -> Bool
+a ===> b = mVC a `vcLess` mVC b
 {-@ reflect ===> @-}
-(===>) :: M -> M -> Bool
-M{vc_m=a} ===> M{vc_m=b} = a `vcLess` b
 
--- | A convenience alias.
-{-@ reflect <=== @-}
-(<===) :: M -> M -> Bool
-a <=== b = b ===> a
-
+{-@
+(||||) :: x:M r -> Mas r {x} -> Bool @-}
+(||||) :: M r -> M r -> Bool
+a |||| b = mVC a `vcConcurrent` mVC b
 {-@ reflect |||| @-}
-(||||) :: M -> M -> Bool
-M{vc_m=a} |||| M{vc_m=b} = a `vcConcurrent` b
 
 
--- * Deliverable predicate
 
+-- ** Deliverable predicate
+
+{-@
+deliverable :: m:M r -> VCasM {m} -> Bool @-}
+deliverable :: M r -> VC -> Bool
+deliverable m pVC =
+    let n = mProcCount m
+    -- NOTE: this listZipWith3 requires its arguments to be the same length
+    in listAnd (listZipWith3 (deliverableHelper (mSender m)) (fin n) (mVC m) pVC)
 {-@ reflect deliverable @-}
-deliverable :: M -> VC -> Bool
-deliverable M{sender=i, vc_m} vc_p =
-    let n = listLength vc_m `ordMax` listLength vc_p
-    in listAnd (listZipWith3 (deliverableHelper i) (fin n) vc_m vc_p)
-{-@ reflect deliverableHelper @-}
+
+{-@
+deliverableHelper :: PID -> PID -> Clock -> Clock -> Bool @-}
 deliverableHelper :: PID -> PID -> Clock -> Clock -> Bool
-deliverableHelper i k vc_m_k vc_p_k -- i is sender, k is current.
+deliverableHelper i k vc_m_k vc_p_k -- i is sender PID, k is current PID/index.
     | k == i    = vc_m_k == vc_p_k + 1
     | otherwise = vc_m_k <= vc_p_k
+{-@ reflect deliverableHelper @-}
 
 
--- * Delay queue
 
-type DQ = [M]
+-- ** Delay queue
 
-{-@ reflect enqueue @-}
-enqueue :: M -> DQ -> DQ
+type DQ r = [M r]
+{-@ type DQsized r N = [Msized r {N}] @-}
+{-@ type DQasV r V = DQsized r {len V} @-}
+{-@ type DQasM r M = DQsized r {mProcCount M} @-}
+
+-- QQQ: to show PLCD do we need to know the order of messages in the DQ?
+
+{-@
+enqueue :: m:M r -> DQasM r {m} -> DQasM r {m} @-}
+enqueue :: M r -> DQ r -> DQ r
 enqueue m [] = [m]
 enqueue m (x:xs)
     | m ===> x  = m:x:xs -- Messages are in order of their vector clocks.
     | m |||| x  = x:enqueue m xs -- Concurrent messages are in receipt order.
     | otherwise = x:enqueue m xs
+{-@ reflect enqueue @-}
 
-{-@ reflect dequeue @-}
-dequeue :: VC -> DQ -> Maybe (M, DQ)
+{-@
+dequeue :: v:VC -> DQasV r {v} -> Maybe (MasV r {v}, DQasV r {v}) @-}
+dequeue :: VC -> DQ r -> Maybe (M r, DQ r)
 dequeue _now [] = Nothing
 dequeue now (x:xs)
     | deliverable x now = Just (x, xs)
@@ -90,18 +100,22 @@ dequeue now (x:xs)
         case dequeue now xs of -- Skip past x.
             Nothing -> Nothing
             Just (m, xs') -> Just (m, x:xs')
+{-@ reflect dequeue @-}
 
 
--- * Tick
 
-{-@ reflect tick @-}
+-- ** Tick
+
+-- QQQ: do we want to try to constrain the PID to be a valid index to the VC?
+
+{-@
+tick :: _ -> v:VC -> VCas {v} @-}
 tick :: PID -> VC -> VC
-tick pid now | pid < 0 = now
-tick _pid [] = []
+tick pid now | pid < 0 = now    -- NOTE: was not a valid pid
+tick _pid [] = []               -- NOTE: was not a valid pid
 tick 0 (x:xs) = (x + 1) : xs
 tick pid (x:xs) = x : tick (pid - 1) xs
--- let (xs, y:ys) = listSplitAt pid now
--- in xs++(y + 1):ys
+{-@ reflect tick @-}
 
 
 

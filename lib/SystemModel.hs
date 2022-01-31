@@ -1,5 +1,5 @@
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple" @-}
+{-@ LIQUID "--ple-local" @-}
 -- {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module SystemModel where
@@ -33,11 +33,23 @@ listIndex :: [a] -> Int -> a
 listIndex (x:xs) i = if i==0 then x else listIndex xs (i-1)
 {-@ reflect listIndex @-}
 
-{-@ listZipWith :: _ -> xs:_ -> {ys:_ | len xs == len ys} -> {zs:_ | len ys == len zs} @-}
+{-@ listZipWith :: _ ->  xs:_
+                     -> {ys:_ | len xs == len ys}
+                     -> {zs:_ |           len ys == len zs} @-}
 listZipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 listZipWith _ [] [] = []
 listZipWith f (x:xs) (y:ys) = f x y : listZipWith f xs ys
 {-@ reflect listZipWith @-}
+
+-- Used by UCausalDelivery.deliverable
+{-@ listZipWith3 :: _ ->  ws:_
+                      -> {xs:_ | len ws == len xs}
+                      -> {ys:_ |           len xs == len ys}
+                      -> {zs:_ |                     len ys == len zs} @-}
+listZipWith3 :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
+listZipWith3 _ [] [] [] = []
+listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
+{-@ reflect listZipWith3 @-}
 
 listAnd :: [Bool] -> Bool
 listAnd [] = True
@@ -47,8 +59,10 @@ listAnd (x:xs) = x && listAnd xs
 {- END GENERIC HELPERS -}
 
 
+-- QQQ do we need constraints on pid? we don't in the system model, but perhaps
+-- we do for uCausalDelivery
 
-type PID = Fin
+type PID = Int
 
 data Message mm r
     = Message {mMetadata::mm, mRaw::r}
@@ -147,6 +161,9 @@ type VC = [Clock]
 {-@ type VCsized N = {x:VC | len x == N} @-}
 {-@ type VCas X = VCsized {len X} @-}
 
+-- QQQ: everywhere a *asV type is defined, we call len, but perhaps we should
+-- alias that here to vcSize
+
 {-@
 vcLessEqual :: x:VC -> VCas {x} -> Bool @-}
 vcLessEqual :: VC -> VC -> Bool
@@ -206,40 +223,55 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 
 
 
--- | Metadata for messages in a MPA which uses VCs.
-{-@
-data VCMM = VCMM {sender::PID, sent::VC} @-}
-data VCMM = VCMM {sender::PID, sent::VC}
+-- QQQ: Does this belong to the system model (because it's cbcast agnostic) or
+-- to the MPA (because the stuff about proccount is very much specific to
+-- cbcast)?
 
--- | Message type for a MPA which uses VCs.
+-- | Message metadata for a MPA which uses VCs.
 {-@
-type M r = Message VCMM r @-}
-type M r = Message VCMM r
-
-{-@
-sentVC :: M r -> VC @-}
-sentVC :: M r -> VC
-sentVC Message{mMetadata=VCMM{sent}} = sent
-{-@ reflect sentVC @-}
+data VCMM = VCMM {vcmmProcCount::Nat, vcmmSender::PID, vcmmSent::VCsized {vcmmProcCount}} @-}
+data VCMM = VCMM {vcmmProcCount::Int, vcmmSender::PID, vcmmSent::VC}
 
 {-@
-type ProcessLocalCausalDelivery r P H
-    =  {m1 : M r | listElem (Deliver P m1) H }
-    -> {m2 : M r | listElem (Deliver P m2) H
-                && vcLess (sentVC m1) (sentVC m2) }
-    -> {_ : Proof | processOrder H (Deliver P m1) (Deliver P m2) }
+mProcCount :: Message VCMM r -> Nat @-}
+mProcCount :: Message VCMM r -> Int
+mProcCount Message{mMetadata=VCMM{vcmmProcCount}} = vcmmProcCount
+{-@ measure mProcCount @-}
+-- TODO: ask niki if it is safe to define measures like these three
+
+{-@
+mSender :: Message VCMM r -> PID @-}
+mSender :: Message VCMM r -> PID
+mSender Message{mMetadata=VCMM{vcmmSender}} = vcmmSender
+{-@ measure mSender @-}
+
+{-@
+mVC :: m:Message VCMM r -> VCsized {mProcCount m} @-}
+mVC :: Message VCMM r -> VC
+mVC Message{mMetadata=VCMM{vcmmSent}} = vcmmSent
+{-@ measure mVC @-}
+
+{-@
+type ProcessLocalCausalDelivery r PID PHIST
+    =  {m1 : Message VCMM r | listElem (Deliver PID m1) PHIST }
+    -> {m2 : Message VCMM r | listElem (Deliver PID m2) PHIST
+                && vcLess (mVC m1) (mVC m2) }
+    -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
 @-}
 
-{-@
-h0 :: ProcessHistory VCMM r @-}
-h0 :: ProcessHistory VCMM r
-h0 = []
-{-@ reflect h0 @-}
+-- QQQ: Do we want a name for this? The proof below doesn't require a name.
+--
+-- {-@
+-- h0 :: ProcessHistory VCMM r @-}
+-- h0 :: ProcessHistory VCMM r
+-- h0 = []
+-- {-@ reflect h0 @-}
 
+{-@ ple emptyPHistObservesPLCD @-}
 {-@
-h0ObservesPLCD :: ProcessLocalCausalDelivery r {999} {h0} @-}
-h0ObservesPLCD :: M r -> M r -> Proof
-h0ObservesPLCD _m1 _m2 = () *** QED
+emptyPHistObservesPLCD :: p:_ -> ProcessLocalCausalDelivery r {p} {[]} @-}
+emptyPHistObservesPLCD :: PID -> Message VCMM r -> Message VCMM r -> Proof
+emptyPHistObservesPLCD _p _m1 _m2 = ()
 
 -- (backburner) PLCDImpliesCD
 -- (backburner) VCISO: cbcast implies vc-hb-copacetic
