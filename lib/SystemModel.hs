@@ -63,8 +63,6 @@ data Event mm r
 -- history will be 3:2:1:[].
 type ProcessHistory mm r = [Event mm r]
 
-type Execution mm r = PID -> ProcessHistory mm r
-
 -- | Process order e->e' indicates that e appears in the subsequence of history
 -- prior to e'.
 processOrder :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Bool
@@ -74,50 +72,67 @@ processOrder hist e e' = listElem e (listTailForHead e' hist)
 
 
 {- BEGIN HYPOTHETICAL SECTION -}
-
--- | Happens before e->e' indicates one of the following conditions ...
-happensBefore :: (Eq mm, Eq r) => Execution mm r -> Event mm r -> Event mm r -> Bool
-happensBefore _ _ _ = False
-{-@ reflect happensBefore @-}
-
-happensBefore_ :: (Eq mm, Eq r) => Execution mm r -> Event mm r -> Event mm r -> Bool
-happensBefore_ exec e e'
-    =  forSomePid (\pid -> processOrder (exec pid) e e')
-    || case (e, e') of (Broadcast mb, Deliver _ md) -> mb == md; _ -> False
-    || forSomeEvent (\e'' -> happensBefore_ exec e e'' && happensBefore_ exec e'' e')
-  where
-    forSomePid predicate = listOr (listMap predicate {- domain of exec -} undefined)
-    forSomeEvent predicate = listOr (listMap predicate (listConcat {- range of exec -} undefined))
-    -- These are defined in Data.Assoc and Redefined.List, but we don't need
-    -- them here yet.
-    listOr :: [Bool] -> Bool
-    listOr = undefined
-    listMap :: (a -> b) -> [a] -> [b]
-    listMap = undefined
-    listConcat :: [[a]] -> [a]
-    listConcat = undefined
-{-@ ignore happensBefore_ @-} -- Can't define HB this way (termination).
-
-{-@
-type CausalDelivery mm r X
-    =   p  : PID
-    ->  q  : PID
-    ->  r  : PID
-    -> {m1 : Message mm r | listElem (Broadcast m1) (X q) && listElem (Deliver p m1) (X p)}
-    -> {m2 : Message mm r | listElem (Broadcast m2) (X r) && listElem (Deliver p m2) (X p)}
-    -> {_  : Proof | happensBefore X (Broadcast m1) (Broadcast m2)}
-    -> {_  : Proof | processOrder (X p) (Deliver p m1) (Deliver p m2)}
-@-}
-
-x0 :: Execution mm r
-x0 _ = []
-{-@ reflect x0 @-}
-
-{-@
-x0ObservesCausalDelivery :: CausalDelivery mm r {x0} @-}
-x0ObservesCausalDelivery :: PID -> PID -> PID -> Message mm r -> Message mm r -> Proof -> Proof
-x0ObservesCausalDelivery _p _q _r _m1 _m2 () = ()
-
+--
+-- This code is mostly fine. It just needs some finesse.
+--
+-- Focus: executions, happens before
+--
+-- Issues:
+--
+--  1. Happens before requires that we talk about PIDs being "in the domain" of
+--  an execution (so a map or assoc would be more convenient than a function)
+--  and it also requires that we extract process histories via PIDs from the
+--  execution (so a function would be more convenient than a map).
+--
+--  2. Happens before is defined as one of three cases, two of which rely on
+--  ∃'ing variables into existence, so we need a bunch of extra functions to
+--  test a predicate with every possible answer (from within the execution).
+--
+-- type Execution mm r = PID -> ProcessHistory mm r
+-- 
+-- -- | Happens before e->e' indicates one of the following conditions ...
+-- happensBefore :: (Eq mm, Eq r) => Execution mm r -> Event mm r -> Event mm r -> Bool
+-- happensBefore _ _ _ = False
+-- {-@ reflect happensBefore @-}
+-- 
+-- happensBefore_ :: (Eq mm, Eq r) => Execution mm r -> Event mm r -> Event mm r -> Bool
+-- happensBefore_ exec e e'
+--     =  forSomePid (\pid -> processOrder (exec pid) e e')
+--     || case (e, e') of (Broadcast mb, Deliver _ md) -> mb == md; _ -> False
+--     || forSomeEvent (\e'' -> happensBefore_ exec e e'' && happensBefore_ exec e'' e')
+--   where
+--     forSomePid predicate = listOr (listMap predicate {- domain of exec -} undefined)
+--     forSomeEvent predicate = listOr (listMap predicate (listConcat {- range of exec -} undefined))
+--     -- These are defined in Data.Assoc and Redefined.List, but we don't need
+--     -- them here yet.
+--     listOr :: [Bool] -> Bool
+--     listOr = undefined
+--     listMap :: (a -> b) -> [a] -> [b]
+--     listMap = undefined
+--     listConcat :: [[a]] -> [a]
+--     listConcat = undefined
+-- {-@ ignore happensBefore_ @-} -- Can't define HB this way (termination).
+-- 
+-- {-@
+-- type CausalDelivery mm r X
+--     =   p  : PID
+--     ->  q  : PID
+--     ->  r  : PID
+--     -> {m1 : Message mm r | listElem (Broadcast m1) (X q) && listElem (Deliver p m1) (X p)}
+--     -> {m2 : Message mm r | listElem (Broadcast m2) (X r) && listElem (Deliver p m2) (X p)}
+--     -> {_  : Proof | happensBefore X (Broadcast m1) (Broadcast m2)}
+--     -> {_  : Proof | processOrder (X p) (Deliver p m1) (Deliver p m2)}
+-- @-}
+-- 
+-- x0 :: Execution mm r
+-- x0 _ = []
+-- {-@ reflect x0 @-}
+-- 
+-- {-@
+-- x0ObservesCausalDelivery :: CausalDelivery mm r {x0} @-}
+-- x0ObservesCausalDelivery :: PID -> PID -> PID -> Message mm r -> Message mm r -> Proof -> Proof
+-- x0ObservesCausalDelivery _p _q _r _m1 _m2 () = ()
+--
 {- END HYPOTHETICAL SECTION -}
 
 
@@ -156,22 +171,27 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 
 
 {- BEGIN HYPOTHETICAL SECTION -}
-
--- FIXME: we can't actually define VC-HB-copacetic because it requires looking
--- up VC(e) on events. The draft says that for VC(k), k may be a node, a
--- message, or an event. For an event, VC(e) is the time the event was added to
--- process history. That's wrong. We need an alternate definition of VC-HB
--- copacetic.
+--
+-- VC-HB-copacetic is ill defined. Thankfully, this isn't required for our
+-- first mechanization push.
+--
+-- Focus: VC-HB-copacetic, VCs for events (?)
+--
+-- Issues:
+--
+--  1. VC-HB-copacetic is defined somewhat lazily in terms of events with
+--  vector clocks, but events in process histories don't have vector clocks.
+--
+--  2. In the next section, messages are defined to have vector clocks (so
+--  maybe vc-hb-copacetic should be defined later anyway), but it's not clear
+--  if message vector clocks (broadcast time) is good enough for defining
+--  VC-HB-copacetic. More thought is needed.
 --
 -- eventVC :: Event mm r -> VC
 -- eventVC (Broadcast m) = ???
 -- eventVC (Deliver _ m) = ???
 --
--- We want to say that event-VCs correspond to message VCs, but that's wrong
--- because events don't have VCs. Maybe instead we need to say something like
--- VCs on messages?
---
--- TODO: should be IFF not ->
+-- FIXME: should be <-> not ->
 -- {-@
 -- type VCHBCopacetic X
 --     =   q  : PID
@@ -181,7 +201,7 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 --     -> {_  : Proof | vcLess (eventVC e1) (eventVC e2)}
 --     -> {_  : Proof | happensBefore X e1 e2 }
 -- @-}
-
+--
 {- END HYPOTHETICAL SECTION -}
 
 
