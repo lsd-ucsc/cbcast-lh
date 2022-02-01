@@ -5,7 +5,7 @@
 module SystemModel where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin
+import Redefined.Fin ()
 import Redefined.Vec ()
 
 
@@ -64,8 +64,9 @@ listAnd (x:xs) = x && listAnd xs
 
 type PID = Int
 
-data Message mm r
-    = Message {mMetadata::mm, mRaw::r}
+{-@
+data Message mm r = Message {mMetadata::mm, mRaw::r} @-}
+data Message mm r = Message {mMetadata::mm, mRaw::r}
     deriving Eq
 
 data Event mm r
@@ -158,14 +159,18 @@ type Clock = Integer
 {-@
 type VC = [Clock] @-}
 type VC = [Clock]
-{-@ type VCsized N = {x:VC | len x == N} @-}
-{-@ type VCas X = VCsized {len X} @-}
+{-@ type VCsized N = {v:VC | len v == N} @-}
+{-@ type VCasV V = VCsized {len V} @-}
 
 -- QQQ: everywhere a *asV type is defined, we call len, but perhaps we should
 -- alias that here to vcSize
+--
+-- QQQ: similarly, everywhere we deal with proccount we specify Nat on the LH
+-- side and Int on the haskell side; perhaps we should have a type alias here
+-- (or up by PID?)
 
 {-@
-vcLessEqual :: x:VC -> VCas {x} -> Bool @-}
+vcLessEqual :: v:VC -> VCasV {v} -> Bool @-}
 vcLessEqual :: VC -> VC -> Bool
 vcLessEqual a b = listAnd (listZipWith vcLessEqualHelper a b)
 {-@ reflect vcLessEqual @-}
@@ -174,13 +179,13 @@ vcLessEqualHelper a b = a <= b
 {-@ reflect vcLessEqualHelper @-}
 
 {-@
-vcLess :: x:VC -> VCas {x} -> Bool @-}
+vcLess :: v:VC -> VCasV {v} -> Bool @-}
 vcLess :: VC -> VC -> Bool
 vcLess a b = vcLessEqual a b && a /= b
 {-@ reflect vcLess @-}
 
 {-@
-vcConcurrent :: x:VC -> VCas {x} -> Bool @-}
+vcConcurrent :: v:VC -> VCasV {v} -> Bool @-}
 vcConcurrent :: VC -> VC -> Bool
 vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 {-@ reflect vcConcurrent @-}
@@ -229,27 +234,25 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 
 -- | Message metadata for a MPA which uses VCs.
 {-@
-data VCMM = VCMM {vcmmProcCount::Nat, vcmmSender::PID, vcmmSent::VCsized {vcmmProcCount}} @-}
-data VCMM = VCMM {vcmmProcCount::Int, vcmmSender::PID, vcmmSent::VC}
+data VCMM = VCMM {vcmmSent::VC, vcmmSender::PID} @-}
+data VCMM = VCMM {vcmmSent::VC, vcmmSender::PID}
+
+-- NOTE: these accessors are convenience functions to look through the Message
+-- to the VCMM. Getting them to work correctly in specifications required
+-- either measure or inline (not reflect). Also, for some reason they couldn't
+-- be defined using record-pattern-matches.
 
 {-@
-mProcCount :: Message VCMM r -> Nat @-}
-mProcCount :: Message VCMM r -> Int
-mProcCount Message{mMetadata=VCMM{vcmmProcCount}} = vcmmProcCount
-{-@ measure mProcCount @-}
--- TODO: ask niki if it is safe to define measures like these three
+mVC :: Message VCMM r -> VC @-}
+mVC :: Message VCMM r -> VC
+mVC m = vcmmSent (mMetadata m) -- Cannot be defined with pattern matching
+{-@ inline mVC @-}
 
 {-@
 mSender :: Message VCMM r -> PID @-}
 mSender :: Message VCMM r -> PID
-mSender Message{mMetadata=VCMM{vcmmSender}} = vcmmSender
-{-@ measure mSender @-}
-
-{-@
-mVC :: m:Message VCMM r -> VCsized {mProcCount m} @-}
-mVC :: Message VCMM r -> VC
-mVC Message{mMetadata=VCMM{vcmmSent}} = vcmmSent
-{-@ measure mVC @-}
+mSender m = vcmmSender (mMetadata m) -- Cannot be defined with pattern matching
+{-@ inline mSender @-}
 
 {-@
 type ProcessLocalCausalDelivery r PID PHIST
@@ -260,7 +263,6 @@ type ProcessLocalCausalDelivery r PID PHIST
 @-}
 
 -- QQQ: Do we want a name for this? The proof below doesn't require a name.
---
 -- {-@
 -- h0 :: ProcessHistory VCMM r @-}
 -- h0 :: ProcessHistory VCMM r
