@@ -86,9 +86,9 @@ a |||| b = mVC a `vcConcurrent` mVC b
 {-@
 deliverable :: m:M r -> VCasM {m} -> Bool @-}
 deliverable :: M r -> VC -> Bool
-deliverable m pVC =
-    let n = listLength pVC -- QQQ: do we want an alias for proc-count?
-    in listAnd (listZipWith3 (deliverableHelper (mSender m)) (fin n) (mVC m) pVC)
+deliverable m p_vc =
+    let n = listLength p_vc -- QQQ: do we want an alias for proc-count?
+    in listAnd (listZipWith3 (deliverableHelper (mSender m)) (fin n) (mVC m) p_vc)
 {-@ reflect deliverable @-}
 
 {-@
