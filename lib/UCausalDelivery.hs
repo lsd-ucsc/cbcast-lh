@@ -208,6 +208,49 @@ broadcast raw p =
         Just tup -> tup
 {-@ reflect broadcast @-}
 
+
+
+
+-- ** Clock-History agreement
+
+{-@
+vcEmpty :: n:Nat -> VCsized {n} @-}
+vcEmpty :: Int -> VC
+vcEmpty 0 = []
+vcEmpty n = 0 : vcEmpty (n - 1)
+{-@ reflect vcEmpty @-}
+
+{-@
+eventVC :: n:Nat -> Event (VCMMsized {n}) r -> VCsized {n} @-}
+eventVC :: Int -> Event VCMM r -> VC
+eventVC _n (Broadcast m) = vcmmSent (mMetadata m) -- QQQ: Why can't we use mVC here?
+eventVC _n (Deliver _pid m) = vcmmSent (mMetadata m)
+{-@ reflect eventVC @-}
+
+{-@
+pHistVC :: p:P r -> VCasP {p} @-}
+pHistVC :: P r -> VC
+pHistVC P{pVC,pHist} = pHistVCHelper (listLength pVC) pHist
+{-@ reflect pHistVC @-}
+{-@
+pHistVCHelper :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
+pHistVCHelper :: Int -> H r -> VC
+pHistVCHelper n [] = vcEmpty n
+pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
+{-@ reflect pHistVCHelper @-}
+
+{-@ type ClockHistoryAgreement P
+        = {_ : Proof | vcLessEqual (pHistVC P) (pVC P) } @-}
+
+{-@ type CHApreservation r OP
+        =  p:P r
+        -> ClockHistoryAgreement {p}
+        -> ClockHistoryAgreement {OP p} @-}
+
+{-@
+receiveCHApres :: m:_ -> CHApreservation r {receive m} @-}
+receiveCHApres :: M r -> P r -> Proof -> Proof
+receiveCHApres _m _p _cha = () *** Admit
 --
 ---- * Process local causal delivery
 --
