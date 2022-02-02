@@ -26,6 +26,7 @@ import Properties ()
 -- p:P r    len (pVC p)
 
 {-@ type VCasM M = VCsized {len (mVC M)} @-}
+{-@ type VCasP P = VCsized {len (pVC P)} @-}
 
 {-@ type VCMMsized N = {mm:VCMM | len (vcmmSent mm) == N} @-}
 {-@ type VCMMasM M = VCMMsized {len (mVC M)} @-}
@@ -47,8 +48,8 @@ type DQ r = [M r]
 {-@ type DQasM r M = DQsized r {len (mVC M)} @-}
 
 {-@
-data P r = P {pid::PID, pVC::VC, dq::DQsized r {len pVC}, hist::Hsized r {len pVC}} @-}
-data P r = P {pid::PID, pVC::VC, dq::DQ r, hist::H r}
+data P r = P {pID::PID, pVC::VC, pDQ::DQsized r {len pVC}, pHist::Hsized r {len pVC}} @-}
+data P r = P {pID::PID, pVC::VC, pDQ::DQ r, pHist::H r}
 {-@ type Psized r N = {p:P r | len (pVC p) == N} @-}
 {-@ type PasP r P = Psized r {len (pVC P)} @-}
 {-@ type PasM r M = Psized r {len (mVC M)} @-}
@@ -130,18 +131,25 @@ dequeue now (x:xs)
 
 
 
--- ** Tick
+-- ** Tick & Combine
 
 -- QQQ: do we want to try to constrain the PID to be a valid index to the VC?
 
 {-@
-tick :: _ -> v:VC -> VCasV {v} @-}
-tick :: PID -> VC -> VC
-tick pid now | pid < 0 = now    -- NOTE: was not valid, pid < 0
-tick _pid [] = []               -- NOTE: was not valid, procCount <= pid
-tick 0 (x:xs) = (x + 1) : xs
-tick pid (x:xs) = x : tick (pid - 1) xs
-{-@ reflect tick @-}
+vcTick :: _ -> v:VC -> VCasV {v} @-}
+vcTick :: PID -> VC -> VC
+vcTick pID now | pID < 0 = now    -- NOTE: was not valid, pID < 0
+vcTick _pid [] = []               -- NOTE: was not valid, procCount <= pID
+vcTick 0 (x:xs) = (x + 1) : xs
+vcTick pID (x:xs) = x : vcTick (pID - 1) xs
+{-@ reflect vcTick @-}
+
+{-@
+vcCombine :: v:VC -> VCasV {v} -> VCasV {v} @-}
+vcCombine :: VC -> VC -> VC
+vcCombine = listZipWith ordMax
+{-@ reflect vcCombine @-}
+-- TODO: prove commutative
 
 
 
@@ -151,8 +159,8 @@ tick pid (x:xs) = x : tick (pid - 1) xs
 {-@
 receive :: m:M r -> PasM r {m} -> PasM r {m} @-}
 receive :: M r -> P r -> P r
-receive m p@P{dq} =
-    p{dq=enqueue m dq}
+receive m p@P{pDQ} =
+    p{pDQ=enqueue m pDQ}
 {-@ reflect receive @-}
 
 -- | Get a message from the dq, update the local vc and history. After this,
@@ -160,18 +168,20 @@ receive m p@P{dq} =
 {-@
 deliver :: p:P r -> Maybe (MasP r {p}, PasP r {p}) @-}
 deliver :: P r -> Maybe (M r, P r)
-deliver p@P{pid,pVC,dq,hist} =
-    case dequeue pVC dq of
+deliver p@P{pID,pVC,pDQ,pHist} =
+    case dequeue pVC pDQ of
         Nothing -> Nothing
-        Just (m, dq') -> Just (m, p
-            { pVC = listZipWith ordMax pVC (mVC m) -- Could use tick here.
-            , dq = dq'
-            , hist =
-                (if pid == mSender m
-                then Broadcast (coerce m) -- Note: This is a design choice.
-                else Deliver pid (coerce m)) : hist
+        Just (m, pDQ') -> Just (m, p
+            { pVC = vcCombine pVC (mVC m) -- Could use tick here.
+            , pDQ = pDQ'
+            , pHist = if pID == mSender m
+                -- NOTE: if it turns out to be important to use broadcast events we should add them in the broadcast function instead
+                then Deliver pID (coerce m) : Broadcast (coerce m) : pHist
+                else Deliver pID (coerce m) : pHist
             })
 {-@ reflect deliver @-}
+
+-- QQQ/FIXME we should put deliver events for our own messages into the history
 
 -- | Prepare a message for broadcast.
 --
@@ -180,34 +190,24 @@ deliver p@P{pid,pVC,dq,hist} =
 -- sending over the network, but that's not advised. Instead, use
 -- @broadcastCycle@ below.
 {-@
-prepareBroadcast :: r -> p:P r -> MasP r {p} @-}
-prepareBroadcast :: r -> P r -> M r
-prepareBroadcast mRaw P{pid,pVC} =
-    let vcmmSent = tick pid pVC -- NOTE: since we don't constrain pid, TICKing doesn't guarantee any change.
-        mMetadata = VCMM{vcmmSent, vcmmSender=pid}
+prepareMessage :: r -> p:P r -> MasP r {p} @-}
+prepareMessage :: r -> P r -> M r
+prepareMessage mRaw P{pID,pVC} =
+    let vcmmSent = vcTick pID pVC -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
+        mMetadata = VCMM{vcmmSent, vcmmSender=pID}
     in Message{mMetadata, mRaw}
-{-@ reflect prepareBroadcast @-}
-
-{-@
-broadcastCycleAlwaysDelivers :: msg:_ -> p:_ -> {Nothing /= deliver (receive (prepareBroadcast msg p) p)} @-}
-broadcastCycleAlwaysDelivers :: r -> P r -> Proof
-broadcastCycleAlwaysDelivers _msg _p = () *** Admit
+{-@ reflect prepareMessage @-}
 
 -- | Prepare a message for broadcast, put it into this process's delay queue,
 -- and then perform a normal delivery. After this, the UAP should consume the
 -- message.
 broadcast :: r -> P r -> (M r, P r)
 broadcast raw p =
-    case deliver (receive (prepareBroadcast raw p) p)
+    case deliver (receive (prepareMessage raw p) p)
     `proofConst` broadcastCycleAlwaysDelivers raw p of
         Just tup -> tup
 {-@ reflect broadcast @-}
 
---{-@
---broadcastIsDeliverable :: msg:_ -> p:_ -> {deliverable (broadcast msg p) (vc_p p)} @-}
---broadcastIsDeliverable :: String -> P -> Proof
---broadcastIsDeliverable _msg _p = () *** Admit
---
 --
 ---- * Process local causal delivery
 --

@@ -262,7 +262,7 @@ type ProcessLocalCausalDelivery r PID PHIST
     -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
 @-}
 
--- QQQ: Do we want a name for this? The proof below doesn't require a name.
+-- QQQ: Do we want a name for this? The proof below doesn't require it to be named
 -- {-@
 -- h0 :: ProcessHistory VCMM r @-}
 -- h0 :: ProcessHistory VCMM r
