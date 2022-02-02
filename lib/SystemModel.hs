@@ -3,7 +3,7 @@
 module SystemModel where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin ()
+import Redefined.Fin
 import Redefined.Vec ()
 
 
@@ -60,7 +60,10 @@ listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
 -- QQQ do we need constraints on pid? we don't in the system model, but perhaps
 -- we do for uCausalDelivery
 
-type PID = Int
+{-@
+type PID = Nat @-}
+type PID = Fin
+{-@ type PIDsized N = Fin {N} @-}
 
 {-@
 data Message mm r = Message {mMetadata::mm, mRaw::r} @-}
@@ -160,6 +163,8 @@ type VC = [Clock]
 {-@ type VCsized N = {v:VC | len v == N} @-}
 {-@ type VCasV V = VCsized {len V} @-}
 
+{-@ type PIDasV V = Fin {len V} @-}
+
 -- QQQ: everywhere a *asV type is defined, we call len, but perhaps we should
 -- alias that here to vcSize
 --
@@ -232,7 +237,7 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 
 -- | Message metadata for a MPA which uses VCs.
 {-@
-data VCMM = VCMM {vcmmSent::VC, vcmmSender::PID} @-}
+data VCMM = VCMM {vcmmSent::VC, vcmmSender::PIDasV {vcmmSent}} @-}
 data VCMM = VCMM {vcmmSent::VC, vcmmSender::PID}
 
 -- NOTE: these accessors are convenience functions to look through the Message

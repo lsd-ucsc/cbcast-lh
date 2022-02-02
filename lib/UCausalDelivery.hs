@@ -8,7 +8,7 @@ import Redefined.Ord (ordMax)
 import Redefined.Proof (proofConst)
 
 import SystemModel
-import Properties ()
+import Properties
 
 -- * Causal Delivery MPA
 
@@ -46,8 +46,8 @@ type DQ r = [M r]
 {-@ type DQasM r M = DQsized r {len (mVC M)} @-}
 
 {-@
-data P r = P {pID::PID, pVC::VC, pDQ::DQsized r {len pVC}, pHist::Hsized r {len pVC}} @-}
-data P r = P {pID::PID, pVC::VC, pDQ::DQ r, pHist::H r}
+data P r = P {pVC::VC, pID::PIDasV {pVC}, pDQ::DQsized r {len pVC}, pHist::Hsized r {len pVC}} @-}
+data P r = P {pVC::VC, pID::PID, pDQ::DQ r, pHist::H r}
 {-@ type Psized r N = {p:P r | len (pVC p) == N} @-}
 {-@ type PasP r P = Psized r {len (pVC P)} @-}
 {-@ type PasM r M = Psized r {len (mVC M)} @-}
@@ -131,15 +131,11 @@ dequeue now (x:xs)
 
 -- ** Tick & Combine
 
--- QQQ: do we want to try to constrain the PID to be a valid index to the VC?
-
 {-@
-vcTick :: _ -> v:VC -> VCasV {v} @-}
-vcTick :: PID -> VC -> VC
-vcTick pID now | pID < 0 = now    -- NOTE: was not valid, pID < 0
-vcTick _pid [] = []               -- NOTE: was not valid, procCount <= pID
-vcTick 0 (x:xs) = (x + 1) : xs
-vcTick pID (x:xs) = x : vcTick (pID - 1) xs
+vcTick :: v:VC -> PIDasV {v} -> VCasV {v} @-}
+vcTick :: VC -> PID -> VC
+vcTick (x:xs) 0 = (x + 1) : xs
+vcTick (x:xs) p_id = x : vcTick xs (p_id - 1)
 {-@ reflect vcTick @-}
 
 {-@
@@ -199,7 +195,7 @@ broadcastHelper :: r -> p:P r -> MasP r {p} @-}
 broadcastHelper :: r -> P r -> M r
 broadcastHelper raw p = Message
     { mMetadata = VCMM
-        { vcmmSent = vcTick (pID p) (pVC p) -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
+        { vcmmSent = vcTick (pVC p) (pID p) -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
         , vcmmSender = pID p }
     , mRaw = raw }
 {-@ reflect broadcastHelper @-}
