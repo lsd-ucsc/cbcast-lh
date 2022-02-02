@@ -33,6 +33,11 @@ listIndex :: [a] -> Int -> a
 listIndex (x:xs) i = if i==0 then x else listIndex xs (i-1)
 {-@ reflect listIndex @-}
 
+listAnd :: [Bool] -> Bool
+listAnd [] = True
+listAnd (x:xs) = x && listAnd xs
+{-@ reflect listAnd @-}
+
 {-@ listZipWith :: _ ->  xs:_
                      -> {ys:_ | len xs == len ys}
                      -> {zs:_ |           len ys == len zs} @-}
@@ -50,11 +55,6 @@ listZipWith3 :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
 listZipWith3 _ [] [] [] = []
 listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
 {-@ reflect listZipWith3 @-}
-
-listAnd :: [Bool] -> Bool
-listAnd [] = True
-listAnd (x:xs) = x && listAnd xs
-{-@ reflect listAnd @-}
 
 {- END GENERIC HELPERS -}
 
