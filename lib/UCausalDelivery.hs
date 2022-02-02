@@ -204,14 +204,35 @@ broadcastHelper raw p = Message
 
 -- ** Proofs about the state machine
 
-{-@ ple newMessageIsAhead @-}
+{-@ ple vcLessAfterTick @-}
 {-@
-newMessageIsAhead :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper raw p))} @-}
-newMessageIsAhead :: r -> P r -> Proof
-newMessageIsAhead raw p
-    =   vcLess (pVC p) (mVC (broadcastHelper raw p))
-    === vcLess (pVC p) (vcTick (pID p) (pVC p))
-    *** Admit
+vcLessAfterTick :: p_vc:VC -> p_id:PIDasV {p_vc} -> {vcLess p_vc (vcTick p_vc p_id)} @-}
+vcLessAfterTick :: VC -> PID -> Proof
+vcLessAfterTick (x:xs) p_id
+    | p_id == 0
+        =   vcLess (x:xs) (vcTick (x:xs) 0) -- restate conclusion
+        === vcLess (x:xs) (x+1:xs) -- by def of vcTick, p_id=0 case
+        === (vcLessEqual (x:xs) (x+1:xs) && (x:xs) /= (x+1:xs)) -- by def of vcLess
+        === (x<=x+1 && vcLessEqual xs xs && (x:xs) /= (x+1:xs)) -- by def of vcLessEqual
+            ? vcLessEqualReflexive xs
+        *** QED
+    | otherwise
+        =   vcLess (x:xs) (vcTick (x:xs) p_id) -- restate conclusion
+        === vcLess (x:xs) (x:vcTick xs (p_id - 1)) -- by def of vcTick, p_id/=0 case
+        === (vcLessEqual (x:xs) (x:vcTick xs (p_id - 1)) && (x:xs) /= (x:vcTick xs (p_id - 1))) -- by def of vcLess
+        === (x<=x && vcLessEqual xs (vcTick xs (p_id - 1)) && (x:xs) /= (x:vcTick xs (p_id - 1))) -- by def of vcLessEqual
+            ? vcLessAfterTick xs (p_id - 1)
+        *** QED
+
+{-@ ple pVCvcLessNewMsg @-}
+{-@
+pVCvcLessNewMsg :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper raw p))} @-}
+pVCvcLessNewMsg :: r -> P r -> Proof
+pVCvcLessNewMsg raw p@P{pVC=x:xs}
+    =   vcLess (x:xs) (mVC (broadcastHelper raw p)) -- restate conclusion
+    === vcLess (x:xs) (vcTick (x:xs) (pID p)) -- by def of mVC and broadcastHelper
+        ? vcLessAfterTick (x:xs) (pID p)
+    *** QED
 
 
 
