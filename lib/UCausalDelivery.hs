@@ -251,13 +251,25 @@ pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
 receiveCHApres :: m:_ -> CHApreservation r {receive m} @-}
 receiveCHApres :: M r -> P r -> Proof -> Proof
 receiveCHApres _m _p _cha = () *** Admit
+
+
+
+-- ** Process Local Causal Delivery
+
+-- Define an alias for the system model's PLCD in terms of the MPA's P data.
+{-@ type PLCD r P
+        = ProcessLocalCausalDelivery r {pID P} {pHist P} @-}
+
+{-@ type PLCDpreservation r OP
+        =  p:P r
+        -> PLCD r {p}
+        -> PLCD r {OP p} @-}
+
+{-@
+receivePLCDpres :: m:_ -> PLCDpreservation r {receive m} @-}
+receivePLCDpres :: M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+receivePLCDpres _m _p _plcd _m1 _m2 = () *** Admit
+
 --
----- * Process local causal delivery
 --
----- | If events A, B, and C occur, history will be C:B:A:[]. Process order e->e'
----- indicates that e appears in the subsequence prior to e'.
---processOrder :: [E] -> E -> E -> Bool
---processOrder hist e e' = listElem e (listTailForHead e' hist)
 --
----- {-@
----- processLocalCausalDelivery H P = {m:_ | listElem (D P m) -> m':_
