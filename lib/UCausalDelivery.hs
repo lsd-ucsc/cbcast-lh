@@ -155,16 +155,18 @@ vcCombine = listZipWith ordMax
 
 -- ** Causal Delivery state machine
 
--- | Put a message in the dq.
+-- | Put a message in the dq. Messages with the sender ID of the current
+-- process are ignored. The MPA should use this for messages from the network.
 {-@
 receive :: m:M r -> PasM r {m} -> PasM r {m} @-}
 receive :: M r -> P r -> P r
-receive m p@P{pDQ} =
-    p{pDQ=enqueue m pDQ}
+receive m p@P{pID,pDQ}
+    | mSender m == pID = p
+    | otherwise = p{ pDQ = enqueue m pDQ }
 {-@ reflect receive @-}
 
 -- | Get a message from the dq, update the local vc and history. After this,
--- the UAP should consume the message.
+-- the MPA should pass the message to the UAP for processing.
 {-@
 deliver :: p:P r -> Maybe (MasP r {p}, PasP r {p}) @-}
 deliver :: P r -> Maybe (M r, P r)
@@ -174,40 +176,45 @@ deliver p@P{pID,pVC,pDQ,pHist} =
         Just (m, pDQ') -> Just (m, p
             { pVC = vcCombine pVC (mVC m) -- Could use tick here.
             , pDQ = pDQ'
-            , pHist = if pID == mSender m
-                -- NOTE: if it turns out to be important to use broadcast events we should add them in the broadcast function instead
-                then Deliver pID (coerce m) : Broadcast (coerce m) : pHist
-                else Deliver pID (coerce m) : pHist
+            , pHist = Deliver pID (coerce m) : pHist
             })
 {-@ reflect deliver @-}
 
--- QQQ/FIXME we should put deliver events for our own messages into the history
-
--- | Prepare a message for broadcast.
---
--- After this, MPA must also convey M to this process via receive and then
--- deliver, in that way updating the local process VC. This could be done by
--- sending over the network, but that's not advised. Instead, use
--- @broadcastCycle@ below.
+-- | Prepare a message for broadcast, put it into this process's delay queue,
+-- and then perform a normal delivery. After this, the MPA should place the
+-- message on the network and pass the message to the UAP for processing.
 {-@
-prepareMessage :: r -> p:P r -> MasP r {p} @-}
-prepareMessage :: r -> P r -> M r
-prepareMessage mRaw P{pID,pVC} =
+broadcast :: r -> p:P r -> (MasP r {p}, PasP r {p}) @-}
+broadcast :: r -> P r -> (M r, P r)
+broadcast raw p@P{pDQ,pHist} =
+    let m = broadcastHelper raw p
+    in case deliver p
+        { pDQ = enqueue m pDQ
+        , pHist = Broadcast (coerce m) : pHist
+        } of
+            Just tup -> tup
+
+{-@
+broadcastHelper :: r -> p:P r -> MasP r {p} @-}
+broadcastHelper :: r -> P r -> M r
+broadcastHelper mRaw P{pID,pVC} =
     let vcmmSent = vcTick pID pVC -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
         mMetadata = VCMM{vcmmSent, vcmmSender=pID}
     in Message{mMetadata, mRaw}
-{-@ reflect prepareMessage @-}
+{-@ reflect broadcastHelper @-}
 
--- | Prepare a message for broadcast, put it into this process's delay queue,
--- and then perform a normal delivery. After this, the UAP should consume the
--- message.
-broadcast :: r -> P r -> (M r, P r)
-broadcast raw p =
-    case deliver (receive (prepareMessage raw p) p)
-    `proofConst` broadcastCycleAlwaysDelivers raw p of
-        Just tup -> tup
-{-@ reflect broadcast @-}
 
+
+-- ** Proofs about the state machine
+
+{-@ ple newMessageIsAhead @-}
+{-@
+newMessageIsAhead :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper raw p))} @-}
+newMessageIsAhead :: r -> P r -> Proof
+newMessageIsAhead raw p
+    =   vcLess (pVC p) (mVC (broadcastHelper raw p))
+--  === vcLess (pVC p) (vcTick (pID p) (pVC p))
+    *** Admit
 
 
 
