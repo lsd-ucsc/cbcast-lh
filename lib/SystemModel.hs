@@ -1,7 +1,5 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local" @-}
--- {-# LANGUAGE NoFieldSelectors #-}
-{-# LANGUAGE NamedFieldPuns #-}
 module SystemModel where
 
 import Language.Haskell.Liquid.ProofCombinators

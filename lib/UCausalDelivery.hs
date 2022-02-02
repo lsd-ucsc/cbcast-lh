@@ -1,7 +1,5 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local" @-}
--- {-# LANGUAGE NoFieldSelectors #-}
-{-# LANGUAGE NamedFieldPuns #-}
 module UCausalDelivery where
 
 import Language.Haskell.Liquid.ProofCombinators
@@ -160,9 +158,9 @@ vcCombine = listZipWith ordMax
 {-@
 receive :: m:M r -> PasM r {m} -> PasM r {m} @-}
 receive :: M r -> P r -> P r
-receive m p@P{pID,pDQ}
-    | mSender m == pID = p
-    | otherwise = p{ pDQ = enqueue m pDQ }
+receive m p
+    | mSender m == pID p = p -- NOTE: Ignore the message
+    | otherwise = p{ pDQ = enqueue m (pDQ p) }
 {-@ reflect receive @-}
 
 -- | Get a message from the dq, update the local vc and history. After this,
@@ -170,13 +168,13 @@ receive m p@P{pID,pDQ}
 {-@
 deliver :: p:P r -> Maybe (MasP r {p}, PasP r {p}) @-}
 deliver :: P r -> Maybe (M r, P r)
-deliver p@P{pID,pVC,pDQ,pHist} =
-    case dequeue pVC pDQ of
+deliver p =
+    case dequeue (pVC p) (pDQ p) of
         Nothing -> Nothing
         Just (m, pDQ') -> Just (m, p
-            { pVC = vcCombine pVC (mVC m) -- Could use tick here.
+            { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
             , pDQ = pDQ'
-            , pHist = Deliver pID (coerce m) : pHist
+            , pHist = Deliver (pID p) (coerce m) : pHist p
             })
 {-@ reflect deliver @-}
 
@@ -186,21 +184,24 @@ deliver p@P{pID,pVC,pDQ,pHist} =
 {-@
 broadcast :: r -> p:P r -> (MasP r {p}, PasP r {p}) @-}
 broadcast :: r -> P r -> (M r, P r)
-broadcast raw p@P{pDQ,pHist} =
+broadcast raw p =
     let m = broadcastHelper raw p
     in case deliver p
-        { pDQ = enqueue m pDQ
-        , pHist = Broadcast (coerce m) : pHist
+        { pDQ = enqueue m (pDQ p)
+        , pHist = Broadcast (coerce m) : pHist p
         } of
             Just tup -> tup
+            Nothing -> undefined -- FIXME !!!!!!
+-- {-@ reflect broadcast @-}
 
 {-@
 broadcastHelper :: r -> p:P r -> MasP r {p} @-}
 broadcastHelper :: r -> P r -> M r
-broadcastHelper mRaw P{pID,pVC} =
-    let vcmmSent = vcTick pID pVC -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
-        mMetadata = VCMM{vcmmSent, vcmmSender=pID}
-    in Message{mMetadata, mRaw}
+broadcastHelper raw p = Message
+    { mMetadata = VCMM
+        { vcmmSent = vcTick (pID p) (pVC p) -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
+        , vcmmSender = pID p }
+    , mRaw = raw }
 {-@ reflect broadcastHelper @-}
 
 
@@ -213,7 +214,7 @@ newMessageIsAhead :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper raw p
 newMessageIsAhead :: r -> P r -> Proof
 newMessageIsAhead raw p
     =   vcLess (pVC p) (mVC (broadcastHelper raw p))
---  === vcLess (pVC p) (vcTick (pID p) (pVC p))
+    === vcLess (pVC p) (vcTick (pID p) (pVC p))
     *** Admit
 
 
@@ -237,7 +238,7 @@ eventVC _n (Deliver _pid m) = vcmmSent (mMetadata m)
 {-@
 pHistVC :: p:P r -> VCasP {p} @-}
 pHistVC :: P r -> VC
-pHistVC P{pVC,pHist} = pHistVCHelper (listLength pVC) pHist
+pHistVC p = pHistVCHelper (listLength (pVC p)) (pHist p)
 {-@ reflect pHistVC @-}
 {-@
 pHistVCHelper :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
