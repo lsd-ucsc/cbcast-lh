@@ -267,7 +267,8 @@ deliverableAfterTick_lemma m n (x:xs) p_id
             === (deliverableHelper p_id m x x     && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n) (vcTick xs (p_id-m-1)) xs)) -- by def of listAnd,listZip
             === (x <= x                           && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n) (vcTick xs (p_id-m-1)) xs)) -- by def of deliverableHelper
             ===                                      listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n) (vcTick xs (p_id-m-1)) xs)  -- simplify inequality
-            *** Admit
+                ? deliverableAfterTick_lemma (m+1) n xs p_id
+            *** QED
     | m == p_id -- case where vcTick increments and deliverable checks m_vc_k==p_vc_k+1
             =   listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (if m<=p_id then (vcTick (x:xs) (p_id-m)) else (x:xs)) (x:xs)) -- restate conclusion
             === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (vcTick (x:xs) 0)                                      (x:xs)) -- simplify ifthenelse, simplify p_id-m
@@ -276,7 +277,8 @@ deliverableAfterTick_lemma m n (x:xs) p_id
             === (deliverableHelper p_id m (x+1) x && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of listAnd,listZip
             === (x+1 == x + 1                     && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of deliverableHelper
             ===                                      listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)  -- simplify inequality
-            *** Admit
+                ? deliverableAfterTick_lemma (m+1) n xs p_id
+            *** QED
     | m >  p_id -- case where vcTick returned the tail and deliverable checks m_vc_k<=p_vc_k
             =   listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (if m<=p_id then (vcTick (x:xs) (p_id-m)) else (x:xs)) (x:xs)) -- restate conclusion
             === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (x:xs)                                                 (x:xs)) -- simplify ifthenelse
@@ -284,11 +286,13 @@ deliverableAfterTick_lemma m n (x:xs) p_id
             === (deliverableHelper p_id m x x     && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of listAnd,listZipWith3
             === (x <= x                           && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of deliverableHelper
             ===                                      listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)  -- simplify inequality
-            *** Admit
+                ? deliverableAfterTick_lemma (m+1) n xs p_id
+            *** QED
 
 {-@ ple deliverableAfterTick @-}
 {-@
-deliverableAfterTick :: raw:_ -> p_vc:VC -> p_id:PIDasV {p_vc} -> {deliverable (Message (VCMM (vcTick p_vc p_id) p_id) raw) p_vc} @-}
+deliverableAfterTick :: raw:_ -> p_vc:VC -> p_id:PIDasV {p_vc}
+    -> {deliverable (Message (VCMM (vcTick p_vc p_id) p_id) raw) p_vc} @-}
 deliverableAfterTick :: r -> VC -> PID -> Proof
 deliverableAfterTick raw p_vc p_id
     =   let n = listLength p_vc
