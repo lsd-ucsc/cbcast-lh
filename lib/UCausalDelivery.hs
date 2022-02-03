@@ -234,6 +234,24 @@ pVCvcLessNewMsg raw p@P{pVC=x:xs}
         ? vcLessAfterTick (x:xs) (pID p)
     *** QED
 
+{-@ ple deliverableAfterTick @-}
+{-@
+deliverableAfterTick :: raw:_ -> p_vc:VC -> p_id:PIDasV {p_vc} -> {deliverable (Message (VCMM (vcTick p_vc p_id) p_id) raw) p_vc} @-}
+deliverableAfterTick :: r -> VC -> PID -> Proof
+deliverableAfterTick raw (x:xs) p_id
+        *** Admit
+
+{-@ ple deliverableNewMessage @-}
+{-@
+deliverableNewMessage :: raw:_ -> p:_ -> {deliverable (broadcastHelper raw p) (pVC p)} @-}
+deliverableNewMessage :: r -> P r -> Proof
+deliverableNewMessage raw p
+    =   deliverable (broadcastHelper raw p) (pVC p) -- restate conclusion
+    --- QQQ: this step requires PLE, but it should't; why?
+    === deliverable (Message (VCMM (vcTick (pVC p) (pID p)) (pID p)) raw) (pVC p) -- by definition of broadcastHelper
+        ? deliverableAfterTick raw (pVC p) (pID p)
+    *** QED
+
 
 
 -- ** Clock-History agreement
