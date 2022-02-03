@@ -65,6 +65,7 @@ coerce (Message a b) = Message a b
 
 
 
+
 -- ** Message order
 
 {-@
@@ -242,12 +243,61 @@ pVCvcLessNewMsg raw p@P{pVC=x:xs}
         ? vcLessAfterTick (x:xs) (pID p)
     *** QED
 
+{-@ ple deliverableAfterTick_lemma @-}
+{-@
+deliverableAfterTick_lemma :: m:Nat -> {n:Nat | m <= n} -> p_vc:VCsized {n-m} -> p_id:PIDsized {n}
+    -> {listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n) (if m<=p_id then (vcTick p_vc (p_id-m)) else p_vc) p_vc)} @-}
+deliverableAfterTick_lemma :: Int -> Int -> VC -> PID -> Proof
+deliverableAfterTick_lemma m n [] p_id
+    -- in all cases we know that m>p_id
+    | m == n
+            =   listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n) (if m<=p_id then (vcTick [] (p_id-m)) else []) []) -- restate conclusion
+            === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n) [] []) -- simplify ifthenelse
+            === listAnd (listZipWith3 (deliverableHelper p_id) [] [] []) -- by def of finAscHelper
+            === listAnd [] -- by def of listZipWith3
+            === True -- by def of listAnd
+            *** QED
+deliverableAfterTick_lemma m n (x:xs) p_id
+    -- in all cases we know that m<n
+    | m <  p_id -- case where vcTick doesn't increment and deliverable checks m_vc_k<=p_vc_k
+            =   listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (if m<=p_id then (vcTick (x:xs) (p_id-m)) else (x:xs)) (x:xs)) -- restate conclusion
+            === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (vcTick (x:xs) (p_id-m))                               (x:xs)) -- simplify ifthenelse
+            === listAnd (listZipWith3 (deliverableHelper p_id) (m:finAscHelper (m+1) n) (vcTick (x:xs) (p_id-m))                               (x:xs)) -- by def of finAscHelper
+            === listAnd (listZipWith3 (deliverableHelper p_id) (m:finAscHelper (m+1) n) (x : vcTick xs (p_id-m-1))                             (x:xs)) -- by def of vcTick
+            === (deliverableHelper p_id m x x     && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n) (vcTick xs (p_id-m-1)) xs)) -- by def of listAnd,listZip
+            === (x <= x                           && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n) (vcTick xs (p_id-m-1)) xs)) -- by def of deliverableHelper
+            ===                                      listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n) (vcTick xs (p_id-m-1)) xs)  -- simplify inequality
+            *** Admit
+    | m == p_id -- case where vcTick increments and deliverable checks m_vc_k==p_vc_k+1
+            =   listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (if m<=p_id then (vcTick (x:xs) (p_id-m)) else (x:xs)) (x:xs)) -- restate conclusion
+            === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (vcTick (x:xs) 0)                                      (x:xs)) -- simplify ifthenelse, simplify p_id-m
+            === listAnd (listZipWith3 (deliverableHelper p_id) (m:finAscHelper (m+1) n) (vcTick (x:xs) 0)                                      (x:xs)) -- by def of finAscHelper
+            === listAnd (listZipWith3 (deliverableHelper p_id) (m:finAscHelper (m+1) n) (x+1 : xs)                                             (x:xs)) -- by def of vcTick
+            === (deliverableHelper p_id m (x+1) x && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of listAnd,listZip
+            === (x+1 == x + 1                     && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of deliverableHelper
+            ===                                      listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)  -- simplify inequality
+            *** Admit
+    | m >  p_id -- case where vcTick returned the tail and deliverable checks m_vc_k<=p_vc_k
+            =   listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (if m<=p_id then (vcTick (x:xs) (p_id-m)) else (x:xs)) (x:xs)) -- restate conclusion
+            === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper m n)       (x:xs)                                                 (x:xs)) -- simplify ifthenelse
+            === listAnd (listZipWith3 (deliverableHelper p_id) (m:finAscHelper (m+1) n) (x:xs)                                                 (x:xs)) -- by def of finAscHelper
+            === (deliverableHelper p_id m x x     && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of listAnd,listZipWith3
+            === (x <= x                           && listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)) -- by def of deliverableHelper
+            ===                                      listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper (m+1) n)  xs                    xs)  -- simplify inequality
+            *** Admit
+
 {-@ ple deliverableAfterTick @-}
 {-@
 deliverableAfterTick :: raw:_ -> p_vc:VC -> p_id:PIDasV {p_vc} -> {deliverable (Message (VCMM (vcTick p_vc p_id) p_id) raw) p_vc} @-}
 deliverableAfterTick :: r -> VC -> PID -> Proof
-deliverableAfterTick raw (x:xs) p_id
-        *** Admit
+deliverableAfterTick raw p_vc p_id
+    =   let n = listLength p_vc
+            m = Message (VCMM (vcTick p_vc p_id) p_id) raw
+    in  deliverable m p_vc -- restate conclusion
+    === listAnd (listZipWith3 (deliverableHelper (mSender m)) (finAsc n) (mVC m) p_vc) -- by def of deliverable
+    === listAnd (listZipWith3 (deliverableHelper p_id) (finAscHelper 0 n) (vcTick p_vc p_id) p_vc) -- by def of mSender,finAsc,mVC
+        ? deliverableAfterTick_lemma 0 n p_vc p_id
+    *** QED
 
 {-@ ple deliverableNewMessage @-}
 {-@
