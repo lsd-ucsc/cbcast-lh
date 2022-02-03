@@ -3,14 +3,14 @@
 module UCausalDelivery where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin (finAsc,finAscHelper)
-import Redefined.Ord (ordMax)
-import Redefined.Proof (proofConst)
+import Redefined.Fin
+import Redefined.Ord
 
 import SystemModel
 import Properties
 
 -- * Causal Delivery MPA
+
 
 
 
@@ -81,6 +81,7 @@ a |||| b = mVC a `vcConcurrent` mVC b
 
 
 
+
 -- ** Deliverable predicate
 
 {-@
@@ -94,10 +95,11 @@ deliverable m p_vc =
 {-@
 deliverableHelper :: PID -> PID -> Clock -> Clock -> Bool @-}
 deliverableHelper :: PID -> PID -> Clock -> Clock -> Bool
-deliverableHelper i k vc_m_k vc_p_k -- i is sender PID, k is current PID/index.
-    | k == i    = vc_m_k == vc_p_k + 1
-    | otherwise = vc_m_k <= vc_p_k
+deliverableHelper m_id k m_vc_k p_vc_k
+    | k == m_id = m_vc_k == p_vc_k + 1
+    | otherwise = m_vc_k <= p_vc_k
 {-@ reflect deliverableHelper @-}
+
 
 
 
@@ -129,13 +131,15 @@ dequeue now (x:xs)
 
 
 
+
 -- ** Tick & Combine
 
+-- | Increment the ith offset into the VC (i=0 increments head).
 {-@
 vcTick :: v:VC -> PIDasV {v} -> VCasV {v} @-}
 vcTick :: VC -> PID -> VC
 vcTick (x:xs) 0 = (x + 1) : xs
-vcTick (x:xs) p_id = x : vcTick xs (p_id - 1)
+vcTick (x:xs) i = x : vcTick xs (i - 1)
 {-@ reflect vcTick @-}
 
 {-@
@@ -147,6 +151,7 @@ vcCombine = listZipWith ordMax
 
 
 
+
 -- ** Causal Delivery state machine
 
 -- | Put a message in the dq. Messages with the sender ID of the current
@@ -155,7 +160,7 @@ vcCombine = listZipWith ordMax
 receive :: m:M r -> PasM r {m} -> PasM r {m} @-}
 receive :: M r -> P r -> P r
 receive m p
-    | mSender m == pID p = p -- NOTE: Ignore the message
+    | mSender m == pID p = p -- NOTE: Ignores network messages with local pid
     | otherwise = p{ pDQ = enqueue m (pDQ p) }
 {-@ reflect receive @-}
 
@@ -202,8 +207,10 @@ broadcastHelper raw p = Message
 
 
 
+
 -- ** Proofs about the state machine
 
+-- | A vc is LT its ticked self. (16-17s for the explicit proof, 3s for PLE)
 {-@ ple vcLessAfterTick @-}
 {-@
 vcLessAfterTick :: p_vc:VC -> p_id:PIDasV {p_vc} -> {vcLess p_vc (vcTick p_vc p_id)} @-}
@@ -224,6 +231,7 @@ vcLessAfterTick (x:xs) p_id
             ? vcLessAfterTick xs (p_id - 1)
         *** QED
 
+-- | Like vcLessAfterTick, but for processes local clocks.
 {-@ ple pVCvcLessNewMsg @-}
 {-@
 pVCvcLessNewMsg :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper raw p))} @-}
@@ -247,7 +255,7 @@ deliverableNewMessage :: raw:_ -> p:_ -> {deliverable (broadcastHelper raw p) (p
 deliverableNewMessage :: r -> P r -> Proof
 deliverableNewMessage raw p
     =   deliverable (broadcastHelper raw p) (pVC p) -- restate conclusion
-    --- QQQ: this step requires PLE, but it should't; why?
+    --- QQQ: Why does this step require PLE?
     === deliverable (Message (VCMM (vcTick (pVC p) (pID p)) (pID p)) raw) (pVC p) -- by definition of broadcastHelper
         ? deliverableAfterTick raw (pVC p) (pID p)
     *** QED

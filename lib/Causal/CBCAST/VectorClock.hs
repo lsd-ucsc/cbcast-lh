@@ -94,7 +94,7 @@ vcLessK a b k = vcLessEqualK a b k && a /= b
 {-@
 iter :: n:Nat -> (Fin {n} -> Bool) -> Bool @-}
 iter :: Int -> (Fin -> Bool) -> Bool
-iter n f = listAndMap f (fin n)
+iter n f = listAndMap f (finDesc n)
 
 -- | Compare two vector clocks with elementwise less-equal.
 --
