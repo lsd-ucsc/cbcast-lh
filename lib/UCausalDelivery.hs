@@ -3,7 +3,7 @@
 module UCausalDelivery where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin (fin)
+import Redefined.Fin (finAsc,finAscHelper)
 import Redefined.Ord (ordMax)
 import Redefined.Proof (proofConst)
 
@@ -88,7 +88,7 @@ deliverable :: m:M r -> VCasM {m} -> Bool @-}
 deliverable :: M r -> VC -> Bool
 deliverable m p_vc =
     let n = listLength p_vc -- QQQ: do we want an alias for proc-count?
-    in listAnd (listZipWith3 (deliverableHelper (mSender m)) (fin n) (mVC m) p_vc)
+    in listAnd (listZipWith3 (deliverableHelper (mSender m)) (finAsc n) (mVC m) p_vc)
 {-@ reflect deliverable @-}
 
 {-@
