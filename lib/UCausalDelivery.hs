@@ -320,6 +320,23 @@ deliverableNewMessage raw p
         ? deliverableAfterTick raw (pVC p) (pID p)
     *** QED
 
+{-@ ple deliverableAlwaysDequeues @-}
+{-@
+deliverableAlwaysDequeues :: vc:_ -> dq:DQasV r {vc} -> {m:MasV r {vc} | deliverable m vc} -> { Nothing /= dequeue vc (enqueue m dq) } @-}
+deliverableAlwaysDequeues :: VC -> DQ r -> M r -> Proof
+
+{-@ ple broadcastHelper_injectMessagePreservesVC @-}
+{-@
+broadcastHelper_injectMessagePreservesVC :: m:_ -> p:PasM r {m} -> {pVC p == pVC (broadcastHelper_injectMessage m p)} @-}
+broadcastHelper_injectMessagePreservesVC :: M r -> P r -> Proof
+broadcastHelper_injectMessagePreservesVC m p
+    =   broadcastHelper_injectMessage m p -- restate (part of) conclusion
+    --- QQQ: Why does this equality require PLE?
+    === p{ pDQ = enqueue m (pDQ p)
+         , pHist = Broadcast (coerce m) : pHist p } -- by def of broadcastHelper_injectMessage
+    *** QED
+
+{-@ ple broadcastAlwaysDequeues @-}
 {-@
 broadcastAlwaysDequeues
     ::   raw:r
@@ -327,6 +344,15 @@ broadcastAlwaysDequeues
     -> { p1:PasP r {p0} | p1 == broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p0) p0 }
     -> { Nothing /= dequeue (pVC p1) (pDQ p1) } @-}
 broadcastAlwaysDequeues :: r -> P r -> P r -> Proof
+broadcastAlwaysDequeues raw p₀ p₁
+    =   let m = broadcastHelper_prepareMessage raw p₀
+    in  dequeue (pVC p₁) (pDQ p₁) -- restate (part of) the conclusion
+        ? (pVC p₁ ? broadcastHelper_injectMessagePreservesVC m p₀ === pVC p₀) -- QQQ: why is this lemma necessary?
+        ? (pDQ p₁ === enqueue m (pDQ p₀))
+    === dequeue (pVC p₀) (enqueue m (pDQ p₀)) -- by def of broadcastHelper_injectMessage
+        ? deliverableNewMessage raw p₀
+        ? deliverableAlwaysDequeues (pVC p₀) (pDQ p₀) m
+    *** QED
 
 {-@ ple broadcastAlwaysDelivers @-}
 {-@

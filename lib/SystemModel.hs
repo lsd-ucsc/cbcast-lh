@@ -8,6 +8,7 @@ import Redefined.Vec ()
 
 
 
+
 {- BEGIN GENERIC HELPERS (move back to other modules later) -}
 
 {-@ listLength :: xs:_ -> {v:Nat | v == len xs } @-}
@@ -57,8 +58,7 @@ listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
 {- END GENERIC HELPERS -}
 
 
--- QQQ do we need constraints on pid? we don't in the system model, but perhaps
--- we do for uCausalDelivery
+
 
 {-@
 type PID = Nat @-}
@@ -84,6 +84,7 @@ type ProcessHistory mm r = [Event mm r]
 processOrder :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Bool
 processOrder hist e e' = listElem e (listTailForHead e' hist)
 {-@ reflect processOrder @-}
+
 
 
 
@@ -153,6 +154,7 @@ processOrder hist e e' = listElem e (listTailForHead e' hist)
 
 
 
+
 {-@
 type Clock = {c:Integer | 0 <= c} @-}
 type Clock = Integer
@@ -195,6 +197,7 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 
 
 
+
 {- BEGIN HYPOTHETICAL SECTION -}
 --
 -- VC-HB-copacetic is ill defined. Thankfully, this isn't required for our
@@ -228,6 +231,7 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 -- @-}
 --
 {- END HYPOTHETICAL SECTION -}
+
 
 
 
