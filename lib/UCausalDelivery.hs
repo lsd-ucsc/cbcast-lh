@@ -5,6 +5,7 @@ module UCausalDelivery where
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Fin
 import Redefined.Ord
+import Redefined.Proof (proofConst)
 
 import SystemModel
 import Properties
@@ -186,25 +187,30 @@ deliver p =
 {-@
 broadcast :: r -> p:P r -> (MasP r {p}, PasP r {p}) @-}
 broadcast :: r -> P r -> (M r, P r)
-broadcast raw p =
-    let m = broadcastHelper raw p
-    in case deliver p
-        { pDQ = enqueue m (pDQ p)
-        , pHist = Broadcast (coerce m) : pHist p
-        } of
+broadcast raw p₀ =
+    let m = broadcastHelper_prepareMessage raw p₀
+        p₁ = broadcastHelper_injectMessage m p₀
+    in case deliver p₁ `proofConst` broadcastAlwaysDelivers raw p₀ of
             Just tup -> tup
-            Nothing -> undefined -- FIXME !!!!!!
--- {-@ reflect broadcast @-}
+{-@ reflect broadcast @-}
 
 {-@
-broadcastHelper :: r -> p:P r -> MasP r {p} @-}
-broadcastHelper :: r -> P r -> M r
-broadcastHelper raw p = Message
+broadcastHelper_injectMessage :: m:M r -> PasM r {m} -> PasM r {m} @-}
+broadcastHelper_injectMessage :: M r -> P r -> P r
+broadcastHelper_injectMessage m p = p
+    { pDQ = enqueue m (pDQ p)
+    , pHist = Broadcast (coerce m) : pHist p }
+{-@ reflect broadcastHelper_injectMessage @-}
+
+{-@
+broadcastHelper_prepareMessage :: r -> p:P r -> MasP r {p} @-}
+broadcastHelper_prepareMessage :: r -> P r -> M r
+broadcastHelper_prepareMessage raw p = Message
     { mMetadata = VCMM
-        { vcmmSent = vcTick (pVC p) (pID p) -- NOTE: since we don't constrain pID, TICKing doesn't guarantee any change.
+        { vcmmSent = vcTick (pVC p) (pID p)
         , vcmmSender = pID p }
     , mRaw = raw }
-{-@ reflect broadcastHelper @-}
+{-@ reflect broadcastHelper_prepareMessage @-}
 
 
 
@@ -235,11 +241,11 @@ vcLessAfterTick (x:xs) p_id
 -- | Like vcLessAfterTick, but for processes local clocks.
 {-@ ple pVCvcLessNewMsg @-}
 {-@
-pVCvcLessNewMsg :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper raw p))} @-}
+pVCvcLessNewMsg :: raw:_ -> p:_ -> {vcLess (pVC p) (mVC (broadcastHelper_prepareMessage raw p))} @-}
 pVCvcLessNewMsg :: r -> P r -> Proof
 pVCvcLessNewMsg raw p@P{pVC=x:xs}
-    =   vcLess (x:xs) (mVC (broadcastHelper raw p)) -- restate conclusion
-    === vcLess (x:xs) (vcTick (x:xs) (pID p)) -- by def of mVC and broadcastHelper
+    =   vcLess (x:xs) (mVC (broadcastHelper_prepareMessage raw p)) -- restate conclusion
+    === vcLess (x:xs) (vcTick (x:xs) (pID p)) -- by def of mVC and broadcastHelper_prepareMessage
         ? vcLessAfterTick (x:xs) (pID p)
     *** QED
 
@@ -305,14 +311,38 @@ deliverableAfterTick raw p_vc p_id
 
 {-@ ple deliverableNewMessage @-}
 {-@
-deliverableNewMessage :: raw:_ -> p:_ -> {deliverable (broadcastHelper raw p) (pVC p)} @-}
+deliverableNewMessage :: raw:_ -> p:_ -> {deliverable (broadcastHelper_prepareMessage raw p) (pVC p)} @-}
 deliverableNewMessage :: r -> P r -> Proof
 deliverableNewMessage raw p
-    =   deliverable (broadcastHelper raw p) (pVC p) -- restate conclusion
+    =   deliverable (broadcastHelper_prepareMessage raw p) (pVC p) -- restate conclusion
     --- QQQ: Why does this step require PLE?
-    === deliverable (Message (VCMM (vcTick (pVC p) (pID p)) (pID p)) raw) (pVC p) -- by definition of broadcastHelper
+    === deliverable (Message (VCMM (vcTick (pVC p) (pID p)) (pID p)) raw) (pVC p) -- by definition of broadcastHelper_prepareMessage
         ? deliverableAfterTick raw (pVC p) (pID p)
     *** QED
+
+{-@
+broadcastAlwaysDequeues
+    ::   raw:r
+    ->   p0:P r
+    -> { p1:PasP r {p0} | p1 == broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p0) p0 }
+    -> { Nothing /= dequeue (pVC p1) (pDQ p1) } @-}
+broadcastAlwaysDequeues :: r -> P r -> P r -> Proof
+
+{-@ ple broadcastAlwaysDelivers @-}
+{-@
+broadcastAlwaysDelivers :: raw:r -> p:P r
+    -> {Nothing /= deliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p)} @-}
+broadcastAlwaysDelivers :: r -> P r -> Proof
+broadcastAlwaysDelivers raw p₀ =
+    let m = broadcastHelper_prepareMessage raw p₀
+        p₁ = broadcastHelper_injectMessage m p₀
+    in case deliver p₁ of -- restate (part of) conclusion
+    Just _ -> () -- desired case
+    Nothing -> -- impossible case (1)
+        case dequeue (pVC p₁) (pDQ p₁) of -- by def of deliver
+            Just _ -> () -- contradicts the assumption (1)
+            Nothing -> broadcastAlwaysDequeues raw p₀ p₁
+
 
 
 
