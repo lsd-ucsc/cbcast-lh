@@ -30,7 +30,7 @@ import Properties
 {-@ type VCMMasM M = VCMMsized {len (mVC M)} @-}
 
 {-@
-type M r = Message VCMM r @-} -- QQQ: Why is this required? Ditto below, I guess
+type M r = Message VCMM r @-} -- QQQ: Why is this required?
 type M r = Message VCMM r
 {-@ type Msized r N = {m:M r | len (mVC m) == N} @-}
 {-@ type MasV r V = Msized r {len V} @-}
@@ -318,6 +318,7 @@ deliverableNewMessage raw p
 
 -- ** Clock-History agreement
 
+-- | The empty, initial, vc₀, vector clock.
 {-@
 vcEmpty :: n:Nat -> VCsized {n} @-}
 vcEmpty :: Int -> VC
@@ -325,6 +326,7 @@ vcEmpty 0 = []
 vcEmpty n = 0 : vcEmpty (n - 1)
 {-@ reflect vcEmpty @-}
 
+-- | The vc for the message in an event.
 {-@
 eventVC :: n:Nat -> Event (VCMMsized {n}) r -> VCsized {n} @-}
 eventVC :: Int -> Event VCMM r -> VC
@@ -332,6 +334,7 @@ eventVC _n (Broadcast m) = vcmmSent (mMetadata m) -- QQQ: Why can't we use mVC h
 eventVC _n (Deliver _pid m) = vcmmSent (mMetadata m)
 {-@ reflect eventVC @-}
 
+-- | The supremum of vector clocks on events in a process history.
 {-@
 pHistVC :: p:P r -> VCasP {p} @-}
 pHistVC :: P r -> VC
@@ -344,13 +347,34 @@ pHistVCHelper n [] = vcEmpty n
 pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
 {-@ reflect pHistVCHelper @-}
 
-{-@ type ClockHistoryAgreement P
-        = {_ : Proof | vcLessEqual (pHistVC P) (pVC P) } @-}
+-- | The empty, initial, p₀, for processes.
+{-@
+pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
+pEmpty :: Int -> Fin -> P r
+pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
+{-@ reflect pEmpty @-}
 
-{-@ type CHApreservation r OP
-        =  p:P r
-        -> ClockHistoryAgreement {p}
-        -> ClockHistoryAgreement {OP p} @-}
+{-@
+type ClockHistoryAgreement P
+    = {_ : Proof | vcLessEqual (pHistVC P) (pVC P) }
+@-}
+
+{-@ ple pEmptyCHA @-}
+{-@
+pEmptyCHA :: n:Nat -> p_id:PIDsized {n} -> ClockHistoryAgreement {pEmpty n p_id} @-}
+pEmptyCHA :: Int -> Fin -> Proof
+pEmptyCHA n p_id
+    =   let p = pEmpty n p_id
+    in  vcLessEqual (pHistVC p) (pVC p) -- restate conclusion
+        ? vcLessEqualReflexive (vcEmpty n)
+    *** QED
+
+{-@
+type CHApreservation r OP
+    =  p:P r
+    -> ClockHistoryAgreement {p}
+    -> ClockHistoryAgreement {OP p}
+@-}
 
 {-@
 receiveCHApres :: m:_ -> CHApreservation r {receive m} @-}
@@ -361,14 +385,33 @@ receiveCHApres _m _p _cha = () *** Admit
 
 -- ** Process Local Causal Delivery
 
--- Define an alias for the system model's PLCD in terms of the MPA's P data.
-{-@ type PLCD r P
-        = ProcessLocalCausalDelivery r {pID P} {pHist P} @-}
+-- An alias for the system model's PLCD in terms of the MPA's process type.
+{-@
+type PLCD r P
+    = ProcessLocalCausalDelivery r {pID P} {pHist P}
+@-}
 
-{-@ type PLCDpreservation r OP
-        =  p:P r
-        -> PLCD r {p}
-        -> PLCD r {OP p} @-}
+{-@ ple pEmptyPLCD @-}
+{-@
+pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {pEmpty n p_id} @-}
+pEmptyPLCD :: Eq r => Int -> Fin -> (M r -> M r -> Proof)
+pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
+--pEmptyPLCD n p_id m1 _m2
+--    =   True
+--    --- QQQ: Why doesn't this premise report as True without PLE?
+--    === listElem (Deliver p_id m1) (pHist (pEmpty n p_id)) -- restate a premise
+--    --- QQQ: Why doesn't expanding the definition of pEmpty work without PLE?
+--    === listElem (Deliver p_id m1) (pHist P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}) -- by def of pEmpty
+--    === listElem (Deliver p_id m1) [] -- by def of pHist
+--    === False -- by def of listElem
+--    *** QED -- premise failed
+
+{-@
+type PLCDpreservation r OP
+    =  p:P r
+    -> PLCD r {p}
+    -> PLCD r {OP p}
+@-}
 
 {-@
 receivePLCDpres :: m:_ -> PLCDpreservation r {receive m} @-}

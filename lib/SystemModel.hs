@@ -239,6 +239,7 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 {-@
 data VCMM = VCMM {vcmmSent::VC, vcmmSender::PIDasV {vcmmSent}} @-}
 data VCMM = VCMM {vcmmSent::VC, vcmmSender::PID}
+    deriving Eq
 
 -- NOTE: these accessors are convenience functions to look through the Message
 -- to the VCMM. Getting them to work correctly in specifications required
@@ -254,7 +255,7 @@ mVC m = vcmmSent (mMetadata m) -- Cannot be defined with pattern matching
 {-@
 mSender :: Message VCMM r -> PID @-}
 mSender :: Message VCMM r -> PID
-mSender m = vcmmSender (mMetadata m) -- Cannot be defined with pattern matching
+mSender m = vcmmSender (mMetadata m) -- QQQ: Why can't this be defined with pattern matching?
 {-@ inline mSender @-}
 
 {-@
@@ -265,20 +266,8 @@ type ProcessLocalCausalDelivery r PID PHIST
     -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
 @-}
 
--- QQQ: Do we want a name for this? The proof below doesn't require it to be named
--- {-@
--- h0 :: ProcessHistory VCMM r @-}
--- h0 :: ProcessHistory VCMM r
--- h0 = []
--- {-@ reflect h0 @-}
-
 {-@ ple emptyPHistObservesPLCD @-}
 {-@
 emptyPHistObservesPLCD :: p:_ -> ProcessLocalCausalDelivery r {p} {[]} @-}
 emptyPHistObservesPLCD :: PID -> Message VCMM r -> Message VCMM r -> Proof
 emptyPHistObservesPLCD _p _m1 _m2 = ()
-
--- (backburner) PLCDImpliesCD
--- (backburner) VCISO: cbcast implies vc-hb-copacetic
--- (NEXT!)      CBCAST observes PLCD
--- (backburner) CBCAST observes CD
