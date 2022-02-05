@@ -322,9 +322,48 @@ deliverableNewMessage raw p
 
 {-@ ple deliverableAlwaysDequeues @-}
 {-@
-deliverableAlwaysDequeues :: vc:_ -> dq:DQasV r {vc} -> {m:MasV r {vc} | deliverable m vc} -> { Nothing /= dequeue vc (enqueue m dq) } @-}
+deliverableAlwaysDequeues :: vc:VC -> dq:DQasV r {vc} -> {m:MasV r {vc} | deliverable m vc} -> { Nothing /= dequeue vc (enqueue m dq) } @-}
 deliverableAlwaysDequeues :: VC -> DQ r -> M r -> Proof
+deliverableAlwaysDequeues vc [] m
+    =   dequeue vc (enqueue m []) -- restate (part of) conclusion
+    === dequeue vc [m] -- by def of enqueue
+    === Just (m, []) -- by def of dequeue
+    *** QED
+deliverableAlwaysDequeues vc (x:xs) m
+--  NOTE: If you cross enqueue X dequeue, we start with six cases but then
+--  simplify to three:
+--
+--  [_enqueue___][_dequeue_______________]
+--  | m ===> x  &&      deliverable m now    1. QED, m is delivered
+--  | m ===> x  && not (deliverable m now)   2. Contradicts premise about m
+--  | m |||| x  &&      deliverable x now    3. QED, x is delivered
+--  | m |||| x  && not (deliverable x now)   4. INDUCTION
+--  | otherwise &&      deliverable x now    5. QED, same as #3
+--  | otherwise && not (deliverable x now)   6. INDUCTION, same as #4
+--
+--  Cases 5 and 6 collapse into 3 and 4 because the definition for enqueue
+--  distinguishes those cases unnecessarily.
+--
+    | m ===> x -- CASE 1
+            =   dequeue vc (enqueue m (x:xs)) -- restate (part of) conclusion
+            === dequeue vc (m:x:xs) -- by def of enqueue
+            === Just (m, x:xs) -- by def of dequeue
+            *** QED
+    | deliverable x vc -- CASES 3 & 5
+            =   dequeue vc (enqueue m (x:xs)) -- restate (part of) conclusion
+            === dequeue vc (x:enqueue m xs) -- by def of enqueue
+            === Just (x, enqueue m xs) -- by def of dequeue
+            *** QED
+    | otherwise -- CASES 4 & 6
+            =   dequeue vc (enqueue m (x:xs)) -- restate (part of) conclusion
+            === dequeue vc (x:enqueue m xs) -- by def of enqueue
+            === (let Just (z, xs') = dequeue vc (enqueue m xs) -- by def of dequeue
+                                        ? deliverableAlwaysDequeues vc xs m
+            in  Just (z, x:xs'))
+            *** QED
 
+-- | This lemma shouldn't be necessary; there's something weird about how LH
+-- sees record-field patterns and record-field updates
 {-@ ple broadcastAlwaysDequeues_lemma @-}
 {-@
 broadcastAlwaysDequeues_lemma :: m:_ -> p:PasM r {m} -> {pVC p == pVC (broadcastHelper_injectMessage m p)} @-}
@@ -348,7 +387,7 @@ broadcastAlwaysDequeues raw p₀ p₁
     =   let m = broadcastHelper_prepareMessage raw p₀
     in  dequeue (pVC p₁) (pDQ p₁) -- restate (part of) the conclusion
         ? (pVC p₁ ? broadcastAlwaysDequeues_lemma m p₀ === pVC p₀) -- QQQ: why is this lemma necessary?
-        ? (pDQ p₁ === enqueue m (pDQ p₀))
+    --- ? (pDQ p₁ === enqueue m (pDQ p₀))
     === dequeue (pVC p₀) (enqueue m (pDQ p₀)) -- by def of broadcastHelper_injectMessage
         ? deliverableNewMessage raw p₀
         ? deliverableAlwaysDequeues (pVC p₀) (pDQ p₀) m
@@ -368,112 +407,3 @@ broadcastAlwaysDelivers raw p₀ =
         case dequeue (pVC p₁) (pDQ p₁) of -- by def of deliver
             Just _ -> () -- contradicts the assumption (1)
             Nothing -> broadcastAlwaysDequeues raw p₀ p₁
-
-
-
-
--- ** Clock-History agreement
-
--- | The empty, initial, vc₀, vector clock.
-{-@
-vcEmpty :: n:Nat -> VCsized {n} @-}
-vcEmpty :: Int -> VC
-vcEmpty 0 = []
-vcEmpty n = 0 : vcEmpty (n - 1)
-{-@ reflect vcEmpty @-}
-
--- | The vc for the message in an event.
-{-@
-eventVC :: n:Nat -> Event (VCMMsized {n}) r -> VCsized {n} @-}
-eventVC :: Int -> Event VCMM r -> VC
-eventVC _n (Broadcast m) = vcmmSent (mMetadata m) -- QQQ: Why can't we use mVC here?
-eventVC _n (Deliver _pid m) = vcmmSent (mMetadata m)
-{-@ reflect eventVC @-}
-
--- | The supremum of vector clocks on events in a process history.
-{-@
-pHistVC :: p:P r -> VCasP {p} @-}
-pHistVC :: P r -> VC
-pHistVC p = pHistVCHelper (listLength (pVC p)) (pHist p)
-{-@ reflect pHistVC @-}
-{-@
-pHistVCHelper :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
-pHistVCHelper :: Int -> H r -> VC
-pHistVCHelper n [] = vcEmpty n
-pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
-{-@ reflect pHistVCHelper @-}
-
--- | The empty, initial, p₀, for processes.
-{-@
-pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
-pEmpty :: Int -> Fin -> P r
-pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
-{-@ reflect pEmpty @-}
-
-{-@
-type ClockHistoryAgreement P
-    = {_ : Proof | vcLessEqual (pHistVC P) (pVC P) }
-@-}
-
-{-@ ple pEmptyCHA @-}
-{-@
-pEmptyCHA :: n:Nat -> p_id:PIDsized {n} -> ClockHistoryAgreement {pEmpty n p_id} @-}
-pEmptyCHA :: Int -> Fin -> Proof
-pEmptyCHA n p_id
-    =   let p = pEmpty n p_id
-    in  vcLessEqual (pHistVC p) (pVC p) -- restate conclusion
-        ? vcLessEqualReflexive (vcEmpty n)
-    *** QED
-
-{-@
-type CHApreservation r OP
-    =  p:P r
-    -> ClockHistoryAgreement {p}
-    -> ClockHistoryAgreement {OP p}
-@-}
-
-{-@
-receiveCHApres :: m:_ -> CHApreservation r {receive m} @-}
-receiveCHApres :: M r -> P r -> Proof -> Proof
-receiveCHApres _m _p _cha = () *** Admit
-
-
-
--- ** Process Local Causal Delivery
-
--- An alias for the system model's PLCD in terms of the MPA's process type.
-{-@
-type PLCD r P
-    = ProcessLocalCausalDelivery r {pID P} {pHist P}
-@-}
-
-{-@ ple pEmptyPLCD @-}
-{-@
-pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {pEmpty n p_id} @-}
-pEmptyPLCD :: Eq r => Int -> Fin -> (M r -> M r -> Proof)
-pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
---pEmptyPLCD n p_id m1 _m2
---    =   True
---    --- QQQ: Why doesn't this premise report as True without PLE?
---    === listElem (Deliver p_id m1) (pHist (pEmpty n p_id)) -- restate a premise
---    --- QQQ: Why doesn't expanding the definition of pEmpty work without PLE?
---    === listElem (Deliver p_id m1) (pHist P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}) -- by def of pEmpty
---    === listElem (Deliver p_id m1) [] -- by def of pHist
---    === False -- by def of listElem
---    *** QED -- premise failed
-
-{-@
-type PLCDpreservation r OP
-    =  p:P r
-    -> PLCD r {p}
-    -> PLCD r {OP p}
-@-}
-
-{-@
-receivePLCDpres :: m:_ -> PLCDpreservation r {receive m} @-}
-receivePLCDpres :: M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-receivePLCDpres _m _p _plcd _m1 _m2 = () *** Admit
-
---
---
---
