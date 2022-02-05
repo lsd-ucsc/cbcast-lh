@@ -7,3 +7,7 @@ dist-newstyle/
 dist/
 *.svg
 *.gif
+result
+result-doc
+build-env
+build-env-*-link
