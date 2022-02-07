@@ -97,6 +97,8 @@ type CHApreservation r N OP
     -> ClockHistoryAgreement {OP p}
 @-}
 
+-- *** receive
+
 {-@
 receiveKeepsVC_noPLE :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
 receiveKeepsVC_noPLE :: M r -> P r -> Proof
@@ -133,7 +135,7 @@ receiveKeepsHist m p -- by cases from receive
 {-@
 receiveCHApres_noPLE :: m:_ -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres_noPLE :: M r -> P r -> Proof -> Proof
-receiveCHApres_noPLE m p₀ pCHA
+receiveCHApres_noPLE m p₀ _pCHA
     =   let p₁ = receive m p₀ in
         pHistVC p₀
         ? receiveKeepsVC m p₀
@@ -148,6 +150,41 @@ receiveCHApres :: M r -> P r -> Proof -> Proof
 receiveCHApres m p _pCHA
     =   receiveKeepsVC m p
     &&& receiveKeepsHist m p
+
+-- *** deliver
+
+deliverShim :: P r -> P r -- QQQ: consider mentioning the size of p doesn't change
+deliverShim p =
+    case deliver p of
+        Nothing -> p
+        Just (_, p') -> p'
+{-@ reflect deliverShim @-}
+
+{-@
+deliverCHApres :: n:Nat -> CHApreservation r {n} {deliverShim} @-}
+deliverCHApres :: Int -> P r -> Proof -> Proof
+deliverCHApres _n _p _pCHA
+    -- CHA says that p_hist_vc <= p_vc
+    -- deliver adds m to hist, so pHistVC is now: combine of p_hist_vc and m_vc
+    -- deliver combines the p_vc and m_vc
+    -- it's like
+    -- a <= b ===> a + n <= b + n
+    =   () *** Admit
+
+-- *** broadcast
+
+broadcastShim :: r -> P r -> P r -- QQQ: consider mentioning the size of p doesn't change
+broadcastShim raw p =
+    let (_, p') = broadcast raw p in p'
+{-@ reflect broadcastShim @-}
+
+{-@
+broadcastCHApres :: raw:_ -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
+broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
+broadcastCHApres _raw _n _p _pCHA
+    -- CHA says that p_hist_vc <= p_vc
+    =   () *** Admit
+
 
 
 
