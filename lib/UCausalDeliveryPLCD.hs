@@ -27,6 +27,8 @@ import UCausalDelivery
 
 -- * Clock-History agreement
 
+-- ** CHA utilities
+
 -- | The empty, initial, vc₀, vector clock.
 {-@
 vcEmpty :: n:Nat -> VCsized {n} @-}
@@ -34,6 +36,13 @@ vcEmpty :: Int -> VC
 vcEmpty 0 = []
 vcEmpty n = 0 : vcEmpty (n - 1)
 {-@ reflect vcEmpty @-}
+
+-- | The empty, initial, p₀, for processes.
+{-@
+pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
+pEmpty :: Int -> Fin -> P r
+pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
+{-@ reflect pEmpty @-}
 
 -- | The vc for the message in an event.
 {-@
@@ -55,13 +64,6 @@ pHistVCHelper :: Int -> H r -> VC
 pHistVCHelper n [] = vcEmpty n
 pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
 {-@ reflect pHistVCHelper @-}
-
--- | The empty, initial, p₀, for processes.
-{-@
-pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
-pEmpty :: Int -> Fin -> P r
-pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
-{-@ reflect pEmpty @-}
 
 
 
