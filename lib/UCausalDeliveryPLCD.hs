@@ -91,16 +91,63 @@ pEmptyCHA n p_id
 -- ** CHA preservation
 
 {-@
-type CHApreservation r OP
-    =  p:P r
+type CHApreservation r N OP
+    =  p:Psized r {N}
     -> ClockHistoryAgreement {p}
     -> ClockHistoryAgreement {OP p}
 @-}
 
 {-@
-receiveCHApres :: m:_ -> CHApreservation r {receive m} @-}
+receiveKeepsVC_noPLE :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receiveKeepsVC_noPLE :: M r -> P r -> Proof
+receiveKeepsVC_noPLE m p -- by cases from receive
+    | mSender m == pID p
+        =   pVC p == pVC (receive m p) -- restate conclusion
+        === pVC p == pVC p -- by def of receive
+        *** QED
+    | otherwise
+        =   pVC p == pVC (receive m p) -- restate conclusion
+        === pVC p == pVC p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+{-@ ple receiveKeepsVC @-}
+{-@
+receiveKeepsVC :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receiveKeepsVC :: M r -> P r -> Proof
+receiveKeepsVC m p -- by cases from receive
+    | mSender m == pID p = ()
+    | otherwise
+        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+{-@ ple receiveKeepsHist @-}
+{-@
+receiveKeepsHist :: m:_ -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
+receiveKeepsHist :: M r -> P r -> Proof
+receiveKeepsHist m p -- by cases from receive
+    | mSender m == pID p = ()
+    | otherwise
+        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+{-@
+receiveCHApres_noPLE :: m:_ -> CHApreservation r {len (mVC m)} {receive m} @-}
+receiveCHApres_noPLE :: M r -> P r -> Proof -> Proof
+receiveCHApres_noPLE m p₀ pCHA
+    =   let p₁ = receive m p₀ in
+        pHistVC p₀
+        ? receiveKeepsVC m p₀
+        ? receiveKeepsHist m p₀
+    === pHistVC p₁
+    *** QED
+
+{-@ ple receiveCHApres @-}
+{-@
+receiveCHApres :: m:_ -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres :: M r -> P r -> Proof -> Proof
-receiveCHApres _m _p _cha = () *** Admit
+receiveCHApres m p _pCHA
+    =   receiveKeepsVC m p
+    &&& receiveKeepsHist m p
 
 
 
