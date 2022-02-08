@@ -25,9 +25,7 @@ import UCausalDelivery
 
 
 
--- * Clock-History agreement
-
--- ** CHA utilities
+-- * Empty values
 
 -- | The empty, initial, vc₀, vector clock.
 {-@
@@ -43,6 +41,80 @@ pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
 pEmpty :: Int -> Fin -> P r
 pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
 {-@ reflect pEmpty @-}
+
+
+
+
+-- * Preservation property shims
+
+-- | The deliver function, but throw away the message.
+deliverShim :: P r -> P r
+deliverShim p =
+    case deliver p of
+        Nothing -> p
+        Just (_, p') -> p'
+{-@ reflect deliverShim @-}
+
+-- | The broadcast function, but throw away the message.
+broadcastShim :: r -> P r -> P r
+broadcastShim raw p =
+    let (_, p') = broadcast raw p in p'
+{-@ reflect broadcastShim @-}
+
+
+
+
+-- * Preservation lemmas
+
+{-@
+receiveKeepsVC_noPLE :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receiveKeepsVC_noPLE :: M r -> P r -> Proof
+receiveKeepsVC_noPLE m p -- by cases from receive
+    | mSender m == pID p
+        =   pVC p == pVC (receive m p) -- restate conclusion
+        === pVC p == pVC p -- by def of receive
+        *** QED
+    | otherwise
+        =   pVC p == pVC (receive m p) -- restate conclusion
+        === pVC p == pVC p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+{-@ ple receiveKeepsVC @-}
+{-@
+receiveKeepsVC :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receiveKeepsVC :: M r -> P r -> Proof
+receiveKeepsVC m p -- by cases from receive
+    | mSender m == pID p = ()
+    | otherwise
+        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+{-@ ple receiveKeepsHist @-}
+{-@
+receiveKeepsHist :: m:_ -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
+receiveKeepsHist :: M r -> P r -> Proof
+receiveKeepsHist m p -- by cases from receive
+    | mSender m == pID p = ()
+    | otherwise
+        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+{-@ ple receiveKeepsID @-}
+{-@
+receiveKeepsID :: m:_ -> p:PasM r {m} -> {pID p == pID (receive m p)} @-}
+receiveKeepsID :: M r -> P r -> Proof
+receiveKeepsID m p -- by cases from receive
+    | mSender m == pID p = ()
+    | otherwise
+        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
+        *** QED
+
+
+
+
+-- * Clock-History agreement
+
+-- ** CHA utilities
 
 -- | The vc for the message in an event.
 {-@
@@ -100,47 +172,14 @@ type CHApreservation r N OP
 -- *** receive
 
 {-@
-receiveKeepsVC_noPLE :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
-receiveKeepsVC_noPLE :: M r -> P r -> Proof
-receiveKeepsVC_noPLE m p -- by cases from receive
-    | mSender m == pID p
-        =   pVC p == pVC (receive m p) -- restate conclusion
-        === pVC p == pVC p -- by def of receive
-        *** QED
-    | otherwise
-        =   pVC p == pVC (receive m p) -- restate conclusion
-        === pVC p == pVC p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-{-@ ple receiveKeepsVC @-}
-{-@
-receiveKeepsVC :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
-receiveKeepsVC :: M r -> P r -> Proof
-receiveKeepsVC m p -- by cases from receive
-    | mSender m == pID p = ()
-    | otherwise
-        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-{-@ ple receiveKeepsHist @-}
-{-@
-receiveKeepsHist :: m:_ -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
-receiveKeepsHist :: M r -> P r -> Proof
-receiveKeepsHist m p -- by cases from receive
-    | mSender m == pID p = ()
-    | otherwise
-        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-{-@
 receiveCHApres_noPLE :: m:_ -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres_noPLE :: M r -> P r -> Proof -> Proof
-receiveCHApres_noPLE m p₀ _pCHA
-    =   let p₁ = receive m p₀ in
-        pHistVC p₀
-        ? receiveKeepsVC m p₀
-        ? receiveKeepsHist m p₀
-    === pHistVC p₁
+receiveCHApres_noPLE m p _pCHA
+    =   let p' = receive m p in
+        pHistVC p
+        ? receiveKeepsVC m p
+        ? receiveKeepsHist m p
+    === pHistVC p'
     *** QED
 
 {-@ ple receiveCHApres @-}
@@ -152,13 +191,6 @@ receiveCHApres m p _pCHA
     &&& receiveKeepsHist m p
 
 -- *** deliver
-
-deliverShim :: P r -> P r -- QQQ: consider mentioning the size of p doesn't change
-deliverShim p =
-    case deliver p of
-        Nothing -> p
-        Just (_, p') -> p'
-{-@ reflect deliverShim @-}
 
 {-@
 deliverCHApres :: n:Nat -> CHApreservation r {n} {deliverShim} @-}
@@ -172,11 +204,6 @@ deliverCHApres _n _p _pCHA
     =   () *** Admit
 
 -- *** broadcast
-
-broadcastShim :: r -> P r -> P r -- QQQ: consider mentioning the size of p doesn't change
-broadcastShim raw p =
-    let (_, p') = broadcast raw p in p'
-{-@ reflect broadcastShim @-}
 
 {-@
 broadcastCHApres :: raw:_ -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}

@@ -266,6 +266,7 @@ mSender m = vcmmSender (mMetadata m) -- QQQ: Why can't this be defined with patt
 type ProcessLocalCausalDelivery r PID PHIST
     =  {m1 : Message VCMM r | listElem (Deliver PID m1) PHIST }
     -> {m2 : Message VCMM r | listElem (Deliver PID m2) PHIST
+                && len (mVC m1) == len (mVC m2)
                 && vcLess (mVC m1) (mVC m2) }
     -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
 @-}
