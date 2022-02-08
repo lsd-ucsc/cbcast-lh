@@ -247,16 +247,34 @@ pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
 -- ** PLCD preservation
 
 {-@
-type PLCDpreservation r OP
-    =  p:P r
+type PLCDpreservation r N OP
+    =  p:Psized r {N}
     -> PLCD r {p}
     -> PLCD r {OP p}
 @-}
 
+{-@ ple receivePLCDpres @-}
 {-@
-receivePLCDpres :: m:_ -> PLCDpreservation r {receive m} @-}
-receivePLCDpres :: M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-receivePLCDpres _m _p _plcd _m1 _m2 = () *** Admit
+receivePLCDpres :: m:_ -> PLCDpreservation r {len (mVC m)} {receive m} @-}
+receivePLCDpres :: Eq r => M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+receivePLCDpres m p pPLCD m₁ m₂ =
+    let p' = receive m p
+    in  True
+--  === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
+--  === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
+--  === mVC m₁ `vcLess` mVC m₂ -- restate a premise
+        ? receiveKeepsID m p
+        ? receiveKeepsHist m p
+--  === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
+--  === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
+        ? pPLCD m₁ m₂ -- generate evidence
+--  === processOrder (pHist p) (Deliver (pID p) m₁) (Deliver (pID p) m₂) -- restate generated evidence
+--  === processOrder (pHist p') (Deliver (pID p') m₁) (Deliver (pID p') m₂) -- restate conclusion
+    *** QED
+
+-- deliver PLCD pres -- need CHA!
+
+-- broadcast PLCD pres -- need CHA!
 
 
 
