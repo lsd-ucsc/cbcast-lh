@@ -1,9 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local" @-}
--- {-# LANGUAGE NoFieldSelectors #-}
-{-# LANGUAGE NamedFieldPuns #-}
 module Properties where
-
 
 import Language.Haskell.Liquid.ProofCombinators
 import SystemModel
@@ -23,6 +20,14 @@ import SystemModel
 -- Total order               : Transitive, Reflexive, Antisymmetric, Total
 -- Partial order (strict)    : Transitive, (ONE-OF: Irreflexive, Asymmetric)
 -- Equivalence               : Transitive, Reflexive, Symmetric
+
+{-@ type Associative a A = x:a -> y:a -> z:a -> {A (A x y) z == A x (A y z)} @-}
+{-@ type Commutative a A = x:a -> y:a -> {A x y == A y x} @-}
+
+{-@ type  MonotonicLeft a R A =        x:a -> {y:a | R x y} -> k:a -> {R (A x k) (A y k)} @-}
+{-@ type MonotonicRight a R A = k:a -> x:a -> {y:a | R x y}        -> {R (A k x) (A k y)} @-}
+{-@ type      Monotonic a R A = a:t -> {b:t | R a b}
+                             -> x:t -> {y:t | R x y} -> {R (A a x) (A b y)} @-}
 
 
 

@@ -149,7 +149,6 @@ vcCombine :: v:VC -> VCasV {v} -> VCasV {v} @-}
 vcCombine :: VC -> VC -> VC
 vcCombine = listZipWith ordMax
 {-@ reflect vcCombine @-}
--- TODO: prove commutative
 
 
 

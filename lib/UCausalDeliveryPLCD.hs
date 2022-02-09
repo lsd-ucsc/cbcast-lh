@@ -230,16 +230,17 @@ type PLCD r P
 {-@
 pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {pEmpty n p_id} @-}
 pEmptyPLCD :: Eq r => Int -> Fin -> (M r -> M r -> Proof)
-pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
---pEmptyPLCD n p_id m1 _m2 -- Interesting but unnecessary manual proof:
---    =   True
---    --- QQQ: Why doesn't this premise report as True without PLE?
---    === listElem (Deliver p_id m1) (pHist (pEmpty n p_id)) -- restate a premise
---    --- QQQ: Why doesn't expanding the definition of pEmpty work without PLE?
---    === listElem (Deliver p_id m1) (pHist P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}) -- by def of pEmpty
---    === listElem (Deliver p_id m1) [] -- by def of pHist
---    === False -- by def of listElem
---    *** QED -- premise failed
+pEmptyPLCD n p_id m1 _m2 -- Interesting but unnecessary manual proof:
+    =   True
+    --- QQQ: Why doesn't this premise report as True without PLE?
+    === listElem (Deliver p_id m1) (pHist (pEmpty n p_id)) -- restate a premise
+    --- QQQ: Why doesn't expanding the definition of pEmpty work without PLE?
+    === listElem (Deliver p_id m1) (pHist P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}) -- by def of pEmpty
+    === listElem (Deliver p_id m1) [] -- by def of pHist
+    === False -- by def of listElem
+    *** QED -- premise failed
+-- NOTE: can comment the whole proof
+-- pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
 
 
 
@@ -260,17 +261,18 @@ receivePLCDpres :: Eq r => M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> 
 receivePLCDpres m p pPLCD m₁ m₂ =
     let p' = receive m p
     in  True
---  === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
---  === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
---  === mVC m₁ `vcLess` mVC m₂ -- restate a premise
+    === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
+    === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
+    === mVC m₁ `vcLess` mVC m₂ -- restate a premise
         ? receiveKeepsID m p
         ? receiveKeepsHist m p
---  === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
---  === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
+    === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
+    === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
         ? pPLCD m₁ m₂ -- generate evidence
---  === processOrder (pHist p) (Deliver (pID p) m₁) (Deliver (pID p) m₂) -- restate generated evidence
---  === processOrder (pHist p') (Deliver (pID p') m₁) (Deliver (pID p') m₂) -- restate conclusion
+    === processOrder (pHist p) (Deliver (pID p) m₁) (Deliver (pID p) m₂) -- restate generated evidence
+    === processOrder (pHist p') (Deliver (pID p') m₁) (Deliver (pID p') m₂) -- restate conclusion
     *** QED
+    --- NOTE: can comment out all of the equivalences here
 
 -- deliver PLCD pres -- need CHA!
 
