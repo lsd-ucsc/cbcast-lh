@@ -1,17 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local" @-}
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs Redefined.Ord
 module UCausalDeliveryPLCD where
-
---{-@ LIQUID "--check-var=broadcast" @-}
---{-@ LIQUID "--check-var=broadcastHelper_prepareMessage" @-}
---{-@ LIQUID "--check-var=broadcastHelper_injectMessage" @-}
---{-@ LIQUID "--check-var=broadcastAlwaysDelivers" @-}
---
---{-@ LIQUID "--check-var=broadcastAlwaysDequeues" @-}
---{-@ LIQUID "--check-var=broadcastAlwaysDequeues_lemma" @-}
---
---{-@ LIQUID "--check-var=deliverableAlwaysDequeues" @-}
---{-@ LIQUID "--diff" @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Fin
@@ -21,6 +11,7 @@ import Redefined.Ord
 import SystemModel
 import Properties
 import UCausalDelivery
+import Properties2
 
 
 
@@ -192,16 +183,31 @@ receiveCHApres m p _pCHA
 
 -- *** deliver
 
+{-@ ple deliverCHApres @-}
 {-@
 deliverCHApres :: n:Nat -> CHApreservation r {n} {deliverShim} @-}
 deliverCHApres :: Int -> P r -> Proof -> Proof
-deliverCHApres _n _p _pCHA
+deliverCHApres n p _pCHA =
+    case dequeue (pVC p) (pDQ p) of
+        Nothing -> () -- p is unchanged
+        Just (m, pDQ')
+            ->  let p' = deliverShim p
+                    e = Deliver (pID p) (coerce m)
+            in
+            --- vcLessEqual (pHistVC p) (pVC p) -- restate premise
+                vcLessEqual (pHistVC p') (pVC p') -- restate conclusion
+            --- ? (pHist p' === e : pHist p) -- by def of deliver
+            --- ? (pHistVC p' === eventVC n e `vcCombine` pHistVC p) -- by def of pHistVC
+            --- ? (pHistVC p' === mVC m `vcCombine` pHistVC p) -- by def of eventVC
+            === vcLessEqual (pHistVC p `vcCombine` mVC m) (pVC p `vcCombine` mVC m) -- by def of deliver
+                ? vcCombineVCLessEqualMonotonicLeft n (pHistVC p) (pVC p) (mVC m)
+            *** Admit
     -- CHA says that p_hist_vc <= p_vc
     -- deliver adds m to hist, so pHistVC is now: combine of p_hist_vc and m_vc
     -- deliver combines the p_vc and m_vc
     -- it's like
     -- a <= b ===> a + n <= b + n
-    =   () *** Admit
+    -- this is mono-left
 
 -- *** broadcast
 
