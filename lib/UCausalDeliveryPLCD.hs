@@ -185,46 +185,52 @@ receiveCHApres m p _pCHA
 
 {-@ ple deliverVcIsPrevCombineMsg @-}
 {-@
-deliverVcIsPrevCombineMsg :: {p1:P r | isJust (deliver p1)}
+deliverVcIsPrevCombineMsg
+    :: {p1:P r | isJust (deliver p1)}
     -> { m:M r | fst (fromJust (deliver p1)) == m }
     -> {p2:P r | snd (fromJust (deliver p1)) == p2}
     -> {vcCombine (pVC p1) (mVC m) == pVC p2}
 @-}
 deliverVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
 deliverVcIsPrevCombineMsg p₁ m p₂ = --- by cases of deliver
-    let Just (m', pDQ') = dequeue (pVC p₁) (pDQ p₁) in -- one case, due to premise
-        p₂ -- restate part of conclusion
-        ? (m === m')
-    === p₁  { pVC = vcCombine (pVC p₁) (mVC m)
-            , pDQ = pDQ'
-            , pHist = Deliver (pID p₁) (coerce m) : pHist p₁
-            } -- by def of deliver
-    *** QED
+    case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
+        Just (_m, pDQ') -> -- one case, due to premise
+                p₂
+            === p₁{ pVC = vcCombine (pVC p₁) (mVC m)
+                  , pDQ = pDQ'
+                  , pHist = Deliver (pID p₁) (coerce m) : pHist p₁
+                  } -- by def of deliver
+            *** QED
 
 {-@ ple deliverHistVcIsPrevCombineMsg @-}
 {-@
-deliverHistVcIsPrevCombineMsg :: {p1:P r | isJust (deliver p1)}
+deliverHistVcIsPrevCombineMsg
+    :: {p1:P r | isJust (deliver p1)}
     -> { m:M r | fst (fromJust (deliver p1)) == m }
     -> {p2:P r | snd (fromJust (deliver p1)) == p2}
     -> {vcCombine (pHistVC p1) (mVC m) == pHistVC p2}
 @-}
 deliverHistVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
-deliverHistVcIsPrevCombineMsg p₁ m p₂
-    =   pHistVC p₂
-        ? recordUpdateLemma
-    === pHistVCHelper n (e : pHist p₁) -- by def of pHistVC
-    === vcCombine (eventVC n e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
-  where
-    n = listLength (pVC p₁)
-    e = Deliver (pID p₁) (coerce m)
-    -- by cases of deliver
-    Just (m', pDQ') = dequeue (pVC p₁) (pDQ p₁) -- one case, due to premise
-    recordUpdateLemma
-        =   p₂  ? (m === m') -- restate part of conclusion
-        === p₁  { pVC = vcCombine (pVC p₁) (mVC m)
-                , pDQ = pDQ'
-                , pHist = e : pHist p₁
-                } -- by def of deliver
+deliverHistVcIsPrevCombineMsg p₁ m p₂ =
+    case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
+        Just (_m, pDQ') -> -- one case, due to premise
+            let n = listLength (pVC p₁)
+                e = Deliver (pID p₁) (coerce m)
+            in  pHistVC p₂ -- restate (part of) conclusion
+                ? (   p₂
+                  === p₁{ pVC = vcCombine (pVC p₁) (mVC m)
+                        , pDQ = pDQ'
+                        , pHist = e : pHist p₁
+                        } -- by def of deliver
+                  ) -- lemma to help LH see through record-update-syntax
+            === pHistVCHelper n (e : pHist p₁) -- by def of deliver,pHistVC
+            === vcCombine (eventVC n e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
+                ? (eventVC n e === mVC m)
+            === vcCombine (mVC m) (pHistVCHelper n (pHist p₁))
+            === vcCombine (mVC m) (pHistVC p₁)
+                ? vcCombineCommutativity n (mVC m) (pHistVC p₁)
+            === vcCombine (pHistVC p₁) (mVC m)
+            *** QED
 
 {-@ ple deliverCHApres @-}
 {-@
@@ -233,10 +239,9 @@ deliverCHApres :: Int -> P r -> Proof -> Proof
 deliverCHApres n p _pCHA = -- by cases of deliver
     case dequeue (pVC p) (pDQ p) of
         Nothing -> () -- p is unchanged
-        Just (m, pDQ') ->
-            let p' = deliverShim p
-                e = Deliver (pID p) (coerce m)
-            in  vcLessEqual (pHistVC p') (pVC p') -- restate conclusion
+        Just (m, _pDQ) ->
+            let p' = deliverShim p in
+                vcLessEqual (pHistVC p') (pVC p') -- restate conclusion
                 ? deliverVcIsPrevCombineMsg p m p'
                 ? deliverHistVcIsPrevCombineMsg p m p'
             === vcLessEqual (pHistVC p `vcCombine` mVC m) (pVC p `vcCombine` mVC m)

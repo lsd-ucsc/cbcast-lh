@@ -59,7 +59,7 @@ data P r = P {pVC::VC, pID::PID, pDQ::DQ r, pHist::H r}
 -- | When putting events into process history it's necessary to specify the vc
 -- size in the type of the metadata.
 {-@
-coerce :: m:Message VCMM r -> Message (VCMMasM {m}) r @-}
+coerce :: m:Message VCMM r -> {m':Message (VCMMasM {m}) r | mVC m == mVC m'} @-}
 coerce :: Message VCMM r -> Message VCMM r
 coerce (Message a b) = Message a b
 {-@ reflect coerce @-}
