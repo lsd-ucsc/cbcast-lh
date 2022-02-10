@@ -58,7 +58,7 @@ broadcastShim raw p =
 -- * Preservation lemmas
 
 {-@
-receiveKeepsVC_noPLE :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receiveKeepsVC_noPLE :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
 receiveKeepsVC_noPLE :: M r -> P r -> Proof
 receiveKeepsVC_noPLE m p -- by cases from receive
     | mSender m == pID p
@@ -72,7 +72,7 @@ receiveKeepsVC_noPLE m p -- by cases from receive
 
 {-@ ple receiveKeepsVC @-}
 {-@
-receiveKeepsVC :: m:_ -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receiveKeepsVC :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
 receiveKeepsVC :: M r -> P r -> Proof
 receiveKeepsVC m p -- by cases from receive
     | mSender m == pID p = ()
@@ -82,7 +82,7 @@ receiveKeepsVC m p -- by cases from receive
 
 {-@ ple receiveKeepsHist @-}
 {-@
-receiveKeepsHist :: m:_ -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
+receiveKeepsHist :: m:M r -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
 receiveKeepsHist :: M r -> P r -> Proof
 receiveKeepsHist m p -- by cases from receive
     | mSender m == pID p = ()
@@ -92,7 +92,7 @@ receiveKeepsHist m p -- by cases from receive
 
 {-@ ple receiveKeepsID @-}
 {-@
-receiveKeepsID :: m:_ -> p:PasM r {m} -> {pID p == pID (receive m p)} @-}
+receiveKeepsID :: m:M r -> p:PasM r {m} -> {pID p == pID (receive m p)} @-}
 receiveKeepsID :: M r -> P r -> Proof
 receiveKeepsID m p -- by cases from receive
     | mSender m == pID p = ()
@@ -163,7 +163,7 @@ type CHApreservation r N OP
 -- *** receive
 
 {-@
-receiveCHApres_noPLE :: m:_ -> CHApreservation r {len (mVC m)} {receive m} @-}
+receiveCHApres_noPLE :: m:M r -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres_noPLE :: M r -> P r -> Proof -> Proof
 receiveCHApres_noPLE m p _pCHA
     =   let p' = receive m p in
@@ -175,7 +175,7 @@ receiveCHApres_noPLE m p _pCHA
 
 {-@ ple receiveCHApres @-}
 {-@
-receiveCHApres :: m:_ -> CHApreservation r {len (mVC m)} {receive m} @-}
+receiveCHApres :: m:M r -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres :: M r -> P r -> Proof -> Proof
 receiveCHApres m p _pCHA
     =   receiveKeepsVC m p
@@ -252,7 +252,7 @@ deliverCHApres n p _pCHA = -- by cases of deliver
 -- *** broadcast
 
 {-@
-broadcastCHApres :: raw:_ -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
+broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
 broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
 broadcastCHApres _raw _n _p _pCHA
     -- CHA says that p_hist_vc <= p_vc
@@ -302,7 +302,7 @@ type PLCDpreservation r N OP
 
 {-@ ple receivePLCDpres @-}
 {-@
-receivePLCDpres :: m:_ -> PLCDpreservation r {len (mVC m)} {receive m} @-}
+receivePLCDpres :: m:M r -> PLCDpreservation r {len (mVC m)} {receive m} @-}
 receivePLCDpres :: Eq r => M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 receivePLCDpres m p pPLCD m₁ m₂ =
     let p' = receive m p
