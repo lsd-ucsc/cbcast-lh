@@ -262,7 +262,65 @@ receivePLCDpres m p pPLCD m₁ m₂ =
     *** QED
     --- NOTE: can comment out all of the equivalences here
 
--- deliver PLCD pres -- need CHA!
+{-@
+type PLCDpreservation' r N OP
+    =  p:Psized r {N}
+    -> ClockHistoryAgreement {p}
+    -> PLCD r {p}
+    -> PLCD r {OP p}
+@-}
+
+{-@ ple deliverPLCDpres @-}
+{-@
+deliverPLCDpres :: n:Nat -> PLCDpreservation' r {n} {deliverShim} @-}
+deliverPLCDpres :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
+  let p' = deliverShim p in
+  case dequeue (pVC p) (pDQ p) of -- by cases of deliver
+    Nothing -> -- p is unchanged
+      pPLCD m₁ m₂
+----Nothing -> -- p is unchanged
+----  let p' = deliverShim p in
+----      True
+----  === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
+----  === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
+----  === mVC m₁ `vcLess` mVC m₂ -- restate a premise
+----      ? (pID p' === pID p)
+----      ? (pHist p' === pHist p)
+----  === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
+----  === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
+----      ? pPLCD m₁ m₂
+----  *** QED
+
+    Just (m, pDQ') -- p delivered m and became p'
+      -- by cases on the identity of m
+
+      | m == m₁ -> -- m is the first message in the pPLCD precondition
+        let e = Deliver (pID p) (coerce m₁) in
+            p'
+        === p{ pVC = vcCombine (pVC p) (mVC m₁)
+             , pDQ = pDQ'
+             , pHist = e : pHist p
+             } -- by def of deliver
+        *** Admit
+
+      | m == m₂ -> -- m is the second message in the pPLCD precondition
+        let e = Deliver (pID p) (coerce m₂) in
+            p'
+        === p{ pVC = vcCombine (pVC p) (mVC m₂)
+             , pDQ = pDQ'
+             , pHist = e : pHist p
+             } -- by def of deliver
+        *** Admit
+
+      | m /= m₁ && m /= m₂ -> -- m is a new message from the dq
+        let e = Deliver (pID p) (coerce m) in
+            p'
+        === p{ pVC = vcCombine (pVC p) (mVC m)
+             , pDQ = pDQ'
+             , pHist = e : pHist p
+             } -- by def of deliver
+        *** Admit
 
 -- broadcast PLCD pres -- need CHA!
 
