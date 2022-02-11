@@ -174,17 +174,11 @@ deliver :: P r -> Maybe (M r, P r)
 deliver p =
     case dequeue (pVC p) (pDQ p) of
         Nothing -> Nothing
---      Just (m, pDQ') -> Just (m, p -- FIXME: record update syntax breaks PLE
---          { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
---          , pDQ = pDQ'
---          , pHist = Deliver (pID p) (coerce m) : pHist p
---          })
-        Just (m, pDQ') -> Just
-            ( m
-            , P (vcCombine (pVC p) (mVC m)) -- Could use tick here.
-                (pID p)
-                pDQ'
-                (Deliver (pID p) (coerce m) : pHist p) )
+        Just (m, pDQ') -> Just (m, p -- FIXME: record update syntax breaks PLE
+            { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
+            , pDQ = pDQ'
+            , pHist = Deliver (pID p) (coerce m) : pHist p
+            })
 {-@ reflect deliver @-}
 
 -- | Prepare a message for broadcast, put it into this process's delay queue,

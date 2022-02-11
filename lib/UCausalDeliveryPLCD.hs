@@ -36,7 +36,7 @@ pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
 
 
 
--- * Preservation property shims
+-- * Shims
 
 -- | The deliver function, but throw away the message.
 deliverShim :: P r -> P r
@@ -55,57 +55,9 @@ broadcastShim raw p =
 
 
 
--- * Preservation lemmas
-
-{-@
-receivePreservesVC_noPLE :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
-receivePreservesVC_noPLE :: M r -> P r -> Proof
-receivePreservesVC_noPLE m p -- by cases from receive
-    | mSender m == pID p
-        =   pVC p == pVC (receive m p) -- restate conclusion
-        === pVC p == pVC p -- by def of receive
-        *** QED
-    | otherwise
-        =   pVC p == pVC (receive m p) -- restate conclusion
-        === pVC p == pVC p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-{-@ ple receivePreservesVC @-}
-{-@
-receivePreservesVC :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
-receivePreservesVC :: M r -> P r -> Proof
-receivePreservesVC m p -- by cases from receive
-    | mSender m == pID p = ()
-    | otherwise
-        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-{-@ ple receivePreservesHist @-}
-{-@
-receivePreservesHist :: m:M r -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
-receivePreservesHist :: M r -> P r -> Proof
-receivePreservesHist m p -- by cases from receive
-    | mSender m == pID p = ()
-    | otherwise
-        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-{-@ ple receivePreservesID @-}
-{-@
-receivePreservesID :: m:M r -> p:PasM r {m} -> {pID p == pID (receive m p)} @-}
-receivePreservesID :: M r -> P r -> Proof
-receivePreservesID m p -- by cases from receive
-    | mSender m == pID p = ()
-    | otherwise
-        =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
-        *** QED
-
-
-
-
 -- * Clock-History agreement
 
--- ** CHA utilities
+-- ** CHA property
 
 -- | The vc for the message in an event.
 {-@
@@ -127,11 +79,6 @@ pHistVCHelper :: Int -> H r -> VC
 pHistVCHelper n [] = vcEmpty n
 pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
 {-@ reflect pHistVCHelper @-}
-
-
-
-
--- ** CHA property
 
 {-@
 type ClockHistoryAgreement P
@@ -162,24 +109,13 @@ type CHApreservation r N OP
 
 -- *** receive
 
-{-@
-receiveCHApres_noPLE :: m:M r -> CHApreservation r {len (mVC m)} {receive m} @-}
-receiveCHApres_noPLE :: M r -> P r -> Proof -> Proof
-receiveCHApres_noPLE m p _pCHA
-    =   let p' = receive m p in
-        pHistVC p
-        ? receivePreservesVC m p
-        ? receivePreservesHist m p
-    === pHistVC p'
-    *** QED
-
 {-@ ple receiveCHApres @-}
 {-@
 receiveCHApres :: m:M r -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres :: M r -> P r -> Proof -> Proof
 receiveCHApres m p _pCHA
-    =   receivePreservesVC m p
-    &&& receivePreservesHist m p
+    | mSender m == pID p = () -- pHist is unchanged
+    | otherwise = () -- pHist is unchanged
 
 -- *** deliver
 
@@ -195,11 +131,8 @@ deliverVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
 deliverVcIsPrevCombineMsg p₁ m p₂ = --- by cases of deliver
     case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
         Just (_m, pDQ') -> -- one case, due to premise
-                p₂
-            === p₁{ pVC = vcCombine (pVC p₁) (mVC m)
-                  , pDQ = pDQ'
-                  , pHist = Deliver (pID p₁) (coerce m) : pHist p₁
-                  } -- by def of deliver
+                pVC p₂ -- restate (part of) conclusion
+            === vcCombine (pVC p₁) (mVC m) -- by def of deliver
             *** QED
 
 {-@ ple deliverHistVcIsPrevCombineMsg @-}
@@ -223,6 +156,7 @@ deliverHistVcIsPrevCombineMsg p₁ m p₂ =
                         , pHist = e : pHist p₁
                         } -- by def of deliver
                   ) -- lemma to help LH see through record-update-syntax
+                -- RECUPDATE^
             === pHistVCHelper n (e : pHist p₁) -- by def of deliver,pHistVC
             === vcCombine (eventVC n e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
                 ? (eventVC n e === mVC m)
@@ -276,7 +210,9 @@ type PLCD r P
 {-@
 pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {pEmpty n p_id} @-}
 pEmptyPLCD :: Eq r => Int -> Fin -> (M r -> M r -> Proof)
-pEmptyPLCD n p_id m1 _m2 -- Interesting but unnecessary manual proof:
+-- pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
+-- NOTE: can comment the proof below
+pEmptyPLCD n p_id m1 _m2
     =   True
     --- QQQ: Why doesn't this premise report as True without PLE?
     === listElem (Deliver p_id m1) (pHist (pEmpty n p_id)) -- restate a premise
@@ -285,8 +221,6 @@ pEmptyPLCD n p_id m1 _m2 -- Interesting but unnecessary manual proof:
     === listElem (Deliver p_id m1) [] -- by def of pHist
     === False -- by def of listElem
     *** QED -- premise failed
--- NOTE: can comment the whole proof
--- pEmptyPLCD _n _p_id _m1 _m2 = () -- Premises don't hold.
 
 
 
@@ -300,6 +234,15 @@ type PLCDpreservation r N OP
     -> PLCD r {OP p}
 @-}
 
+{-@ ple receivePreservesIDandHist @-}
+{-@
+receivePreservesIDandHist :: m:M r -> p:PasM r {m} -> { pID p == pID (receive m p)
+                                                     && pHist p == pHist (receive m p) } @-}
+receivePreservesIDandHist :: M r -> P r -> Proof
+receivePreservesIDandHist m p -- by cases from receive
+    | mSender m == pID p = ()
+    | otherwise = ()
+
 {-@ ple receivePLCDpres @-}
 {-@
 receivePLCDpres :: m:M r -> PLCDpreservation r {len (mVC m)} {receive m} @-}
@@ -310,8 +253,7 @@ receivePLCDpres m p pPLCD m₁ m₂ =
     === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
     === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
     === mVC m₁ `vcLess` mVC m₂ -- restate a premise
-        ? receivePreservesID m p
-        ? receivePreservesHist m p
+        ? receivePreservesIDandHist m p
     === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
     === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
         ? pPLCD m₁ m₂ -- generate evidence
