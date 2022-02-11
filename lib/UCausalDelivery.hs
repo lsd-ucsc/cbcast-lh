@@ -162,7 +162,8 @@ receive :: m:M r -> PasM r {m} -> PasM r {m} @-}
 receive :: M r -> P r -> P r
 receive m p
     | mSender m == pID p = p -- NOTE: Ignores network messages with local pid
-    | otherwise = p{ pDQ = enqueue m (pDQ p) }
+--  | otherwise = p{ pDQ = enqueue m (pDQ p) } -- FIXME: record update syntax breaks PLE
+    | otherwise = P (pVC p) (pID p) (enqueue m (pDQ p)) (pHist p)
 {-@ reflect receive @-}
 
 -- | Get a message from the dq, update the local vc and history. After this,
@@ -173,11 +174,17 @@ deliver :: P r -> Maybe (M r, P r)
 deliver p =
     case dequeue (pVC p) (pDQ p) of
         Nothing -> Nothing
-        Just (m, pDQ') -> Just (m, p
-            { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
-            , pDQ = pDQ'
-            , pHist = Deliver (pID p) (coerce m) : pHist p
-            })
+--      Just (m, pDQ') -> Just (m, p -- FIXME: record update syntax breaks PLE
+--          { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
+--          , pDQ = pDQ'
+--          , pHist = Deliver (pID p) (coerce m) : pHist p
+--          })
+        Just (m, pDQ') -> Just
+            ( m
+            , P (vcCombine (pVC p) (mVC m)) -- Could use tick here.
+                (pID p)
+                pDQ'
+                (Deliver (pID p) (coerce m) : pHist p) )
 {-@ reflect deliver @-}
 
 -- | Prepare a message for broadcast, put it into this process's delay queue,
@@ -196,9 +203,13 @@ broadcast raw p₀ =
 {-@
 broadcastHelper_injectMessage :: m:M r -> PasM r {m} -> PasM r {m} @-}
 broadcastHelper_injectMessage :: M r -> P r -> P r
-broadcastHelper_injectMessage m p = p
-    { pDQ = enqueue m (pDQ p)
-    , pHist = Broadcast (coerce m) : pHist p }
+broadcastHelper_injectMessage m p =
+--  p { pDQ = enqueue m (pDQ p) -- FIXME: record update syntax breaks PLE
+--    , pHist = Broadcast (coerce m) : pHist p }
+    P (pVC p)
+      (pID p)
+      (enqueue m (pDQ p))
+      (Broadcast (coerce m) : pHist p)
 {-@ reflect broadcastHelper_injectMessage @-}
 
 {-@
@@ -361,18 +372,18 @@ deliverableAlwaysDequeues vc (x:xs) m
             in  Just (z, x:xs'))
             *** QED
 
--- | This lemma shouldn't be necessary; there's something weird about how LH
--- sees record-field patterns and record-field updates
-{-@ ple broadcastAlwaysDequeues_lemma @-}
-{-@
-broadcastAlwaysDequeues_lemma :: m:_ -> p:PasM r {m} -> {pVC p == pVC (broadcastHelper_injectMessage m p)} @-}
-broadcastAlwaysDequeues_lemma :: M r -> P r -> Proof
-broadcastAlwaysDequeues_lemma m p
-    =   broadcastHelper_injectMessage m p -- restate (part of) conclusion
-    --- QQQ: Why does this equality require PLE?
-    === p{ pDQ = enqueue m (pDQ p)
-         , pHist = Broadcast (coerce m) : pHist p } -- by def of broadcastHelper_injectMessage
-    *** QED
+-- -- | This lemma shouldn't be necessary; there's something weird about how LH
+-- -- sees record-field patterns and record-field updates
+-- {-@ ple broadcastAlwaysDequeues_lemma @-}
+-- {-@
+-- broadcastAlwaysDequeues_lemma :: m:_ -> p:PasM r {m} -> {pVC p == pVC (broadcastHelper_injectMessage m p)} @-}
+-- broadcastAlwaysDequeues_lemma :: M r -> P r -> Proof
+-- broadcastAlwaysDequeues_lemma m p
+--     =   broadcastHelper_injectMessage m p -- restate (part of) conclusion
+--     --- QQQ: Why does this equality require PLE?
+--     === p{ pDQ = enqueue m (pDQ p)
+--          , pHist = Broadcast (coerce m) : pHist p } -- by def of broadcastHelper_injectMessage
+--     *** QED
 
 {-@ ple broadcastAlwaysDequeues @-}
 {-@
@@ -385,7 +396,7 @@ broadcastAlwaysDequeues :: r -> P r -> P r -> Proof
 broadcastAlwaysDequeues raw p₀ p₁
     =   let m = broadcastHelper_prepareMessage raw p₀
     in  dequeue (pVC p₁) (pDQ p₁) -- restate (part of) the conclusion
-        ? (pVC p₁ ? broadcastAlwaysDequeues_lemma m p₀ === pVC p₀) -- QQQ: why is this lemma necessary?
+    --- ? (pVC p₁ ? broadcastAlwaysDequeues_lemma m p₀ === pVC p₀) -- QQQ: why is this lemma necessary?
     --- ? (pDQ p₁ === enqueue m (pDQ p₀))
     === dequeue (pVC p₀) (enqueue m (pDQ p₀)) -- by def of broadcastHelper_injectMessage
         ? deliverableNewMessage raw p₀
