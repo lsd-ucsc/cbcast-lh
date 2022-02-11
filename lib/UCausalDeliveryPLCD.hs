@@ -39,6 +39,7 @@ pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
 -- * Shims
 
 -- | The deliver function, but throw away the message.
+{-@ deliverShim :: p:P r -> PasP r {p} @-}
 deliverShim :: P r -> P r
 deliverShim p =
     case deliver p of
@@ -47,6 +48,7 @@ deliverShim p =
 {-@ reflect deliverShim @-}
 
 -- | The broadcast function, but throw away the message.
+{-@ broadcastShim :: r -> p:P r -> PasP r {p} @-}
 broadcastShim :: r -> P r -> P r
 broadcastShim raw p =
     let (_, p') = broadcast raw p in p'
@@ -150,14 +152,10 @@ deliverHistVcIsPrevCombineMsg p₁ m p₂ =
             let n = listLength (pVC p₁)
                 e = Deliver (pID p₁) (coerce m)
             in  pHistVC p₂ -- restate (part of) conclusion
-                ? (   p₂
-                  === p₁{ pVC = vcCombine (pVC p₁) (mVC m)
-                        , pDQ = pDQ'
-                        , pHist = e : pHist p₁
-                        } -- by def of deliver
-                  ) -- lemma to help LH see through record-update-syntax
-                -- RECUPDATE^
-            === pHistVCHelper n (e : pHist p₁) -- by def of deliver,pHistVC
+                ? ( pVC p₂ === vcCombine (pVC p₁) (mVC m) ) -- VCs have same length
+            === pHistVCHelper n (pHist p₂) -- by def of pHistVC
+                ? ( pHist p₂ === e : pHist p₁ )
+            === pHistVCHelper n (e : pHist p₁) -- by def of deliver
             === vcCombine (eventVC n e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
                 ? (eventVC n e === mVC m)
             === vcCombine (mVC m) (pHistVCHelper n (pHist p₁))
