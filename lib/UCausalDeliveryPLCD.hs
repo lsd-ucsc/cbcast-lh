@@ -58,9 +58,9 @@ broadcastShim raw p =
 -- * Preservation lemmas
 
 {-@
-receiveKeepsVC_noPLE :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
-receiveKeepsVC_noPLE :: M r -> P r -> Proof
-receiveKeepsVC_noPLE m p -- by cases from receive
+receivePreservesVC_noPLE :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receivePreservesVC_noPLE :: M r -> P r -> Proof
+receivePreservesVC_noPLE m p -- by cases from receive
     | mSender m == pID p
         =   pVC p == pVC (receive m p) -- restate conclusion
         === pVC p == pVC p -- by def of receive
@@ -70,31 +70,31 @@ receiveKeepsVC_noPLE m p -- by cases from receive
         === pVC p == pVC p{ pDQ = enqueue m (pDQ p) } -- by def of receive
         *** QED
 
-{-@ ple receiveKeepsVC @-}
+{-@ ple receivePreservesVC @-}
 {-@
-receiveKeepsVC :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
-receiveKeepsVC :: M r -> P r -> Proof
-receiveKeepsVC m p -- by cases from receive
+receivePreservesVC :: m:M r -> p:PasM r {m} -> {pVC p == pVC (receive m p)} @-}
+receivePreservesVC :: M r -> P r -> Proof
+receivePreservesVC m p -- by cases from receive
     | mSender m == pID p = ()
     | otherwise
         =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
         *** QED
 
-{-@ ple receiveKeepsHist @-}
+{-@ ple receivePreservesHist @-}
 {-@
-receiveKeepsHist :: m:M r -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
-receiveKeepsHist :: M r -> P r -> Proof
-receiveKeepsHist m p -- by cases from receive
+receivePreservesHist :: m:M r -> p:PasM r {m} -> {pHist p == pHist (receive m p)} @-}
+receivePreservesHist :: M r -> P r -> Proof
+receivePreservesHist m p -- by cases from receive
     | mSender m == pID p = ()
     | otherwise
         =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
         *** QED
 
-{-@ ple receiveKeepsID @-}
+{-@ ple receivePreservesID @-}
 {-@
-receiveKeepsID :: m:M r -> p:PasM r {m} -> {pID p == pID (receive m p)} @-}
-receiveKeepsID :: M r -> P r -> Proof
-receiveKeepsID m p -- by cases from receive
+receivePreservesID :: m:M r -> p:PasM r {m} -> {pID p == pID (receive m p)} @-}
+receivePreservesID :: M r -> P r -> Proof
+receivePreservesID m p -- by cases from receive
     | mSender m == pID p = ()
     | otherwise
         =   p{ pDQ = enqueue m (pDQ p) } -- by def of receive
@@ -168,8 +168,8 @@ receiveCHApres_noPLE :: M r -> P r -> Proof -> Proof
 receiveCHApres_noPLE m p _pCHA
     =   let p' = receive m p in
         pHistVC p
-        ? receiveKeepsVC m p
-        ? receiveKeepsHist m p
+        ? receivePreservesVC m p
+        ? receivePreservesHist m p
     === pHistVC p'
     *** QED
 
@@ -178,8 +178,8 @@ receiveCHApres_noPLE m p _pCHA
 receiveCHApres :: m:M r -> CHApreservation r {len (mVC m)} {receive m} @-}
 receiveCHApres :: M r -> P r -> Proof -> Proof
 receiveCHApres m p _pCHA
-    =   receiveKeepsVC m p
-    &&& receiveKeepsHist m p
+    =   receivePreservesVC m p
+    &&& receivePreservesHist m p
 
 -- *** deliver
 
@@ -310,8 +310,8 @@ receivePLCDpres m p pPLCD m₁ m₂ =
     === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
     === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
     === mVC m₁ `vcLess` mVC m₂ -- restate a premise
-        ? receiveKeepsID m p
-        ? receiveKeepsHist m p
+        ? receivePreservesID m p
+        ? receivePreservesHist m p
     === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
     === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
         ? pPLCD m₁ m₂ -- generate evidence
