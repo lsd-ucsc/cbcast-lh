@@ -268,57 +268,118 @@ type PLCDpreservation' r N OP
     -> PLCD r {OP p}
 @-}
 
+{-@
+deliverPLCDpres_lemma1
+    :: n:Nat
+    -> p:Psized r {n}
+    -> ClockHistoryAgreement {p}
+    -> PLCD r {p}
+    -> {p':Psized r {n} | isJust (deliver p)
+                        && p' == snd (fromJust (deliver p)) }
+    -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p')
+                        && m1 == fst (fromJust (deliver p)) }
+    -> {m2:Msized r {n} | listElem (Deliver (pID p') m2) (pHist p')
+                        && vcLess (mVC m1) (mVC m2) }
+    -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
+@-}
+deliverPLCDpres_lemma1 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
+deliverPLCDpres_lemma1 n p pCHA pPLCD p' m₁ m₂ =
+        ()
+    *** Admit
+
+{-@
+deliverPLCDpres_lemma2
+    :: n:Nat
+    -> p:Psized r {n}
+    -> ClockHistoryAgreement {p}
+    -> PLCD r {p}
+    -> {p':Psized r {n} | isJust (deliver p)
+                        && p' == snd (fromJust (deliver p)) }
+    -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p') }
+    -> {m2:Msized r {n} | listElem (Deliver (pID p') m2) (pHist p')
+                        && vcLess (mVC m1) (mVC m2)
+                        && m2 == fst (fromJust (deliver p)) }
+    -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
+@-}
+deliverPLCDpres_lemma2 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
+deliverPLCDpres_lemma2 n p pCHA pPLCD p' m₁ m₂ =
+    -- show that m₂ is the head of pHist p' and is listElem pHist p'
+    -- show that m₁ is listElem pHist p' and is listElem pHist p
+    -- call pPLCD
+        ()
+        ? m₁lemma
+    *** Admit
+  where
+    e₁  =   Deliver (pID p) m₁
+        === Deliver (pID p) (coerce m₁)
+    e₂  =   Deliver (pID p) m₂
+        === Deliver (pID p) (coerce m₂)
+    deliverBodyLemma
+        =   deliver p
+        === case dequeue (pVC p) (pDQ p) of
+              Just (m, pDQ') -> Just (m, p
+                { pVC = vcCombine (pVC p) (mVC m)
+                , pDQ = pDQ'
+                , pHist = Deliver (pID p) (coerce m) : pHist p
+                }) -- by def of deliver
+    vcLemma
+        =   pVC p' ? deliverBodyLemma
+        === vcCombine (pVC p) (mVC m₂)
+    histLemma
+        =   pHist p' ? deliverBodyLemma
+        === e₂ : pHist p
+    m₁lemma =
+        {-restate a premise-}       e₁ `listElem` pHist p'
+        ? histLemma             === e₁ `listElem` (e₂ : pHist p)
+        {-by def of listElem-}  === (e₁==e₂ || e₁ `listElem` pHist p)
+
+{-@
+deliverPLCDpres_lemma3
+    :: n:Nat
+    -> p:Psized r {n}
+    -> ClockHistoryAgreement {p}
+    -> PLCD r {p}
+    -> {p':Psized r {n} | isJust (deliver p)
+                        && p' == snd (fromJust (deliver p)) }
+    -> {m1:M r          | listElem (Deliver (pID p') m1) (pHist p') }
+    -> {m2:MasM r {m1}  | listElem (Deliver (pID p') m2) (pHist p')
+                        && vcLess (mVC m1) (mVC m2) }
+    -> { m:Msized r {n} | m == fst (fromJust (deliver p))
+                        && m /= m1
+                        && m /= m2 }
+    -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
+@-}
+deliverPLCDpres_lemma3 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> M r -> Proof
+deliverPLCDpres_lemma3 n p pCHA pPLCD p' m₁ m₂ m =
+        ()
+    *** Admit
+    --- NOTE: No premise making m₁ and m₂ sized n.
+
 {-@ ple deliverPLCDpres @-}
 {-@
 deliverPLCDpres :: n:Nat -> PLCDpreservation' r {n} {deliverShim} @-}
 deliverPLCDpres :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
-  let p' = deliverShim p in
-  case dequeue (pVC p) (pDQ p) of -- by cases of deliver
-    Nothing -> -- p is unchanged
-      pPLCD m₁ m₂
-----Nothing -> -- p is unchanged
-----  let p' = deliverShim p in
-----      True
-----  === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
-----  === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
-----  === mVC m₁ `vcLess` mVC m₂ -- restate a premise
-----      ? (pID p' === pID p)
-----      ? (pHist p' === pHist p)
-----  === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
-----  === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
-----      ? pPLCD m₁ m₂
-----  *** QED
+    case dequeue (pVC p) (pDQ p) of -- by cases of deliver
+        Nothing -> pPLCD m₁ m₂ -- p is unchanged
+----    Nothing -> -- p is unchanged
+----        let p' = deliverShim p in
+----            True
+----        === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
+----        === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise
+----        === mVC m₁ `vcLess` mVC m₂ -- restate a premise
+----            ? (pID p' === pID p)
+----            ? (pHist p' === pHist p)
+----        === Deliver (pID p) m₁ `listElem` pHist p -- establish precond of pPLCD
+----        === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
+----            ? pPLCD m₁ m₂
+----        *** QED
+        Just (m, pDQ') -- p delivered m and became (deliverShim p)
+            -- by cases on the identity of m
+            | m == m₁            -> deliverPLCDpres_lemma1 n p pCHA pPLCD (deliverShim p) m₁ m₂
+            | m == m₂            -> deliverPLCDpres_lemma2 n p pCHA pPLCD (deliverShim p) m₁ m₂
+            | m /= m₁ && m /= m₂ -> deliverPLCDpres_lemma3 n p pCHA pPLCD (deliverShim p) m₁ m₂ m
 
-    Just (m, pDQ') -- p delivered m and became p'
-      -- by cases on the identity of m
-
-      | m == m₁ -> -- m is the first message in the pPLCD precondition
-        let e = Deliver (pID p) (coerce m₁) in
-            p'
-        === p{ pVC = vcCombine (pVC p) (mVC m₁)
-             , pDQ = pDQ'
-             , pHist = e : pHist p
-             } -- by def of deliver
-        *** Admit
-
-      | m == m₂ -> -- m is the second message in the pPLCD precondition
-        let e = Deliver (pID p) (coerce m₂) in
-            p'
-        === p{ pVC = vcCombine (pVC p) (mVC m₂)
-             , pDQ = pDQ'
-             , pHist = e : pHist p
-             } -- by def of deliver
-        *** Admit
-
-      | m /= m₁ && m /= m₂ -> -- m is a new message from the dq
-        let e = Deliver (pID p) (coerce m) in
-            p'
-        === p{ pVC = vcCombine (pVC p) (mVC m)
-             , pDQ = pDQ'
-             , pHist = e : pHist p
-             } -- by def of deliver
-        *** Admit
 
 -- broadcast PLCD pres -- need CHA!
 
