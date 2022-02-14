@@ -232,6 +232,8 @@ type PLCDpreservation r N OP
     -> PLCD r {OP p}
 @-}
 
+-- *** receive
+
 {-@ ple receivePreservesIDandHist @-}
 {-@
 receivePreservesIDandHist :: m:M r -> p:PasM r {m} -> { pID p == pID (receive m p)
@@ -260,6 +262,8 @@ receivePLCDpres m p pPLCD m₁ m₂ =
     *** QED
     --- NOTE: can comment out all of the equivalences here
 
+-- *** deliver
+
 {-@
 type PLCDpreservation' r N OP
     =  p:Psized r {N}
@@ -267,6 +271,94 @@ type PLCDpreservation' r N OP
     -> PLCD r {p}
     -> PLCD r {OP p}
 @-}
+
+cons :: a -> [a] -> [a]
+cons x xs = x:xs
+{-@ inline cons @-}
+
+{-@
+extendElem
+    :: e:_
+    -> {xs:_ | listElem e xs}
+    -> w:_
+    -> {listElem e (cons w xs)}
+@-}
+extendElem :: Eq a => a -> [a] -> a -> Proof
+extendElem e [] _w      =   impossible
+    {-restate premise-} $   listElem e []
+extendElem e xs w
+    {-restate conclusion-}  =   listElem e (w:xs)
+    {-by def of listElem-}  === (e==w || listElem e xs)
+    {-restate premise-}     === listElem e xs
+                            *** QED
+
+{-@
+truncateElemTail4Head
+    :: e:_
+    -> h:_
+    -> {xxs:_ | listElem e (listTailForHead h xxs) }
+    -> { listElem e xxs }
+@-}
+truncateElemTail4Head :: Eq a => a -> a -> [a] -> Proof
+truncateElemTail4Head e h []        =   impossible
+    {-restate premise-}             $   listElem e (listTailForHead h [])
+    {-by def of listTailForHead-}   === listElem e []
+truncateElemTail4Head e h (x:xs)
+    | h == x
+        {-restate premise-}             =   listElem e (listTailForHead h (x:xs))
+        {-by def of listTailForHead-}   === listElem e (if h==x then xs else listTailForHead h xs)
+        {-simplify IfThenElse-}         === listElem e xs
+        ? extendElem e xs x             === listElem e (x:xs)
+                                        *** QED
+    | otherwise
+        {-restate premise-}             =   listElem e (listTailForHead h (x:xs))
+        {-by def of listTailForHead-}   === listElem e (if h==x then xs else listTailForHead h xs)
+        {-simplify IfThenElse-}         === listElem e (listTailForHead h xs)
+        ? truncateElemTail4Head e h xs  === listElem e xs
+        ? extendElem e xs x             === listElem e (x:xs)
+                                        *** QED
+
+{-@
+extendElemTail4Head
+    :: e:_
+    -> h:_
+    -> {xs:_ | listElem e (listTailForHead h xs) }
+    -> w:_
+    -> { listElem e (listTailForHead h (cons w xs)) }
+@-}
+extendElemTail4Head :: Eq a => a -> a -> [a] -> a -> Proof
+extendElemTail4Head e h [] _w       =   impossible
+    {-restate premise-}             $   listElem e (listTailForHead h [])
+    {-by def of listTailForHead-}   === listElem e []
+extendElemTail4Head e h xs w -- by cases of listTailForHead
+    | h == w
+        {-restate conclusion-}          =   listElem e (listTailForHead h (w:xs))
+        {-by def of listTailForHead-}   === listElem e (if h==w then xs else listTailForHead h xs)
+        {-simplify IfThenElse-}         === listElem e xs
+        ? truncateElemTail4Head e h xs  *** QED
+    | otherwise
+        {-restate conclusion-}          =   listElem e (listTailForHead h (w:xs))
+        {-by def of listTailForhead-}   === listElem e (if h==w then xs else listTailForHead h xs)
+        {-simplify IfThenElse-}         === listElem e (listTailForHead h xs)
+                                        *** QED
+
+{-@
+extendProcessOrder
+    ::    h:_
+    ->   e1:_
+    -> { e2:_ | processOrder h e1 e2 }
+    ->   e3:_
+    -> { processOrder (cons e3 h) e1 e2 }
+@-}
+extendProcessOrder :: Eq r => H r -> Event VCMM r -> Event VCMM r -> Event VCMM r -> Proof
+extendProcessOrder h e₁ e₂ e₃
+    {-restate conclusion-}              =   processOrder (e₃:h) e₁ e₂
+    {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ (e₃:h))
+    ? premiseLemma
+    ? extendElemTail4Head e₁ e₂ h e₃    *** QED
+  where premiseLemma
+    {-restate premise-}                 =   processOrder h e₁ e₂
+    {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ h)
 
 {-@
 deliverPLCDpres_lemma1
@@ -350,10 +442,44 @@ deliverPLCDpres_lemma3
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemma3 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> M r -> Proof
-deliverPLCDpres_lemma3 n p pCHA pPLCD p' m₁ m₂ m =
-        ()
-    *** Admit
-    --- NOTE: No premise making m₁ and m₂ sized n.
+deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
+    let
+    e₁  =   Deliver (pID p) m₁
+        === Deliver (pID p) (coerce m₁)
+    e₂  =   Deliver (pID p) m₂
+        === Deliver (pID p) (coerce m₂)
+    e₃  =   Deliver (pID p) m
+        === Deliver (pID p) (coerce m)
+    deliverBody
+        =   deliver p
+        === case dequeue (pVC p) (pDQ p) of
+              Just (m, pDQ') -> Just (m, p
+                { pVC = vcCombine (pVC p) (mVC m)
+                , pDQ = pDQ'
+                , pHist = Deliver (pID p) (coerce m) : pHist p
+                }) -- by def of deliver
+    p'VC
+        =   pVC p' ? deliverBody
+        === vcCombine (pVC p) (mVC m)
+    p'Hist
+        =   pHist p' ? deliverBody
+        === e₃ : pHist p
+    e₁inTail =
+        {-restate a premise-}       e₁ `listElem` pHist p'
+        ? p'Hist                === e₁ `listElem` (e₃ : pHist p)
+        {-by def of listElem-}  === (e₁==e₃ || e₁ `listElem` pHist p)
+        ? m₁ /= m               === e₁ `listElem` pHist p
+    e₂inTail =
+        {-restate a premise-}       e₂ `listElem` pHist p'
+        ? p'Hist                === e₂ `listElem` (e₃ : pHist p)
+        {-by def of listElem-}  === (e₂==e₃ || e₂ `listElem` pHist p)
+        ? m₂ /= m               === e₂ `listElem` pHist p
+    in
+                                                True
+    ? e₁inTail ? e₂inTail ? pPLCD m₁ m₂     === processOrder (pHist p) e₁ e₂
+    ? extendProcessOrder (pHist p) e₁ e₂ e₃ === processOrder (e₃:pHist p) e₁ e₂
+    ? p'Hist                                === processOrder (pHist p') e₁ e₂
+                                            *** QED
 
 {-@ ple deliverPLCDpres @-}
 {-@
