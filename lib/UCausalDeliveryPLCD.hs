@@ -132,7 +132,7 @@ deliverVcIsPrevCombineMsg
 deliverVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
 deliverVcIsPrevCombineMsg p₁ m p₂ = --- by cases of deliver
     case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
-        Just (_m, pDQ') -> -- one case, due to premise
+        Just (_m, _pDQ') -> -- one case, due to premise
                 pVC p₂ -- restate (part of) conclusion
             === vcCombine (pVC p₁) (mVC m) -- by def of deliver
             *** QED
@@ -148,7 +148,7 @@ deliverHistVcIsPrevCombineMsg
 deliverHistVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
 deliverHistVcIsPrevCombineMsg p₁ m p₂ =
     case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
-        Just (_m, pDQ') -> -- one case, due to premise
+        Just (_m, _pDQ') -> -- one case, due to premise
             let n = listLength (pVC p₁)
                 e = Deliver (pID p₁) (coerce m)
             in  pHistVC p₂ -- restate (part of) conclusion
@@ -360,6 +360,7 @@ extendProcessOrder h e₁ e₂ e₃
     {-restate premise-}                 =   processOrder h e₁ e₂
     {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ h)
 
+-- {-@ ple deliverPLCDpres_lemma1 @-}
 {-@
 deliverPLCDpres_lemma1
     :: n:Nat
@@ -395,18 +396,12 @@ deliverPLCDpres_lemma2
 @-}
 deliverPLCDpres_lemma2 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
 deliverPLCDpres_lemma2 n p pCHA pPLCD p' m₁ m₂ =
-    -- show that m₂ is the head of pHist p' and is listElem pHist p'
-    -- show that m₁ is listElem pHist p' and is listElem pHist p
-    -- call pPLCD
-        ()
-        ? m₁lemma
-    *** Admit
-  where
+    let
     e₁  =   Deliver (pID p) m₁
         === Deliver (pID p) (coerce m₁)
     e₂  =   Deliver (pID p) m₂
         === Deliver (pID p) (coerce m₂)
-    deliverBodyLemma
+    deliverBody
         =   deliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m, pDQ') -> Just (m, p
@@ -414,16 +409,22 @@ deliverPLCDpres_lemma2 n p pCHA pPLCD p' m₁ m₂ =
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
                 }) -- by def of deliver
-    vcLemma
-        =   pVC p' ? deliverBodyLemma
+    p'VC
+        =   pVC p' ? deliverBody
         === vcCombine (pVC p) (mVC m₂)
-    histLemma
-        =   pHist p' ? deliverBodyLemma
+    p'Hist
+        =   pHist p' ? deliverBody
         === e₂ : pHist p
-    m₁lemma =
+    e₁inTail =
         {-restate a premise-}       e₁ `listElem` pHist p'
-        ? histLemma             === e₁ `listElem` (e₂ : pHist p)
+        ? p'Hist                === e₁ `listElem` (e₂ : pHist p)
         {-by def of listElem-}  === (e₁==e₂ || e₁ `listElem` pHist p)
+        ? mVC m₁`vcLess`mVC m₂  === e₁ `listElem` pHist p
+    in
+                                True
+    ? e₁inTail                  === e₁ `listElem` listTailForHead e₂ (pHist p')
+    {-by def of processOrder-}  === processOrder (pHist p') e₁ e₂
+                                *** QED
 
 {-@
 deliverPLCDpres_lemma3
