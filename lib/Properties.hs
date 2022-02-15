@@ -24,9 +24,9 @@ import SystemModel
 {-@ type Associative a A = x:a -> y:a -> z:a -> {A (A x y) z == A x (A y z)} @-}
 {-@ type Commutative a A = x:a -> y:a -> {A x y == A y x} @-}
 
-{-@ type  MonotonicLeft a R A =        x:a -> {y:a | R x y} -> k:a -> {R (A x k) (A y k)} @-}
-{-@ type MonotonicRight a R A = k:a -> x:a -> {y:a | R x y}        -> {R (A k x) (A k y)} @-}
-{-@ type      Monotonic a R A = a:t -> {b:t | R a b}
+{-@ type  MonotonicLeft t R A =        x:t -> {y:t | R x y} -> k:t -> {R (A x k) (A y k)} @-}
+{-@ type MonotonicRight t R A = k:t -> x:t -> {y:t | R x y}        -> {R (A k x) (A k y)} @-}
+{-@ type      Monotonic t R A = a:t -> {b:t | R a b}
                              -> x:t -> {y:t | R x y} -> {R (A a x) (A b y)} @-}
 
 
