@@ -360,6 +360,105 @@ extendProcessOrder h e₁ e₂ e₃
     {-restate premise-}                 =   processOrder h e₁ e₂
     {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ h)
 
+{-@
+deliverableImpliesNotVCLessEqual_lemma
+    ::  lb:Nat
+    -> {ub:Nat | lb <= ub}
+    -> {m_sender:PIDsized {ub} | lb <= m_sender}
+    -> m_vc:VCsized {ub-lb}
+    -> p_vc:VCsized {ub-lb}
+    -> { not ( listAnd (listZipWith3 (deliverableHelper m_sender) (finAscHelper lb ub) m_vc p_vc)
+            && listAnd (listZipWith vcLessEqualHelper m_vc p_vc) ) }
+@-}
+deliverableImpliesNotVCLessEqual_lemma :: Int -> Int -> PID -> VC -> VC -> Proof
+deliverableImpliesNotVCLessEqual_lemma lb ub m_sender (m_vc_k:m_vc) (p_vc_k:p_vc)
+    -- by cases of deliverableHelper
+    | lb == m_sender
+        {-restate conclusion-}          =   not (listAnd (listZipWith3 (deliverableHelper m_sender) (finAscHelper lb ub) (m_vc_k:m_vc) (p_vc_k:p_vc)) && listAnd (listZipWith vcLessEqualHelper (m_vc_k:m_vc) (p_vc_k:p_vc)))
+        {-by def of finAscHelper-}      === not (listAnd (listZipWith3 (deliverableHelper m_sender) (lb:finAscHelper (lb+1) ub) (m_vc_k:m_vc) (p_vc_k:p_vc)) && listAnd (listZipWith vcLessEqualHelper (m_vc_k:m_vc) (p_vc_k:p_vc)))
+        {-by def of zipWith3,zipWith-}  === not (listAnd (deliverableHelper m_sender lb m_vc_k p_vc_k : listZipWith3 (deliverableHelper m_sender) (finAscHelper (lb+1) ub) (m_vc) (p_vc)) && listAnd (vcLessEqualHelper m_vc_k p_vc_k : listZipWith vcLessEqualHelper m_vc p_vc))
+        {-by def of listAnd-}           === not (deliverableHelper m_sender lb m_vc_k p_vc_k && listAnd (listZipWith3 (deliverableHelper m_sender) (finAscHelper (lb+1) ub) (m_vc) (p_vc)) && vcLessEqualHelper m_vc_k p_vc_k && listAnd (listZipWith vcLessEqualHelper m_vc p_vc))
+        {-∀a,b.¬(a∧b)⇔(¬a∨¬b)-}         === not (deliverableHelper m_sender lb m_vc_k p_vc_k && vcLessEqualHelper m_vc_k p_vc_k)
+        {-by defs of helpers-}          === not (m_vc_k == p_vc_k + 1 && m_vc_k <= p_vc_k)
+        *** QED
+    | lb < m_sender
+        {-restate conclusion-}          =   not (listAnd (listZipWith3 (deliverableHelper m_sender) (finAscHelper lb ub) (m_vc_k:m_vc) (p_vc_k:p_vc)) && listAnd (listZipWith vcLessEqualHelper (m_vc_k:m_vc) (p_vc_k:p_vc)))
+        {-by def of finAscHelper-}      === not (listAnd (listZipWith3 (deliverableHelper m_sender) (lb:finAscHelper (lb+1) ub) (m_vc_k:m_vc) (p_vc_k:p_vc)) && listAnd (listZipWith vcLessEqualHelper (m_vc_k:m_vc) (p_vc_k:p_vc)))
+        {-by def of zipWith3,zipWith-}  === not (listAnd (deliverableHelper m_sender lb m_vc_k p_vc_k : listZipWith3 (deliverableHelper m_sender) (finAscHelper (lb+1) ub) (m_vc) (p_vc)) && listAnd (vcLessEqualHelper m_vc_k p_vc_k : listZipWith vcLessEqualHelper m_vc p_vc))
+        {-by def of listAnd-}           === not (deliverableHelper m_sender lb m_vc_k p_vc_k && listAnd (listZipWith3 (deliverableHelper m_sender) (finAscHelper (lb+1) ub) (m_vc) (p_vc)) && vcLessEqualHelper m_vc_k p_vc_k && listAnd (listZipWith vcLessEqualHelper m_vc p_vc))
+        {-associativity of ∧-}          === not (deliverableHelper m_sender lb m_vc_k p_vc_k && vcLessEqualHelper m_vc_k p_vc_k
+                                                && listAnd (listZipWith3 (deliverableHelper m_sender) (finAscHelper (lb+1) ub) (m_vc) (p_vc)) && listAnd (listZipWith vcLessEqualHelper m_vc p_vc))
+        ? deliverableImpliesNotVCLessEqual_lemma (lb+1) ub m_sender m_vc p_vc
+                                        === not (deliverableHelper m_sender lb m_vc_k p_vc_k && vcLessEqualHelper m_vc_k p_vc_k && False)
+        *** QED
+
+{-@
+deliverableImpliesNotVCLessEqual
+    :: m:M r
+    -> { p_vc:VCasM {m} | deliverable m p_vc }
+    -> { not (vcLessEqual (mVC m) p_vc) }
+@-}
+deliverableImpliesNotVCLessEqual :: M r -> VC -> Proof
+deliverableImpliesNotVCLessEqual m p_vc =
+                            let n = listLength p_vc in
+    {-restate theorem-}         (if deliverable m p_vc then not (vcLessEqual (mVC m) p_vc) else True)
+    {-∀a,b.(a⇒b)⇔(¬a∨b)-}   === (not (deliverable m p_vc) || not (vcLessEqual (mVC m) p_vc))
+    {-∀a,b.¬(a∧b)⇔(¬a∨¬b)-} === not (deliverable m p_vc && vcLessEqual (mVC m) p_vc)
+    {-by def of deliverable,vcLessEqual-}
+                            === not ( listAnd (listZipWith3 (deliverableHelper (mSender m)) (finAsc n) (mVC m) p_vc)
+                                   && listAnd (listZipWith vcLessEqualHelper (mVC m) p_vc) )
+    ? deliverableImpliesNotVCLessEqual_lemma 0 n (mSender m) (mVC m) p_vc
+                            === True
+                            *** QED
+
+{-@
+dequeueImpliesDeliverable
+    :: vc:VC
+    -> {dq:DQasV r {vc} | isJust (dequeue vc dq)}
+    -> {deliverable (fst (fromJust (dequeue vc dq))) vc}
+@-}
+dequeueImpliesDeliverable :: VC -> DQ r -> Proof
+dequeueImpliesDeliverable vc [] =
+    impossible
+    {-restate premise-}     $   dequeue vc []
+    {-by def of dequeue-}   === Nothing
+dequeueImpliesDeliverable vc (x:xs)
+    | deliverable x vc =
+        {-restate premise-}         dequeue vc (x:xs)
+        {-by def of deliverable-}   === Just (x, xs)
+        {-by case assumption-}      *** QED
+    | otherwise =
+        case dequeue vc xs of
+            Nothing ->
+                impossible
+                {-restate premise-}         $   dequeue vc (x:xs)
+                {-by def of deliverable-}   === Nothing
+            Just (m, xs') ->
+                {-restate premise-}                 dequeue vc (x:xs)
+                {-by def of deliverable-}           === Just (m, x:xs')
+                ? dequeueImpliesDeliverable vc xs   *** QED
+
+{-@
+deliverImpliesDeliverable
+    :: {p:P r | isJust (deliver p)}
+    -> {deliverable (fst (fromJust (deliver p))) (pVC p)}
+@-}
+deliverImpliesDeliverable :: P r -> Proof
+deliverImpliesDeliverable p =
+    case dequeue (pVC p) (pDQ p) of
+        Nothing ->
+            impossible
+            {-restate premise-}     $   deliver p
+            {-by def of deliver-}   === Nothing
+        Just (m, pDQ') ->
+            {-restate premise-}                         deliver p
+            {-by def of deliver-}                       === Just (m, p
+                                                                { pVC = vcCombine (pVC p) (mVC m)
+                                                                , pDQ = pDQ'
+                                                                , pHist = Deliver (pID p) (coerce m) : pHist p
+                                                                })
+            ? dequeueImpliesDeliverable (pVC p) (pDQ p) *** QED
+
 -- {-@ ple deliverPLCDpres_lemma1 @-}
 {-@
 deliverPLCDpres_lemma1

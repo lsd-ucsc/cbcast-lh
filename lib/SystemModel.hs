@@ -257,7 +257,7 @@ mVC m = vcmmSent (mMetadata m) -- Cannot be defined with pattern matching
 {-@ inline mVC @-}
 
 {-@
-mSender :: Message VCMM r -> PID @-}
+mSender :: m:Message VCMM r -> PIDsized {len (mVC m)} @-}
 mSender :: Message VCMM r -> PID
 mSender m = vcmmSender (mMetadata m) -- QQQ: Why can't this be defined with pattern matching?
 {-@ inline mSender @-}
