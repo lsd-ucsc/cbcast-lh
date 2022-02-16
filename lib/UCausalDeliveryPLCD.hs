@@ -170,8 +170,8 @@ deliverHistVcIsPrevCombineMsg p₁ m p₂ =
             === pHistVCHelper n (pHist p₂) -- by def of pHistVC
                 ? ( pHist p₂ === e : pHist p₁ )
             === pHistVCHelper n (e : pHist p₁) -- by def of deliver
-            === vcCombine (eventVC n e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
-                ? (eventVC n e === mVC m)
+            === vcCombine (eventVC e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
+                ? (eventVC e === mVC m)
             === vcCombine (mVC m) (pHistVCHelper n (pHist p₁))
             === vcCombine (mVC m) (pHistVC p₁)
                 ? vcCombineCommutativity n (mVC m) (pHistVC p₁)
@@ -465,15 +465,34 @@ deliverImpliesDeliverable p =
             {-restate premise-}     $   deliver p
             {-by def of deliver-}   === Nothing
         Just (m, pDQ') ->
-            {-restate premise-}                         deliver p
-            {-by def of deliver-}                       === Just (m, p
-                                                                { pVC = vcCombine (pVC p) (mVC m)
-                                                                , pDQ = pDQ'
-                                                                , pHist = Deliver (pID p) (coerce m) : pHist p
-                                                                })
-            ? dequeueImpliesDeliverable (pVC p) (pDQ p) *** QED
+            {-restate premise-}     deliver p
+            {-by def of deliver-}   === Just (m, p
+                                            { pVC = vcCombine (pVC p) (mVC m)
+                                            , pDQ = pDQ'
+                                            , pHist = Deliver (pID p) (coerce m) : pHist p
+                                            })
+            ? dequeueImpliesDeliverable (pVC p) (pDQ p)
+                                    *** QED
 
--- {-@ ple deliverPLCDpres_lemma1 @-}
+{-@
+vcCombineResultLarger :: a:VC -> b:VC -> { vcLessEqual a (vcCombine a b)
+                                        && vcLessEqual b (vcCombine a b) } @-}
+vcCombineResultLarger :: VC -> VC -> Proof
+
+{-@
+histElemLessEqualHistVC
+    :: e:Event VCMM r
+    -> {p:P r | listElem e (pHist p)}
+    -> {vcLessEqual (eventVC e) (pHistVC p)}
+@-}
+histElemLessEqualHistVC :: Event VCMM r -> P r -> Proof
+
+{-@
+mVCEqualsEventVC :: p_id:PID -> m:M r -> { mVC m == eventVC (Deliver p_id m) } @-}
+mVCEqualsEventVC :: PID -> M r -> Proof
+mVCEqualsEventVC p_id m = mVC m === eventVC (Deliver p_id m) *** QED
+-- QQQ: Why is this lemma required?
+
 {-@
 deliverPLCDpres_lemma1
     :: n:Nat
@@ -490,8 +509,48 @@ deliverPLCDpres_lemma1
 @-}
 deliverPLCDpres_lemma1 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
 deliverPLCDpres_lemma1 n p pCHA pPLCD p' m₁ m₂ =
-        ()
-    *** Admit
+    let
+    e₁  =   Deliver (pID p) (coerce m₁)
+        === Deliver (pID p) m₁
+    e₂  =   Deliver (pID p) (coerce m₂)
+        === Deliver (pID p) m₂
+    deliverBody
+        =   deliver p
+        === case dequeue (pVC p) (pDQ p) of
+              Just (m, pDQ') -> Just (m, p
+                { pVC = vcCombine (pVC p) (mVC m)
+                , pDQ = pDQ'
+                , pHist = Deliver (pID p) (coerce m) : pHist p
+                }) -- by def of deliver
+    p'VC
+        =   pVC p' ? deliverBody
+        === vcCombine (pVC p) (mVC m₁)
+    p'Hist
+        =   pHist p' ? deliverBody
+        === e₁ : pHist p
+    e₂inTail =
+        {-restate a premise-}       e₂ `listElem` pHist p'
+        ? p'Hist                === e₂ `listElem` (e₁ : pHist p)
+        {-by def of listElem-}  === (e₂==e₁ || e₂ `listElem` pHist p)
+        ? mVC m₁`vcLess`mVC m₂  === e₂ `listElem` pHist p
+    m₁lessEqualpVC =
+                                            True
+        ? (mVC m₁ `vcLess` mVC m₂)      === mVC m₁ `vcLessEqual` mVC m₂
+        ? mVCEqualsEventVC (pID p) m₂   === (mVC m₂ == eventVC e₂)
+        ? e₂inTail ? histElemLessEqualHistVC e₂ p
+                                        === eventVC e₂ `vcLessEqual` pHistVC p
+        ? pCHA                          === pHistVC p `vcLessEqual` pVC p
+        ? vcLessEqualTransitive n (mVC m₁) (eventVC e₂) (pHistVC p)
+        ? vcLessEqualTransitive n (mVC m₁) (pHistVC p) (pVC p)
+                                        === mVC m₁ `vcLessEqual` pVC p
+                                        *** QED
+    m₁notLessEqualpVC =
+                                            True
+        ? deliverImpliesDeliverable p   === deliverable m₁ (pVC p)
+        ? deliverableImpliesNotVCLessEqual m₁ (pVC p)
+                                        === not (mVC m₁ `vcLessEqual` pVC p)
+                                        *** QED
+    in
 
 {-@
 deliverPLCDpres_lemma2
