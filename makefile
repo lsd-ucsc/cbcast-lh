@@ -18,6 +18,10 @@ build: $(CONFIG_FILE)
 $(CONFIG_FILE): $(CABAL_FILE)
 	$(SETUP_CMD) configure --enable-tests
 
+check: clean
+	grep '==!\|Admit\|undefined\|--check-var' -r lib/ && false
+	make build
+
 clean: $(CABAL_FILE)
 	$(SETUP_CMD) clean
 	rm -v $(CABAL_FILE)

@@ -432,10 +432,9 @@ dequeueImpliesDeliverable
     -> {deliverable (fst (fromJust (dequeue vc dq))) vc}
 @-}
 dequeueImpliesDeliverable :: VC -> DQ r -> Proof
-dequeueImpliesDeliverable vc [] =
-    impossible
-    {-restate premise-}     $   dequeue vc []
-    {-by def of dequeue-}   === Nothing
+dequeueImpliesDeliverable vc [] =   impossible
+    {-restate premise-}         $   dequeue vc []
+    {-by def of dequeue-}       === Nothing
 dequeueImpliesDeliverable vc (x:xs)
     | deliverable x vc =
         {-restate premise-}         dequeue vc (x:xs)
@@ -443,8 +442,7 @@ dequeueImpliesDeliverable vc (x:xs)
         {-by case assumption-}      *** QED
     | otherwise =
         case dequeue vc xs of
-            Nothing ->
-                impossible
+            Nothing ->                          impossible
                 {-restate premise-}         $   dequeue vc (x:xs)
                 {-by def of deliverable-}   === Nothing
             Just (m, xs') ->
@@ -460,8 +458,7 @@ deliverImpliesDeliverable
 deliverImpliesDeliverable :: P r -> Proof
 deliverImpliesDeliverable p =
     case dequeue (pVC p) (pDQ p) of
-        Nothing ->
-            impossible
+        Nothing ->                      impossible
             {-restate premise-}     $   deliver p
             {-by def of deliver-}   === Nothing
         Just (m, pDQ') ->
@@ -474,18 +471,60 @@ deliverImpliesDeliverable p =
             ? dequeueImpliesDeliverable (pVC p) (pDQ p)
                                     *** QED
 
+{-@ ple vcCombineResultLarger @-}
 {-@
-vcCombineResultLarger :: a:VC -> b:VC -> { vcLessEqual a (vcCombine a b)
-                                        && vcLessEqual b (vcCombine a b) } @-}
+vcCombineResultLarger :: a:VC -> b:VCasV {a} -> { vcLessEqual a (vcCombine a b)
+                                               && vcLessEqual b (vcCombine a b) } @-}
 vcCombineResultLarger :: VC -> VC -> Proof
+vcCombineResultLarger [] []
+    {-restate conclusion-}      =   vcCombine [] []
+    {-by def of vcCombine-}     === listZipWith ordMax [] []
+    {-by def of listZipWith-}   === []
+    ? vcLessEqualReflexive []   *** QED
+vcCombineResultLarger (x:xs) (y:ys)
+    {-restate (half of) conclusion-}    =   vcLessEqual (x:xs) ret
+    {-by def of listAnd,zipWith,etc-}   === (x <= (if x < y then y else x) && listAnd (listZipWith vcLessEqualHelper xs (vcCombine xs ys)))
+    ? vcCombineResultLarger xs ys       === (x <= (if x < y then y else x))
+    {-vcCombineAssociativity-}          *** QED
+  where
+    ret =   vcCombine (x:xs) (y:ys)
+        === listZipWith ordMax (x:xs) (y:ys)
+        === ordMax x y : listZipWith ordMax xs ys
+        === (if x < y then y else x) : listZipWith ordMax xs ys
 
+{-@ ple histElemLessEqualHistVC_lemma @-} -- Required to see through eventVC and pHistVC definitions.
 {-@
-histElemLessEqualHistVC
-    :: e:Event VCMM r
-    -> {p:P r | listElem e (pHist p)}
-    -> {vcLessEqual (eventVC e) (pHistVC p)}
-@-}
-histElemLessEqualHistVC :: Event VCMM r -> P r -> Proof
+histElemLessEqualHistVC_lemma :: e:Event VCMM r -> {hhs:Hsized r {eventN e} | listElem e hhs} -> {vcLessEqual (eventVC e) (pHistVCHelper (eventN e) hhs)} @-}
+histElemLessEqualHistVC_lemma :: Eq r => Event VCMM r -> H r -> Proof
+histElemLessEqualHistVC_lemma e []  =   impossible
+                                    $   listElem e []
+histElemLessEqualHistVC_lemma e (h:hs)
+  | e == h                              =   True
+    ? vcCombineResultLarger eVC hsVC    === eVC `vcLessEqual` hhsVC
+                                        *** QED
+  | otherwise =
+                                                    True
+    ? histElemLessEqualHistVC_lemma e hs        === eVC `vcLessEqual` hsVC
+    ? vcCombineResultLarger (eventVC h) hsVC    === hsVC `vcLessEqual` hhsVC
+    ? vcLessEqualTransitive n eVC hsVC hhsVC    === eVC `vcLessEqual` hhsVC
+                                                *** QED
+  where
+    n = eventN e
+    eVC = eventVC e
+    hsVC = pHistVCHelper n hs
+    hhsVC = pHistVCHelper n (h:hs)
+        === (eventVC h `proofConst` vcmmSizedEventVC n h) `vcCombine` hsVC
+
+{-@ ple histElemLessEqualHistVC @-} -- Required to see through eventVC and pHistVC definitions.
+{-@
+histElemLessEqualHistVC :: e:Event VCMM r -> {p:Psized r {eventN e} | listElem e (pHist p)} -> {vcLessEqual (eventVC e) (pHistVC p)} @-}
+histElemLessEqualHistVC :: Eq r => Event VCMM r -> P r -> Proof
+histElemLessEqualHistVC e p =
+        eventVC e `vcLessEqual` pHistVC p
+    === eventVC e `vcLessEqual` pHistVCHelper (listLength (pVC p)) (pHist p)
+    === eventVC e `vcLessEqual` pHistVCHelper (eventN e) (pHist p)
+        ? histElemLessEqualHistVC_lemma e (pHist p)
+    *** QED
 
 {-@
 mVCEqualsEventVC :: p_id:PID -> m:M r -> { mVC m == eventVC (Deliver p_id m) } @-}
@@ -551,6 +590,8 @@ deliverPLCDpres_lemma1 n p pCHA pPLCD p' m₁ m₂ =
                                         === not (mVC m₁ `vcLessEqual` pVC p)
                                         *** QED
     in
+    impossible  $   m₁lessEqualpVC
+                &&& m₁notLessEqualpVC
 
 {-@
 deliverPLCDpres_lemma2
@@ -674,35 +715,14 @@ deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
 ----            ? pPLCD m₁ m₂
 ----        *** QED
         Just (m, pDQ') -- p delivered m and became (deliverShim p)
-            -- by cases on the identity of m
             | m == m₁            -> deliverPLCDpres_lemma1 n p pCHA pPLCD (deliverShim p) m₁ m₂
             | m == m₂            -> deliverPLCDpres_lemma2 n p pCHA pPLCD (deliverShim p) m₁ m₂
             | m /= m₁ && m /= m₂ -> deliverPLCDpres_lemma3 n p pCHA pPLCD (deliverShim p) m₁ m₂ m
 
+-- *** broadcast
 
--- broadcast PLCD pres -- need CHA!
-
-
-
--- PLCD says
---
--- vc(m) < vc(m') => deliver(m) in-hist-prior-to deliver(m')
---
--- why is this true?  it's true because
---
--- * receive doesn't change history
--- * broadcastCycle calls deliver, and it's true for deliver
--- * deliver has two cases:
---      * deliver doesn't change history
---      * deliver does change history
---          * for own messages, it's truth doesn't change
---          * for other's messages:
---              * it's true because of how we choose whether to deliver
---              * we choose whether to deliver by making sure that the message
---                is the "next" one for the sender
---              * supremum of VCs in hist must be less-equal to pVC
-
--- (backburner) PLCDImpliesCD
--- (backburner) VCISO: cbcast implies vc-hb-copacetic
--- (NEXT!)      CBCAST observes PLCD
--- (backburner) CBCAST observes CD
+{-@
+broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastShim raw} @-}
+broadcastPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+broadcastPLCDpres _raw _n _p _pCHA _pPLCD _m₁ _m₂
+    =   () *** Admit
