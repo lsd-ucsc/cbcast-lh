@@ -39,7 +39,7 @@ type M r = Message VCMM r
 {-@ type MasP r P = Msized r {len (pVC P)} @-}
 
 type H r = ProcessHistory VCMM r
-{-@ type Hsized r N = ProcessHistory {mm:VCMM | len (vcmmSent mm) == N} r @-}
+{-@ type Hsized r N = ProcessHistory (VCMMsized {N}) r @-}
 
 type DQ r = [M r]
 {-@ type DQsized r N = [Msized r {N}] @-}

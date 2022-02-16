@@ -6,7 +6,7 @@ module UCausalDeliveryPLCD where
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Fin
 import Redefined.Ord
--- import Redefined.Proof (proofConst)
+import Redefined.Proof (proofConst)
 
 import SystemModel
 import Properties
@@ -61,12 +61,19 @@ broadcastShim raw p =
 
 -- ** CHA property
 
+{-@
+eventN :: Event VCMM r -> Nat @-}
+eventN :: Event VCMM r -> Int
+eventN (Broadcast m) = listLength (mVC m)
+eventN (Deliver _pid m) = listLength (mVC m)
+{-@ inline eventN @-} -- Required so that eventVC's annotation passes.
+
 -- | The vc for the message in an event.
 {-@
-eventVC :: n:Nat -> Event (VCMMsized {n}) r -> VCsized {n} @-}
-eventVC :: Int -> Event VCMM r -> VC
-eventVC _n (Broadcast m) = vcmmSent (mMetadata m) -- QQQ: Why can't we use mVC here?
-eventVC _n (Deliver _pid m) = vcmmSent (mMetadata m)
+eventVC :: e:Event VCMM r -> VCsized {eventN e} @-}
+eventVC :: Event VCMM r -> VC
+eventVC (Broadcast m) = mVC m
+eventVC (Deliver _pid m) = mVC m
 {-@ reflect eventVC @-}
 
 -- | The supremum of vector clocks on events in a process history.
@@ -79,8 +86,15 @@ pHistVC p = pHistVCHelper (listLength (pVC p)) (pHist p)
 pHistVCHelper :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
 pHistVCHelper :: Int -> H r -> VC
 pHistVCHelper n [] = vcEmpty n
-pHistVCHelper n (e:es) = eventVC n e `vcCombine` pHistVCHelper n es
+pHistVCHelper n (e:es) = (eventVC e `proofConst` vcmmSizedEventVC n e) `vcCombine` pHistVCHelper n es
 {-@ reflect pHistVCHelper @-}
+
+{-@ ple vcmmSizedEventVC @-}
+{-@
+vcmmSizedEventVC :: n:Nat -> e:Event (VCMMsized {n}) r -> { n == len (eventVC e) } @-}
+vcmmSizedEventVC :: Int -> Event VCMM r -> Proof
+vcmmSizedEventVC _n (Broadcast    m) = mVC m === vcmmSent (mMetadata m) *** QED
+vcmmSizedEventVC _n (Deliver _pid m) = mVC m === vcmmSent (mMetadata m) *** QED
 
 {-@
 type ClockHistoryAgreement P
