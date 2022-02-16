@@ -118,16 +118,16 @@ processOrder hist e e' = listElem e (listTailForHead e' hist)
 --     || case (e, e') of (Broadcast mb, Deliver _ md) -> mb == md; _ -> False
 --     || forSomeEvent (\e'' -> happensBefore_ exec e e'' && happensBefore_ exec e'' e')
 --   where
---     forSomePid predicate = listOr (listMap predicate {- domain of exec -} undefined)
---     forSomeEvent predicate = listOr (listMap predicate (listConcat {- range of exec -} undefined))
+--     forSomePid predicate = listOr (listMap predicate {- domain of exec -} TODO)
+--     forSomeEvent predicate = listOr (listMap predicate (listConcat {- range of exec -} TODO))
 --     -- These are defined in Data.Assoc and Redefined.List, but we don't need
 --     -- them here yet.
 --     listOr :: [Bool] -> Bool
---     listOr = undefined
+--     listOr = TODO
 --     listMap :: (a -> b) -> [a] -> [b]
---     listMap = undefined
+--     listMap = TODO
 --     listConcat :: [[a]] -> [a]
---     listConcat = undefined
+--     listConcat = TODO
 -- {-@ ignore happensBefore_ @-} -- Can't define HB this way (termination).
 -- 
 -- {-@

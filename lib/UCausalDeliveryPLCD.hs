@@ -197,12 +197,12 @@ deliverCHApres n p _pCHA = -- by cases of deliver
 
 -- *** broadcast
 
-{-@
-broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
-broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
-broadcastCHApres _raw _n _p _pCHA
-    -- CHA says that p_hist_vc <= p_vc
-    =   () *** Admit
+-- {-@
+-- broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
+-- broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
+-- broadcastCHApres _raw _n _p _pCHA
+--    -- CHA says that p_hist_vc <= p_vc
+--      TODO
 
 
 
@@ -721,8 +721,8 @@ deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
 
 -- *** broadcast
 
-{-@
-broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastShim raw} @-}
-broadcastPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-broadcastPLCDpres _raw _n _p _pCHA _pPLCD _m₁ _m₂
-    =   () *** Admit
+-- {-@
+-- broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastShim raw} @-}
+-- broadcastPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+-- broadcastPLCDpres _raw _n _p _pCHA _pPLCD _m₁ _m₂
+--  TODO
