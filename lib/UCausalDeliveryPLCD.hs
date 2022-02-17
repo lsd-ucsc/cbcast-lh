@@ -547,7 +547,7 @@ deliverPLCDpres_lemma1
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemma1 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
-deliverPLCDpres_lemma1 n p pCHA pPLCD p' m₁ m₂ =
+deliverPLCDpres_lemma1 n p pCHA _pPLCD p' m₁ m₂ =
     let
     e₁  =   Deliver (pID p) (coerce m₁)
         === Deliver (pID p) m₁
@@ -561,9 +561,6 @@ deliverPLCDpres_lemma1 n p pCHA pPLCD p' m₁ m₂ =
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
                 }) -- by def of deliver
-    p'VC
-        =   pVC p' ? deliverBody
-        === vcCombine (pVC p) (mVC m₁)
     p'Hist
         =   pHist p' ? deliverBody
         === e₁ : pHist p
@@ -608,7 +605,7 @@ deliverPLCDpres_lemma2
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemma2 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
-deliverPLCDpres_lemma2 n p pCHA pPLCD p' m₁ m₂ =
+deliverPLCDpres_lemma2 _n p _pCHA _pPLCD p' m₁ m₂ =
     let
     e₁  =   Deliver (pID p) m₁
         === Deliver (pID p) (coerce m₁)
@@ -622,9 +619,6 @@ deliverPLCDpres_lemma2 n p pCHA pPLCD p' m₁ m₂ =
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
                 }) -- by def of deliver
-    p'VC
-        =   pVC p' ? deliverBody
-        === vcCombine (pVC p) (mVC m₂)
     p'Hist
         =   pHist p' ? deliverBody
         === e₂ : pHist p
@@ -667,14 +661,11 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
     deliverBody
         =   deliver p
         === case dequeue (pVC p) (pDQ p) of
-              Just (m, pDQ') -> Just (m, p
-                { pVC = vcCombine (pVC p) (mVC m)
+              Just (m', pDQ') -> Just (m', p
+                { pVC = vcCombine (pVC p) (mVC m')
                 , pDQ = pDQ'
-                , pHist = Deliver (pID p) (coerce m) : pHist p
+                , pHist = Deliver (pID p) (coerce m') : pHist p
                 }) -- by def of deliver
-    p'VC
-        =   pVC p' ? deliverBody
-        === vcCombine (pVC p) (mVC m)
     p'Hist
         =   pHist p' ? deliverBody
         === e₃ : pHist p
@@ -714,7 +705,7 @@ deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
 ----        === Deliver (pID p) m₂ `listElem` pHist p -- establish precond of pPLCD
 ----            ? pPLCD m₁ m₂
 ----        *** QED
-        Just (m, pDQ') -- p delivered m and became (deliverShim p)
+        Just (m, _pDQ') -- p delivered m and became (deliverShim p)
             | m == m₁            -> deliverPLCDpres_lemma1 n p pCHA pPLCD (deliverShim p) m₁ m₂
             | m == m₂            -> deliverPLCDpres_lemma2 n p pCHA pPLCD (deliverShim p) m₁ m₂
             | m /= m₁ && m /= m₂ -> deliverPLCDpres_lemma3 n p pCHA pPLCD (deliverShim p) m₁ m₂ m
