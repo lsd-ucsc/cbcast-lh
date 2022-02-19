@@ -14,14 +14,21 @@
   outputs = { self, nixpkgs, flake-utils, liquidhaskell }:
     let
       composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
-      haskellPackagesOverlay = compiler: final: prev: overrides: {
-        haskell = prev.haskell // {
-          packages = prev.haskell.packages // {
-            ${compiler} = prev.haskell.packages.${compiler}.extend overrides;
+      haskellOverlay = compiler: final: prev: new:
+        let new-overrides = new.overrides or (a: b: { }); in
+        {
+          haskell = prev.haskell // {
+            packages = prev.haskell.packages // {
+              ${compiler} = prev.haskell.packages.${compiler}.override
+                (old: old // new // {
+                  overrides = self: super: old.overrides self super // new-overrides self super;
+                });
+            };
           };
         };
-      };
-      ghc = "ghc8104";
+      haskellPackagesOverlay = compiler: final: prev: cur-packages-overlay:
+        haskellOverlay compiler final prev { overrides = cur-packages-overlay; };
+      ghc = "ghc8107"; # Based on https://github.com/ucsd-progsys/liquid-fixpoint/blob/develop/stack.yaml#L3
       mkOutputs = system: {
 
         overlays = {
