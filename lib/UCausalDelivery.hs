@@ -202,7 +202,7 @@ broadcastHelper_injectMessage m p =
 --    , pHist = Broadcast (coerce m) : pHist p }
     P (pVC p)
       (pID p)
-      (enqueue m (pDQ p))
+      (m : pDQ p)
       (Broadcast (coerce m) : pHist p)
 {-@ reflect broadcastHelper_injectMessage @-}
 
@@ -324,90 +324,37 @@ deliverableNewMessage raw p
         ? deliverableAfterTick raw (pVC p) (pID p)
     *** QED
 
-{-@ ple deliverableAlwaysDequeues @-}
-{-@
-deliverableAlwaysDequeues :: vc:VC -> dq:DQasV r {vc} -> {m:MasV r {vc} | deliverable m vc} -> { Nothing /= dequeue vc (enqueue m dq) } @-}
-deliverableAlwaysDequeues :: VC -> DQ r -> M r -> Proof
-deliverableAlwaysDequeues vc [] m
-    =   dequeue vc (enqueue m []) -- restate (part of) conclusion
-    === dequeue vc [m] -- by def of enqueue
-    === Just (m, []) -- by def of dequeue
-    *** QED
-deliverableAlwaysDequeues vc (x:xs) m
---  NOTE: If you cross enqueue X dequeue, we start with six cases but then
---  simplify to three:
---
---  [_enqueue___][_dequeue_______________]
---  | m ===> x  &&      deliverable m now    1. QED, m is delivered
---  | m ===> x  && not (deliverable m now)   2. Contradicts premise about m
---  | m |||| x  &&      deliverable x now    3. QED, x is delivered
---  | m |||| x  && not (deliverable x now)   4. INDUCTION
---  | otherwise &&      deliverable x now    5. QED, same as #3
---  | otherwise && not (deliverable x now)   6. INDUCTION, same as #4
---
---  Cases 5 and 6 collapse into 3 and 4 because the definition for enqueue
---  distinguishes those cases unnecessarily.
---
-    | m ===> x -- CASE 1
-            =   dequeue vc (enqueue m (x:xs)) -- restate (part of) conclusion
-            === dequeue vc (m:x:xs) -- by def of enqueue
-            === Just (m, x:xs) -- by def of dequeue
-            *** QED
-    | deliverable x vc -- CASES 3 & 5
-            =   dequeue vc (enqueue m (x:xs)) -- restate (part of) conclusion
-            === dequeue vc (x:enqueue m xs) -- by def of enqueue
-            === Just (x, enqueue m xs) -- by def of dequeue
-            *** QED
-    | otherwise -- CASES 4 & 6
-            =   dequeue vc (enqueue m (x:xs)) -- restate (part of) conclusion
-            === dequeue vc (x:enqueue m xs) -- by def of enqueue
-            === (let Just (z, xs') = dequeue vc (enqueue m xs) -- by def of dequeue
-                                        ? deliverableAlwaysDequeues vc xs m
-            in  Just (z, x:xs'))
-            *** QED
-
--- -- | This lemma shouldn't be necessary; there's something weird about how LH
--- -- sees record-field patterns and record-field updates
--- {-@ ple broadcastAlwaysDequeues_lemma @-}
--- {-@
--- broadcastAlwaysDequeues_lemma :: m:_ -> p:PasM r {m} -> {pVC p == pVC (broadcastHelper_injectMessage m p)} @-}
--- broadcastAlwaysDequeues_lemma :: M r -> P r -> Proof
--- broadcastAlwaysDequeues_lemma m p
---     =   broadcastHelper_injectMessage m p -- restate (part of) conclusion
---     --- QQQ: Why does this equality require PLE?
---     === p{ pDQ = enqueue m (pDQ p)
---          , pHist = Broadcast (coerce m) : pHist p } -- by def of broadcastHelper_injectMessage
---     *** QED
-
-{-@ ple broadcastAlwaysDequeues @-}
-{-@
-broadcastAlwaysDequeues
-    ::   raw:r
-    ->   p0:P r
-    -> { p1:PasP r {p0} | p1 == broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p0) p0 }
-    -> { Nothing /= dequeue (pVC p1) (pDQ p1) } @-}
-broadcastAlwaysDequeues :: r -> P r -> P r -> Proof
-broadcastAlwaysDequeues raw p₀ p₁
-    =   let m = broadcastHelper_prepareMessage raw p₀
-    in  dequeue (pVC p₁) (pDQ p₁) -- restate (part of) the conclusion
-    --- ? (pVC p₁ ? broadcastAlwaysDequeues_lemma m p₀ === pVC p₀) -- QQQ: why is this lemma necessary?
-    --- ? (pDQ p₁ === enqueue m (pDQ p₀))
-    === dequeue (pVC p₀) (enqueue m (pDQ p₀)) -- by def of broadcastHelper_injectMessage
-        ? deliverableNewMessage raw p₀
-        ? deliverableAlwaysDequeues (pVC p₀) (pDQ p₀) m
-    *** QED
-
 {-@ ple broadcastAlwaysDelivers @-}
 {-@
-broadcastAlwaysDelivers :: raw:r -> p:P r
-    -> {Nothing /= deliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p)} @-}
+broadcastAlwaysDelivers
+    :: raw:r
+    -> p:P r
+    -> { isJust (deliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p))
+    && fst (fromJust (deliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p)))
+    == broadcastHelper_prepareMessage raw p }
+@-}
 broadcastAlwaysDelivers :: r -> P r -> Proof
 broadcastAlwaysDelivers raw p₀ =
-    let m = broadcastHelper_prepareMessage raw p₀
+    let
+        m = broadcastHelper_prepareMessage raw p₀
         p₁ = broadcastHelper_injectMessage m p₀
-    in case deliver p₁ of -- restate (part of) conclusion
-    Just _ -> () -- desired case
-    Nothing -> -- impossible case (1)
-        case dequeue (pVC p₁) (pDQ p₁) of -- by def of deliver
-            Just _ -> () -- contradicts the assumption (1)
-            Nothing -> broadcastAlwaysDequeues raw p₀ p₁
+            === P (pVC p₀)
+                  (pID p₀)
+                  (m : pDQ p₀)
+                  (Broadcast (coerce m) : pHist p₀)
+        dequeueBody
+            = dequeue (pVC p₁) (pDQ p₁)
+            === dequeue (pVC p₁) (m : pDQ p₀)
+                ? deliverableNewMessage raw p₀
+                -- QQQ: Why is PLE necessary for this step?
+            === Just (m, pDQ p₀)
+        deliverBody
+            = deliver p₁
+                ? dequeueBody
+            === Just (m, p₁
+                { pVC = vcCombine (pVC p₁) (mVC m)
+                , pDQ = pDQ p₀
+                , pHist = Deliver (pID p₁) (coerce m) : pHist p₁
+                })
+    in
+    deliverBody *** QED
