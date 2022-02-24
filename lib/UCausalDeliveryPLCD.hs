@@ -205,6 +205,7 @@ vcCombineIdempotence [] = ()
 vcCombineIdempotence (_x:xs) = vcCombineIdempotence xs
 
 -- TODO: also use this lemma up above to shorten deliverHistVcIsPrevCombineMsg
+{-@ ple pHistVC_unfoldStep @-}
 {-@
 pHistVC_unfoldStep
     ::   n:Nat
@@ -216,13 +217,32 @@ pHistVC_unfoldStep
     -> { pHistVC p1 == vcCombine (pHistVC p0) (mVC m) }
 @-}
 pHistVC_unfoldStep :: Int -> P r -> M r -> Event VCMM r -> P r -> Proof
+pHistVC_unfoldStep n p₀ m e p₁ =
+    let
+        e_vc
+            =   eventVC e
+            === mVC m -- by def of eventVC, but requires PLE for some reason
+        p₀histVC
+                                            =   pHistVC p₀
+            ? (n === listLength (pVC p₀))   === pHistVCHelper n (pHist p₀) -- by def of pHistVC, but requires PLE for some reason
+    in
+    {-restate (part of) conclusion-}    pHistVC p₁
+    ? (n === listLength (pVC p₁))   === pHistVCHelper n (pHist p₁) -- by def of pHistVC, but requires PLE for some reason
+    {-by premise-}                  === pHistVCHelper n (e : pHist p₀)
+    {-by def of pHistVCHelper-}     === (eventVC e `proofConst` vcmmSizedEventVC n e) `vcCombine` pHistVCHelper n (pHist p₀)
+    {-simplify-}                    === eventVC e `vcCombine` pHistVCHelper n (pHist p₀)
+    ? p₀histVC                      === eventVC e `vcCombine` pHistVC p₀
+    ? e_vc                          === mVC m `vcCombine` pHistVC p₀
+    ? vcCombineCommutativity n (mVC m) (pHistVC p₀)
+    {-restate (part of) conclusion-}=== pHistVC p₀ `vcCombine` mVC m
+                                    *** QED
 
 {-@
 broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
 broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
 broadcastCHApres raw n p₀ _pCHA =
     let
-    -- inject new message into p₀ to obtain p₁
+        -- inject new message into p₀ to obtain p₁
         m = broadcastHelper_prepareMessage raw p₀
         e = Broadcast (coerce m)
         --      ? (coerce m === m)
@@ -236,7 +256,7 @@ broadcastCHApres raw n p₀ _pCHA =
         p₁histVC
                                                     =   pHistVC p₁
             ? pHistVC_unfoldStep n p₀ m e p₁        === vcCombine (pHistVC p₀) (mVC m)
-    -- deliver from p₁ to obtain p₂
+        -- deliver from p₁ to obtain p₂
         Just (m_, p₂) = deliver p₁ ? broadcastAlwaysDelivers raw p₀
         p₂vc
                                                     =   pVC p₂
