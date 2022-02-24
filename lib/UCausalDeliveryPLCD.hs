@@ -197,13 +197,63 @@ deliverCHApres n p _pCHA = -- by cases of deliver
 
 -- *** broadcast
 
--- {-@
--- broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
--- broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
--- broadcastCHApres _raw _n _p _pCHA
---    -- CHA says that p_hist_vc <= p_vc
---      TODO
+{-@ ple vcCombineIdempotence @-}
+{-@
+vcCombineIdempotence :: a:VC -> {a == vcCombine a a} @-}
+vcCombineIdempotence :: VC -> Proof
+vcCombineIdempotence [] = ()
+vcCombineIdempotence (_x:xs) = vcCombineIdempotence xs
 
+-- TODO: also use this lemma up above to shorten deliverHistVcIsPrevCombineMsg
+{-@
+pHistVC_unfoldStep
+    ::   n:Nat
+    ->  p0:Psized r {n}
+    ->   m:Msized r {n}
+    -> { e:Event (VCMMsized {n}) r | e == Broadcast m
+                                  || e == Deliver (pID p0) m }
+    -> {p1:Psized r {n} | pHist p1 == cons e (pHist p0) }
+    -> { pHistVC p1 == vcCombine (pHistVC p0) (mVC m) }
+@-}
+pHistVC_unfoldStep :: Int -> P r -> M r -> Event VCMM r -> P r -> Proof
+
+{-@
+broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
+broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
+broadcastCHApres raw n p₀ _pCHA =
+    let
+    -- inject new message into p₀ to obtain p₁
+        m = broadcastHelper_prepareMessage raw p₀
+        e = Broadcast (coerce m)
+        --      ? (coerce m === m)
+        --  === Broadcast m -- QQQ: Why does adding this extra information break the proof?
+        p₁
+                                                        =   broadcastHelper_injectMessage m p₀
+            {-by def of broadcastHelper_injectMessage-} === P (pVC p₀) (pID p₀) (m : pDQ p₀) (e : pHist p₀)
+        p₁vc
+                                                        =   pVC p₁
+            {-by def of broadcastHelper_injectMessage-} === pVC p₀
+        p₁histVC
+                                                    =   pHistVC p₁
+            ? pHistVC_unfoldStep n p₀ m e p₁        === vcCombine (pHistVC p₀) (mVC m)
+    -- deliver from p₁ to obtain p₂
+        Just (m_, p₂) = deliver p₁ ? broadcastAlwaysDelivers raw p₀
+        p₂vc
+                                                    =   pVC p₂
+            ? deliverVcIsPrevCombineMsg p₁ m p₂     === vcCombine (pVC p₁) (mVC m)
+        p₂histVC
+                                                    =   pHistVC p₂
+            ? deliverHistVcIsPrevCombineMsg p₁ m p₂ === vcCombine (pHistVC p₁) (mVC m)
+    in
+                                                vcLessEqual (pHistVC p₂) (pVC p₂) -- restate conclusion
+    ? p₂histVC ? p₂vc                       === vcLessEqual (pHistVC p₁ `vcCombine` mVC m) (pVC p₁ `vcCombine` mVC m)
+    ? p₁histVC ? p₁vc                       === vcLessEqual (pHistVC p₀ `vcCombine` mVC m `vcCombine` mVC m) (pVC p₀ `vcCombine` mVC m)
+    ? vcCombineAssociativity n
+        (pHistVC p₀) (mVC m) (mVC m)        === vcLessEqual (pHistVC p₀ `vcCombine` (mVC m `vcCombine` mVC m)) (pVC p₀ `vcCombine` mVC m)
+    ? vcCombineIdempotence (mVC m)          === vcLessEqual (pHistVC p₀ `vcCombine` mVC m) (pVC p₀ `vcCombine` mVC m)
+    ? vcCombineVCLessEqualMonotonicLeft n
+        (pHistVC p₀) (pVC p₀) (mVC m)       === vcLessEqual (pHistVC p₀) (pVC p₀) -- restate premise
+                                            *** QED
 
 
 
