@@ -219,12 +219,12 @@ pHistVC_unfoldStep
 pHistVC_unfoldStep :: Int -> P r -> M r -> Event VCMM r -> P r -> Proof
 pHistVC_unfoldStep n p₀ m e p₁ =
     let
-        e_vc
-            =   eventVC e
-            === mVC m -- by def of eventVC, but requires PLE for some reason
-        p₀histVC
-                                            =   pHistVC p₀
-            ? (n === listLength (pVC p₀))   === pHistVCHelper n (pHist p₀) -- by def of pHistVC, but requires PLE for some reason
+    e_vc
+        =   eventVC e
+        === mVC m -- by def of eventVC, but requires PLE for some reason
+    p₀histVC
+                                        =   pHistVC p₀
+        ? (n === listLength (pVC p₀))   === pHistVCHelper n (pHist p₀) -- by def of pHistVC, but requires PLE for some reason
     in
     {-restate (part of) conclusion-}    pHistVC p₁
     ? (n === listLength (pVC p₁))   === pHistVCHelper n (pHist p₁) -- by def of pHistVC, but requires PLE for some reason
@@ -242,28 +242,29 @@ broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} 
 broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
 broadcastCHApres raw n p₀ _pCHA =
     let
-        -- inject new message into p₀ to obtain p₁
-        m = broadcastHelper_prepareMessage raw p₀
-        e = Broadcast (coerce m)
-        --      ? (coerce m === m)
-        --  === Broadcast m -- QQQ: Why does adding this extra information break the proof?
-        p₁
-                                                        =   broadcastHelper_injectMessage m p₀
-            {-by def of broadcastHelper_injectMessage-} === P (pVC p₀) (pID p₀) (m : pDQ p₀) (e : pHist p₀)
-        p₁vc
-                                                        =   pVC p₁
-            {-by def of broadcastHelper_injectMessage-} === pVC p₀
-        p₁histVC
-                                                    =   pHistVC p₁
-            ? pHistVC_unfoldStep n p₀ m e p₁        === vcCombine (pHistVC p₀) (mVC m)
-        -- deliver from p₁ to obtain p₂
-        Just (m_, p₂) = deliver p₁ ? broadcastAlwaysDelivers raw p₀
-        p₂vc
-                                                    =   pVC p₂
-            ? deliverVcIsPrevCombineMsg p₁ m p₂     === vcCombine (pVC p₁) (mVC m)
-        p₂histVC
-                                                    =   pHistVC p₂
-            ? deliverHistVcIsPrevCombineMsg p₁ m p₂ === vcCombine (pHistVC p₁) (mVC m)
+    -- inject new message into p₀ to obtain p₁
+    m = broadcastHelper_prepareMessage raw p₀
+    e = Broadcast (coerce m)
+    --      ? (coerce m === m)
+    --  === Broadcast m -- QQQ: Why does adding this extra information break the proof?
+    p₁
+                                                    =   broadcastHelper_injectMessage m p₀
+        {-by def of broadcastHelper_injectMessage-} === P (pVC p₀) (pID p₀) (m : pDQ p₀) (e : pHist p₀)
+    p₁vc
+                                                    =   pVC p₁
+        {-by def of broadcastHelper_injectMessage-} === pVC p₀
+    p₁histVC
+                                                =   pHistVC p₁
+        ? pHistVC_unfoldStep n p₀ m e p₁        === vcCombine (pHistVC p₀) (mVC m)
+
+    -- deliver from p₁ to obtain p₂
+    Just (_m, p₂) = deliver p₁ ? broadcastAlwaysDelivers raw p₀
+    p₂vc
+                                                =   pVC p₂
+        ? deliverVcIsPrevCombineMsg p₁ m p₂     === vcCombine (pVC p₁) (mVC m)
+    p₂histVC
+                                                =   pHistVC p₂
+        ? deliverHistVcIsPrevCombineMsg p₁ m p₂ === vcCombine (pHistVC p₁) (mVC m)
     in
                                                 vcLessEqual (pHistVC p₂) (pVC p₂) -- restate conclusion
     ? p₂histVC ? p₂vc                       === vcLessEqual (pHistVC p₁ `vcCombine` mVC m) (pVC p₁ `vcCombine` mVC m)
