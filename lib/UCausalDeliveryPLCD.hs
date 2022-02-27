@@ -45,14 +45,20 @@ deliverShim p =
     case deliver p of
         Nothing -> p
         Just (_, p') -> p'
-{-@ reflect deliverShim @-}
+{-@ inline deliverShim @-}
+
+{-@ broadcastPrepareInjectShim :: r -> p:P r -> PasP r {p} @-}
+broadcastPrepareInjectShim :: r -> P r -> P r
+broadcastPrepareInjectShim raw p =
+    broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p
+{-@ inline broadcastPrepareInjectShim @-}
 
 -- | The broadcast function, but throw away the message.
 {-@ broadcastShim :: r -> p:P r -> PasP r {p} @-}
 broadcastShim :: r -> P r -> P r
 broadcastShim raw p =
     let (_, p') = broadcast raw p in p'
-{-@ reflect broadcastShim @-}
+{-@ inline broadcastShim @-}
 
 
 
@@ -236,6 +242,11 @@ pHistVC_unfoldStep n p₀ m e p₁ =
     ? vcCombineCommutativity n (mVC m) (pHistVC p₀)
     {-restate (part of) conclusion-}=== pHistVC p₀ `vcCombine` mVC m
                                     *** QED
+
+{-@
+broadcastPrepareInjectCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastPrepareInjectShim raw} @-}
+broadcastPrepareInjectCHApres :: r -> Int -> P r -> Proof -> Proof
+broadcastPrepareInjectCHApres _raw _n _p _pCHA =
 
 {-@
 broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
@@ -785,54 +796,36 @@ deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
 
 
 {-@
-broadcastPreservesDeliveries
-    :: raw:r
-    ->  p :P r
-    -> { m:M r | listElem (Deliver (pID (broadcastShim raw p)) m) (pHist (broadcastShim raw p)) }
-    -> { listElem (Deliver (pID p) m) (pHist p) }
-@-}
-broadcastPreservesDeliveries :: r -> P r -> M r -> Proof
-broadcastPreservesDeliveries _raw _p _m =
+broadcastPrepareInjectPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastPrepareInjectShim raw} @-}
+broadcastPrepareInjectPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+broadcastPrepareInjectPLCDpres _raw _n _p _pCHA _pPLCD _m₁ _m₂ =
 
 {-@
 broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastShim raw} @-}
 broadcastPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-broadcastPLCDpres raw _n p _pCHA pPLCD m₁ m₂ =
+broadcastPLCDpres raw n p pCHA pPLCD = -- ∀ m m'
     let
-    e₁  =   Deliver (pID p) (coerce m₁)
-    e₂  =   Deliver (pID p) (coerce m₂)
+    p' = broadcastPrepareInjectShim raw p
+    p'' = broadcastShim raw p
 
-    -- inject new message into p to obtain p'
-    m   =   broadcastHelper_prepareMessage raw p
-    e'  =   Broadcast (coerce m)
-    p'  =   broadcastHelper_injectMessage m p
-        === P (pVC p) (pID p) (m : pDQ p) (e' : pHist p)
-    p'id    =   pID p'
-            === pID p
-    p'hist  =   pHist p'
-            === e' : pHist p
+    -- relate p and p' and p''
+    broadcastBody                                   =   p''
+    --  {-by def of p''-}                           === broadcastShim raw p
+        {-by def of broadcastShim-}                 === (let (_m, _p) = broadcast raw p in _p)
+        ? broadcastAlwaysDelivers raw p
+    --  {-by def of broadcast-}                     === (let _m = broadcastHelper_prepareMessage raw p
+    --                                                       _p = broadcastHelper_injectMessage _m p
+    --                                                       Just (__m, __p) = deliver _p in __p)
+    --  {-by composition of functions-}             === (let _p = broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p
+    --                                                       Just (__m, __p) = deliver _p in __p)
+    --  {-by def of broadcastPrepareInjectShim-}    === (let _p = broadcastPrepareInjectShim raw p
+    --                                                       Just (__m, __p) = deliver _p in __p)
+        {-by def of p'-}                            === (let Just (__m, __p) = deliver p' in __p)
 
-    -- deliver from p' to obtain p''
-    Just (_m, p'')
-        =   deliver p' ? broadcastAlwaysDelivers raw p
-        === case dequeue (pVC p') (pDQ p') of
-              Just (m', pDQ') -> Just (m', p'
-                { pVC = vcCombine (pVC p') (mVC m')
-                , pDQ = pDQ'
-                , pHist = Deliver (pID p) (coerce m') : pHist p'
-                }) -- by def of deliver
-    e'' =   Deliver (pID p) (coerce m)
-        === Deliver (pID p) m
-    p''id   =   pID p''
-            === pID p
-    p''hist =   pHist p'' ? (m === _m)
-            === e'' : pHist p'
+    -- convert evidence from p to p'
+    p'CHA = broadcastPrepareInjectCHApres raw n p pCHA
+    p'PLCD = broadcastPrepareInjectPLCDpres raw n p pCHA pPLCD -- ∀ m m'
+    -- convert evidence from p' to p''
+    p''PLCD = deliverPLCDpres n p' p'CHA p'PLCD -- ∀ m m'
     in
-                                                        True
-    ? broadcastPreservesDeliveries raw p m₁         === e₁ `listElem` pHist p
-    ? broadcastPreservesDeliveries raw p m₂         === e₂ `listElem` pHist p
-    ? pPLCD m₁ m₂                                   === processOrder (       pHist p) e₁ e₂
-    ? extendProcessOrder (pHist p) e₁ e₂ e'         === processOrder (    e':pHist p) e₁ e₂
-    ? extendProcessOrder (e' : pHist p) e₁ e₂ e''   === processOrder (e'':e':pHist p) e₁ e₂
-    ? (pHist p'  === e' :pHist p)                   === processOrder (e'':   pHist p') e₁ e₂
-    ? (pHist p'' === e'':pHist p') ? (m === _m)     === processOrder (       pHist p'') e₁ e₂
+    (p''PLCD ? broadcastBody) -- ∀ m m'
