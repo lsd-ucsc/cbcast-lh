@@ -79,49 +79,57 @@ deliverCHApres n p _pCHA =
 {-@
 broadcastPrepareInjectCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastPrepareInjectShim raw} @-}
 broadcastPrepareInjectCHApres :: r -> Int -> P r -> Proof -> Proof
-broadcastPrepareInjectCHApres raw _n p _pCHA =
+broadcastPrepareInjectCHApres raw n p _pCHA =
     let
-        p' = broadcastPrepareInjectShim raw p
+    m = broadcastHelper_prepareMessage raw p
+    e = Broadcast (coerce m)
+    p' = broadcastHelper_injectMessage m p
+    injectMessageBody
+        =   broadcastHelper_injectMessage m p
+        === p { pDQ = m : pDQ p
+              , pHist = Broadcast (coerce m) : pHist p }
+    pVCLemma
+        =   pVC p'
+            ? injectMessageBody
+        === pVC p
+    pHistLemma
+        =   pHist p'
+            ? injectMessageBody
+        === e : pHist p
     in
-    ()
-    *** Admit
+        vcLessEqual (pHistVC p') (pVC p')
+        ? pVCLemma
+    === vcLessEqual (pHistVC p') (pVC p)
+        ? pHistLemma
+        ? pHistVC_unfoldBroadcast n p m e p'
+    === vcLessEqual (pHistVC p) (pVC p)
+    *** QED
 
--- FIXME: rewrite this proof in terms of deliverCHApres?
 {-@
 broadcastCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastShim raw} @-}
 broadcastCHApres :: r -> Int -> P r -> Proof -> Proof
-broadcastCHApres raw n p₀ _pCHA =
+broadcastCHApres raw n p pCHA =
     let
-    -- inject new message into p₀ to obtain p₁
-    m = broadcastHelper_prepareMessage raw p₀
-    e = Broadcast (coerce m)
-    --      ? (coerce m === m)
-    --  === Broadcast m -- QQQ: Why does adding this extra information break the proof?
-    p₁
-                                                    =   broadcastHelper_injectMessage m p₀
-        {-by def of broadcastHelper_injectMessage-} === P (pVC p₀) (pID p₀) (m : pDQ p₀) (e : pHist p₀)
-    p₁vc
-                                                    =   pVC p₁
-        {-by def of broadcastHelper_injectMessage-} === pVC p₀
-    p₁histVC
-                                                =   pHistVC p₁
-        ? pHistVC_unfoldStep n p₀ m e p₁        === vcCombine (pHistVC p₀) (mVC m)
+    p' = broadcastPrepareInjectShim raw p
+    p'' = broadcastShim raw p
 
-    -- deliver from p₁ to obtain p₂
-    Just (_m, p₂) = deliver p₁ ? broadcastAlwaysDelivers raw p₀
-    p₂vc
-                                                =   pVC p₂
-        ? deliverVcIsPrevCombineMsg p₁ m p₂     === vcCombine (pVC p₁) (mVC m)
-    p₂histVC
-                                                =   pHistVC p₂
-        ? deliverHistVcIsPrevCombineMsg p₁ m p₂ === vcCombine (pHistVC p₁) (mVC m)
+    -- relate p and p' and p''
+    broadcastBody                                   =   p''
+    --  {-by def of p''-}                           === broadcastShim raw p
+        {-by def of broadcastShim-}                 === (let (_m, _p) = broadcast raw p in _p)
+        ? broadcastAlwaysDelivers raw p
+    --  {-by def of broadcast-}                     === (let _m = broadcastHelper_prepareMessage raw p
+    --                                                       _p = broadcastHelper_injectMessage _m p
+    --                                                       Just (__m, __p) = deliver _p in __p)
+    --  {-by composition of functions-}             === (let _p = broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p
+    --                                                       Just (__m, __p) = deliver _p in __p)
+    --  {-by def of broadcastPrepareInjectShim-}    === (let _p = broadcastPrepareInjectShim raw p
+    --                                                       Just (__m, __p) = deliver _p in __p)
+        {-by def of p'-}                            === (let Just (__m, __p) = deliver p' in __p)
+
+    -- convert evidence from p to p'
+    p'CHA = broadcastPrepareInjectCHApres raw n p pCHA
+    -- convert evidence from p' to p''
+    p''CHA = deliverCHApres n p' p'CHA
     in
-                                                vcLessEqual (pHistVC p₂) (pVC p₂) -- restate conclusion
-    ? p₂histVC ? p₂vc                       === vcLessEqual (pHistVC p₁ `vcCombine` mVC m) (pVC p₁ `vcCombine` mVC m)
-    ? p₁histVC ? p₁vc                       === vcLessEqual (pHistVC p₀ `vcCombine` mVC m `vcCombine` mVC m) (pVC p₀ `vcCombine` mVC m)
-    ? vcCombineAssociativity n
-        (pHistVC p₀) (mVC m) (mVC m)        === vcLessEqual (pHistVC p₀ `vcCombine` (mVC m `vcCombine` mVC m)) (pVC p₀ `vcCombine` mVC m)
-    ? vcCombineIdempotence (mVC m)          === vcLessEqual (pHistVC p₀ `vcCombine` mVC m) (pVC p₀ `vcCombine` mVC m)
-    ? vcCombineVCLessEqualMonotonicLeft n
-        (pHistVC p₀) (pVC p₀) (mVC m)       === vcLessEqual (pHistVC p₀) (pVC p₀) -- restate premise
-                                            *** QED
+    p''CHA ? broadcastBody
