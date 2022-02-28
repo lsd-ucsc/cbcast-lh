@@ -98,39 +98,6 @@ deliverCHApres n p _pCHA = -- by cases of deliver
 
 -- * broadcast
 
--- TODO: also use this lemma up above to shorten deliverHistVcIsPrevCombineMsg
-{-@ ple pHistVC_unfoldStep @-}
-{-@
-pHistVC_unfoldStep
-    ::   n:Nat
-    ->  p0:Psized r {n}
-    ->   m:Msized r {n}
-    -> { e:Event (VCMMsized {n}) r | e == Broadcast m
-                                  || e == Deliver (pID p0) m }
-    -> {p1:Psized r {n} | pHist p1 == cons e (pHist p0) }
-    -> { pHistVC p1 == vcCombine (pHistVC p0) (mVC m) }
-@-}
-pHistVC_unfoldStep :: Int -> P r -> M r -> Event VCMM r -> P r -> Proof
-pHistVC_unfoldStep n p₀ m e p₁ =
-    let
-    e_vc
-        =   eventVC e
-        === mVC m -- by def of eventVC, but requires PLE for some reason
-    p₀histVC
-                                        =   pHistVC p₀
-        ? (n === listLength (pVC p₀))   === pHistVCHelper n (pHist p₀) -- by def of pHistVC, but requires PLE for some reason
-    in
-    {-restate (part of) conclusion-}    pHistVC p₁
-    ? (n === listLength (pVC p₁))   === pHistVCHelper n (pHist p₁) -- by def of pHistVC, but requires PLE for some reason
-    {-by premise-}                  === pHistVCHelper n (e : pHist p₀)
-    {-by def of pHistVCHelper-}     === (eventVC e `proofConst` vcmmSizedEventVC n e) `vcCombine` pHistVCHelper n (pHist p₀)
-    {-simplify-}                    === eventVC e `vcCombine` pHistVCHelper n (pHist p₀)
-    ? p₀histVC                      === eventVC e `vcCombine` pHistVC p₀
-    ? e_vc                          === mVC m `vcCombine` pHistVC p₀
-    ? vcCombineCommutativity n (mVC m) (pHistVC p₀)
-    {-restate (part of) conclusion-}=== pHistVC p₀ `vcCombine` mVC m
-                                    *** QED
-
 {-@
 broadcastPrepareInjectCHApres :: raw:r -> n:Nat -> CHApreservation r {n} {broadcastPrepareInjectShim raw} @-}
 broadcastPrepareInjectCHApres :: r -> Int -> P r -> Proof -> Proof
