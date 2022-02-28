@@ -198,7 +198,7 @@ broadcast raw p₀ =
 broadcastHelper_injectMessage :: m:M r -> PasM r {m} -> PasM r {m} @-}
 broadcastHelper_injectMessage :: M r -> P r -> P r
 broadcastHelper_injectMessage m p =
---  p { pDQ = enqueue m (pDQ p) -- FIXME: record update syntax breaks PLE
+--  p { pDQ = m : pHist p -- FIXME: record update syntax breaks PLE
 --    , pHist = Broadcast (coerce m) : pHist p }
     P (pVC p)
       (pID p)

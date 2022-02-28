@@ -92,3 +92,28 @@ pHistVC_unfoldDeliver n p₀ m@(Message x y) e@Deliver{} p₁ =
     === mVC m `vcCombine` pHistVCHelper (listLength (pVC p₀)) (pHist p₀)
     === mVC m `vcCombine` pHistVC p₀
     *** QED
+
+{-@ ple pHistVC_unfoldBroadcast @-}
+{-@
+pHistVC_unfoldBroadcast
+    ::   n:Nat
+    ->  p0:Psized r {n}
+    ->   m:Msized r {n}
+    -> { e:Event (VCMMsized {n}) r | e == Broadcast m }
+    -> {p1:Psized r {n} | pHist p1 == cons e (pHist p0) }
+    -> { pHistVC p1 == pHistVC p0 }
+@-}
+pHistVC_unfoldBroadcast :: Int -> P r -> M r -> Event VCMM r -> P r -> Proof
+pHistVC_unfoldBroadcast n p₀ m e@Deliver{} p₁
+    = impossible
+    $ e === Broadcast m -- restate (failed) premise
+pHistVC_unfoldBroadcast n p₀ m@(Message x y) e@Broadcast{} p₁ =
+        pHistVC p₁
+        --- QQQ: Why does this step seem to require PLE?
+    === pHistVCHelper (listLength (pVC p₁)) (pHist p₁)
+    === pHistVCHelper n (e : pHist p₀)
+        --- by def of pHistVCHelper which skips over Broadcasts
+    === pHistVCHelper n (pHist p₀)
+    === pHistVCHelper (listLength (pVC p₀)) (pHist p₀)
+    === pHistVC p₀
+    *** Admit
