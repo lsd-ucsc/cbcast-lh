@@ -31,67 +31,45 @@ receiveCHApres m p _pCHA
 
 -- * deliver
 
--- | DRY up with the proofs below that produce this same fact by other means
-{-@ ple deliverVcIsPrevCombineMsg @-}
-{-@
-deliverVcIsPrevCombineMsg
-    :: {p1:P r | isJust (deliver p1)}
-    -> { m:M r | fst (fromJust (deliver p1)) == m }
-    -> {p2:P r | snd (fromJust (deliver p1)) == p2}
-    -> {vcCombine (pVC p1) (mVC m) == pVC p2}
-@-}
-deliverVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
-deliverVcIsPrevCombineMsg p₁ m p₂ = --- by cases of deliver
-    case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
-        Just (_m, _pDQ') -> -- one case, due to premise
-                pVC p₂ -- restate (part of) conclusion
-            === vcCombine (pVC p₁) (mVC m) -- by def of deliver
-            *** QED
-
--- | DRY up with the proofs below that produce this same fact by other means
-{-@ ple deliverHistVcIsPrevCombineMsg @-}
-{-@
-deliverHistVcIsPrevCombineMsg
-    :: {p1:P r | isJust (deliver p1)}
-    -> { m:M r | fst (fromJust (deliver p1)) == m }
-    -> {p2:P r | snd (fromJust (deliver p1)) == p2}
-    -> {vcCombine (pHistVC p1) (mVC m) == pHistVC p2}
-@-}
-deliverHistVcIsPrevCombineMsg :: P r -> M r -> P r -> Proof
-deliverHistVcIsPrevCombineMsg p₁ m p₂ =
-    case dequeue (pVC p₁) (pDQ p₁) of -- by cases of deliver
-        Just (_m, _pDQ') -> -- one case, due to premise
-            let n = listLength (pVC p₁)
-                e = Deliver (pID p₁) (coerce m)
-            in  pHistVC p₂ -- restate (part of) conclusion
-                ? ( pVC p₂ === vcCombine (pVC p₁) (mVC m) ) -- VCs have same length
-            === pHistVCHelper n (pHist p₂) -- by def of pHistVC
-                ? ( pHist p₂ === e : pHist p₁ )
-            === pHistVCHelper n (e : pHist p₁) -- by def of deliver
-            === vcCombine (eventVC e) (pHistVCHelper n (pHist p₁)) -- by def of pHistVCHelper
-                ? (eventVC e === mVC m)
-            === vcCombine (mVC m) (pHistVCHelper n (pHist p₁))
-            === vcCombine (mVC m) (pHistVC p₁)
-                ? vcCombineCommutativity n (mVC m) (pHistVC p₁)
-            === vcCombine (pHistVC p₁) (mVC m)
-            *** QED
-
-{-@ ple deliverCHApres @-}
 {-@
 deliverCHApres :: n:Nat -> CHApreservation r {n} {deliverShim} @-}
 deliverCHApres :: Int -> P r -> Proof -> Proof
-deliverCHApres n p _pCHA = -- by cases of deliver
-    case dequeue (pVC p) (pDQ p) of
-        Nothing -> () -- p is unchanged
-        Just (m, _pDQ) ->
-            let p' = deliverShim p in
-                vcLessEqual (pHistVC p') (pVC p') -- restate conclusion
-                ? deliverVcIsPrevCombineMsg p m p'
-                ? deliverHistVcIsPrevCombineMsg p m p'
-            === vcLessEqual (pHistVC p `vcCombine` mVC m) (pVC p `vcCombine` mVC m)
-            --- vcLessEqual (pHistVC p) (pVC p) -- restate premise
-                ? vcCombineVCLessEqualMonotonicLeft n (pHistVC p) (pVC p) (mVC m)
-            *** QED
+deliverCHApres n p _pCHA =
+  case dequeue (pVC p) (pDQ p) of -- by cases of deliver
+  Nothing ->
+    {-by def of deliverShim -}  case deliver p of Nothing -> p
+    {-p is unchanged-}          *** QED
+  Just (m, pDQ') ->
+    let
+    p' = deliverShim p
+    n = listLength (pVC p)
+    e = Deliver (pID p) (coerce m)
+    deliverBody
+        =   deliver p
+        === Just (m, p
+            { pVC = pVC p `vcCombine` mVC m
+            , pDQ = pDQ'
+            , pHist = Deliver (pID p) (coerce m) : pHist p
+            })
+    pVCLemma
+        =   pVC p'
+            ? deliverBody
+        === pVC p `vcCombine` mVC m
+    pHistVCLemma
+        =   pHistVC p'
+            ? deliverBody
+            ? pHistVC_unfoldDeliver n p m e p'
+        === mVC m `vcCombine` pHistVC p
+            ? vcCombineCommutativity n (mVC m) (pHistVC p)
+        === pHistVC p `vcCombine` mVC m
+    in
+        vcLessEqual (pHistVC p') (pVC p')
+        ? pVCLemma
+        ? pHistVCLemma
+    === vcLessEqual (pHistVC p `vcCombine` mVC m) (pVC p `vcCombine` mVC m)
+        ? vcCombineVCLessEqualMonotonicLeft n (pHistVC p) (pVC p) (mVC m)
+    === vcLessEqual (pHistVC p) (pVC p)
+    *** QED
 
 
 
