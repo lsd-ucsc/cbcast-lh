@@ -24,6 +24,13 @@ vcCombineCommutativity :: Int -> VC -> VC -> Proof
 vcCombineCommutativity _n [] [] = ()
 vcCombineCommutativity n (_x:xs) (_y:ys) = vcCombineCommutativity (n - 1) xs ys
 
+{-@ ple vcCombineIdempotence @-}
+{-@
+vcCombineIdempotence :: a:VC -> {a == vcCombine a a} @-}
+vcCombineIdempotence :: VC -> Proof
+vcCombineIdempotence [] = ()
+vcCombineIdempotence (_x:xs) = vcCombineIdempotence xs
+
 {-@ ple vcCombineVCLessEqualMonotonicLeft @-}
 {-@
 vcCombineVCLessEqualMonotonicLeft :: n:Nat -> MonotonicLeft (VCsized {n}) {vcLessEqual} {vcCombine} @-}

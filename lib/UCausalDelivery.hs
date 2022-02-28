@@ -358,3 +358,23 @@ broadcastAlwaysDelivers raw p₀ =
                 })
     in
     deliverBody *** QED
+
+
+
+
+-- ** Initialization
+
+-- | The empty, initial, vc₀, vector clock.
+{-@
+vcEmpty :: n:Nat -> VCsized {n} @-}
+vcEmpty :: Int -> VC
+vcEmpty 0 = []
+vcEmpty n = 0 : vcEmpty (n - 1)
+{-@ reflect vcEmpty @-}
+
+-- | The empty, initial, p₀, for processes.
+{-@
+pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
+pEmpty :: Int -> Fin -> P r
+pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
+{-@ reflect pEmpty @-}
