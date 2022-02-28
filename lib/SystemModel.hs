@@ -11,6 +11,10 @@ import Redefined.Vec ()
 
 {- BEGIN GENERIC HELPERS (move back to other modules later) -}
 
+cons :: a -> [a] -> [a]
+cons x xs = x:xs
+{-@ inline cons @-}
+
 {-@ listLength :: xs:_ -> {v:Nat | v == len xs } @-}
 listLength :: [a] -> Int
 listLength [] = 0
