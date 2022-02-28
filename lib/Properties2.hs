@@ -7,7 +7,7 @@ import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Ord
 
 import SystemModel
-import Properties ()
+import Properties
 import UCausalDelivery
 
 {-@ ple vcCombineAssociativity @-}
@@ -30,6 +30,27 @@ vcCombineIdempotence :: a:VC -> {a == vcCombine a a} @-}
 vcCombineIdempotence :: VC -> Proof
 vcCombineIdempotence [] = ()
 vcCombineIdempotence (_x:xs) = vcCombineIdempotence xs
+
+{-@ ple vcCombineResultLarger @-}
+{-@
+vcCombineResultLarger :: a:VC -> b:VCasV {a} -> { vcLessEqual a (vcCombine a b)
+                                               && vcLessEqual b (vcCombine a b) } @-}
+vcCombineResultLarger :: VC -> VC -> Proof
+vcCombineResultLarger [] []
+    {-restate conclusion-}      =   vcCombine [] []
+    {-by def of vcCombine-}     === listZipWith ordMax [] []
+    {-by def of listZipWith-}   === []
+    ? vcLessEqualReflexive []   *** QED
+vcCombineResultLarger (x:xs) (y:ys)
+    {-restate (half of) conclusion-}    =   vcLessEqual (x:xs) ret
+    {-by def of listAnd,zipWith,etc-}   === (x <= (if x < y then y else x) && listAnd (listZipWith vcLessEqualHelper xs (vcCombine xs ys)))
+    ? vcCombineResultLarger xs ys       === (x <= (if x < y then y else x))
+    {-vcCombineAssociativity-}          *** QED
+  where
+    ret =   vcCombine (x:xs) (y:ys)
+        === listZipWith ordMax (x:xs) (y:ys)
+        === ordMax x y : listZipWith ordMax xs ys
+        === (if x < y then y else x) : listZipWith ordMax xs ys
 
 {-@ ple vcCombineVCLessEqualMonotonicLeft @-}
 {-@

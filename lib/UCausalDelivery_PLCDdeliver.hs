@@ -114,27 +114,6 @@ deliverImpliesDeliverable p =
             ? dequeueImpliesDeliverable (pVC p) (pDQ p)
                                     *** QED
 
-{-@ ple vcCombineResultLarger @-}
-{-@
-vcCombineResultLarger :: a:VC -> b:VCasV {a} -> { vcLessEqual a (vcCombine a b)
-                                               && vcLessEqual b (vcCombine a b) } @-}
-vcCombineResultLarger :: VC -> VC -> Proof
-vcCombineResultLarger [] []
-    {-restate conclusion-}      =   vcCombine [] []
-    {-by def of vcCombine-}     === listZipWith ordMax [] []
-    {-by def of listZipWith-}   === []
-    ? vcLessEqualReflexive []   *** QED
-vcCombineResultLarger (x:xs) (y:ys)
-    {-restate (half of) conclusion-}    =   vcLessEqual (x:xs) ret
-    {-by def of listAnd,zipWith,etc-}   === (x <= (if x < y then y else x) && listAnd (listZipWith vcLessEqualHelper xs (vcCombine xs ys)))
-    ? vcCombineResultLarger xs ys       === (x <= (if x < y then y else x))
-    {-vcCombineAssociativity-}          *** QED
-  where
-    ret =   vcCombine (x:xs) (y:ys)
-        === listZipWith ordMax (x:xs) (y:ys)
-        === ordMax x y : listZipWith ordMax xs ys
-        === (if x < y then y else x) : listZipWith ordMax xs ys
-
 {-@ ple histElemLessEqualHistVC_lemma @-} -- Required to see through eventVC and pHistVC definitions.
 {-@
 histElemLessEqualHistVC_lemma :: e:Event VCMM r -> {hhs:Hsized r {eventN e} | listElem e hhs} -> {vcLessEqual (eventVC e) (pHistVCHelper (eventN e) hhs)} @-}
