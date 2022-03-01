@@ -114,46 +114,6 @@ deliverImpliesDeliverable p =
             ? dequeueImpliesDeliverable (pVC p) (pDQ p)
                                     *** QED
 
-{-@ ple histElemLessEqualHistVC_lemma @-} -- Required to see through eventVC and pHistVC definitions.
-{-@
-histElemLessEqualHistVC_lemma :: e:Event VCMM r -> {hhs:Hsized r {eventN e} | listElem e hhs} -> {vcLessEqual (eventVC e) (pHistVCHelper (eventN e) hhs)} @-}
-histElemLessEqualHistVC_lemma :: Eq r => Event VCMM r -> H r -> Proof
-histElemLessEqualHistVC_lemma e []  =   impossible
-                                    $   listElem e []
-histElemLessEqualHistVC_lemma e (h:hs)
-  | e == h                              =   True
-    ? vcCombineResultLarger eVC hsVC    === eVC `vcLessEqual` hhsVC
-                                        *** QED
-  | otherwise =
-                                                    True
-    ? histElemLessEqualHistVC_lemma e hs        === eVC `vcLessEqual` hsVC
-    ? vcCombineResultLarger (eventVC h) hsVC    === hsVC `vcLessEqual` hhsVC
-    ? vcLessEqualTransitive n eVC hsVC hhsVC    === eVC `vcLessEqual` hhsVC
-                                                *** QED
-  where
-    n = eventN e
-    eVC = eventVC e
-    hsVC = pHistVCHelper n hs
-    hhsVC = pHistVCHelper n (h:hs)
-        === (eventVC h `proofConst` vcmmSizedEventVC n h) `vcCombine` hsVC
-
-{-@ ple histElemLessEqualHistVC @-} -- Required to see through eventVC and pHistVC definitions.
-{-@
-histElemLessEqualHistVC :: e:Event VCMM r -> {p:Psized r {eventN e} | listElem e (pHist p)} -> {vcLessEqual (eventVC e) (pHistVC p)} @-}
-histElemLessEqualHistVC :: Eq r => Event VCMM r -> P r -> Proof
-histElemLessEqualHistVC e p =
-        eventVC e `vcLessEqual` pHistVC p
-    === eventVC e `vcLessEqual` pHistVCHelper (listLength (pVC p)) (pHist p)
-    === eventVC e `vcLessEqual` pHistVCHelper (eventN e) (pHist p)
-        ? histElemLessEqualHistVC_lemma e (pHist p)
-    *** QED
-
-{-@
-mVCEqualsEventVC :: p_id:PID -> m:M r -> { mVC m == eventVC (Deliver p_id m) } @-}
-mVCEqualsEventVC :: PID -> M r -> Proof
-mVCEqualsEventVC p_id m = mVC m === eventVC (Deliver p_id m) *** QED
--- QQQ: Why is this lemma required?
-
 {-@
 deliverPLCDpres_lemma1
     :: n:Nat

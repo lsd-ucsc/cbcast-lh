@@ -54,19 +54,6 @@ pEmptyPLCD n p_id m1 _m2
 
 -- * Generic lemmas
 
-{-@ tailElem :: e:_ -> {x:_ | e /= x} -> {yzs:_ | listElem e (cons x yzs)} -> { listElem e yzs } @-}
-tailElem :: Eq a => a -> a -> [a] -> Proof
-tailElem e x []             =   impossible
-    {-restate premise-}     $   listElem e (x:[])
-    {-by def of listElem-}  === (e==x || listElem e [])
-    {-by e/=x premise-}     === listElem e []
-    {-premise failed-}      *** QED
-tailElem e x (y:zs)
-    {-restate premise-}     =   listElem e (x:y:zs)
-    {-by def of listElem-}  === (e==x || listElem e (y:zs))
-    {-by e/=x premise-}     === listElem e (y:zs)
-                            *** QED
-
 {-@
 extendElem
     :: e:_
