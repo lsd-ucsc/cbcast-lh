@@ -42,7 +42,6 @@ deliverCHApres n p _pCHA =
   Just (m, pDQ') ->
     let
     p' = deliverShim p
-    n = listLength (pVC p)
     e = Deliver (pID p) (coerce m)
     deliverBody
         =   deliver p

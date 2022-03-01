@@ -1,6 +1,3 @@
-{-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple-local" @-}
-{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs Redefined.Ord
 module Properties2 where
 
 import Language.Haskell.Liquid.ProofCombinators

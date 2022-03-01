@@ -1,5 +1,3 @@
-{-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple-local" @-}
 module Properties where
 
 import Language.Haskell.Liquid.ProofCombinators

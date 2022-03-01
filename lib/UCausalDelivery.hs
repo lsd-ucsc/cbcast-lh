@@ -1,5 +1,3 @@
-{-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple-local" @-}
 module UCausalDelivery where
 
 import Language.Haskell.Liquid.ProofCombinators

@@ -1,19 +1,21 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-}
 
 -- Proof that broadcast preserves PLCD.
 module UCausalDelivery_PLCDbroadcast where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin
-import Redefined.Ord
-import Redefined.Proof (proofConst)
+--import Redefined.Fin
+--import Redefined.Ord
+--import Redefined.Proof (proofConst)
 
-import SystemModel
-import Properties
-import Properties2
+import SystemModel -- For LH reflected & aliases
+--import Properties
+--import Properties2
 import UCausalDelivery
 import UCausalDelivery_Shims
-import UCausalDelivery_CHA
-import UCausalDelivery_PLCD
+import UCausalDelivery_CHA -- For LH reflected & aliases
+import UCausalDelivery_CHAproofs
+--import UCausalDelivery_PLCD
 import UCausalDelivery_PLCDdeliver
 
 {-@
