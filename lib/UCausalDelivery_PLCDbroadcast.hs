@@ -15,14 +15,39 @@ import UCausalDelivery
 import UCausalDelivery_Shims
 import UCausalDelivery_CHA -- For LH reflected & aliases
 import UCausalDelivery_CHAproofs
---import UCausalDelivery_PLCD
+import UCausalDelivery_PLCD
 import UCausalDelivery_PLCDdeliver
 
 {-@
 broadcastPrepareInjectPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastPrepareInjectShim raw} @-}
 broadcastPrepareInjectPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-broadcastPrepareInjectPLCDpres _raw _n _p _pCHA _pPLCD _m₁ _m₂ =
-    () *** Admit
+broadcastPrepareInjectPLCDpres raw _n p _pCHA pPLCD m₁ m₂ =
+    let
+    m = broadcastHelper_prepareMessage raw p
+    p' = broadcastHelper_injectMessage m p
+    e₁ = Deliver (pID p) (coerce m₁)
+    e₂ = Deliver (pID p) (coerce m₂)
+    e₃ = Broadcast (coerce m)
+    injectMessageBody
+        =   broadcastHelper_injectMessage m p
+        === p { pDQ = m : pDQ p
+              , pHist = Broadcast (coerce m) : pHist p }
+    pIDLemma
+                            =   pID p'
+        ? injectMessageBody === pID p
+    pHistLemma
+                            =   pHist p'
+        ? injectMessageBody === e₃ : pHist p
+    in
+                                                True
+    ? pIDLemma
+    ? tailElem e₁ e₃ (pHist p)
+    ? tailElem e₂ e₃ (pHist p)
+    ? pPLCD m₁ m₂
+                                            === processOrder (pHist p) e₁ e₂
+    ? extendProcessOrder (pHist p) e₁ e₂ e₃ === processOrder (e₃ : pHist p) e₁ e₂
+    ? pHistLemma                            === processOrder (pHist p') e₁ e₂
+    *** QED
 
 {-@
 broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastShim raw} @-}

@@ -40,6 +40,6 @@ repl: $(CONFIG_FILE)
 ghcid:
 	nix-shell -p ghcid --run 'ghcid -c make repl'
 entr-build:
-	git ls-files | entr -c bash -c 'make build; echo done'
+	git ls-files | entr -c bash -c 'time make build'
 entr-test:
-	git ls-files | entr -c bash -c 'make test; echo done'
+	git ls-files | entr -c bash -c 'time make test'
