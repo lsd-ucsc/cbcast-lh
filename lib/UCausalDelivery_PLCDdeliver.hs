@@ -4,12 +4,12 @@ module UCausalDelivery_PLCDdeliver where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Fin
-import Redefined.Ord
-import Redefined.Proof (proofConst)
+import Redefined.Ord -- For LH reflected & aliases
+-- import Redefined.Proof (proofConst)
 
 import SystemModel
 import Properties
-import Properties2
+-- import Properties2
 import UCausalDelivery
 import UCausalDelivery_Shims
 import UCausalDelivery_CHA
@@ -132,9 +132,7 @@ deliverPLCDpres_lemma1 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -
 deliverPLCDpres_lemma1 n p pCHA _pPLCD p' m₁ m₂ =
     let
     e₁  =   Deliver (pID p) (coerce m₁)
-        === Deliver (pID p) m₁
     e₂  =   Deliver (pID p) (coerce m₂)
-        === Deliver (pID p) m₂
     deliverBody
         =   deliver p
         === case dequeue (pVC p) (pDQ p) of
@@ -143,22 +141,19 @@ deliverPLCDpres_lemma1 n p pCHA _pPLCD p' m₁ m₂ =
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
                 }) -- by def of deliver
-    p'Hist
-        =   pHist p' ? deliverBody
-        === e₁ : pHist p
     e₂inTail =
-        {-restate a premise-}       e₂ `listElem` pHist p'
-        ? p'Hist                === e₂ `listElem` (e₁ : pHist p)
-        {-by def of listElem-}  === (e₂==e₁ || e₂ `listElem` pHist p)
-        ? mVC m₁`vcLess`mVC m₂  === e₂ `listElem` pHist p
+        {-restate a premise-}           e₂ `listElem` pHist p'
+        ? deliverBody               === (pHist p' == e₁ : pHist p)
+        ? mVC m₁`vcLess`mVC m₂      === (e₂ /= e₁)
+        ? tailElem e₂ e₁ (pHist p)  === e₂ `listElem` pHist p
     m₁lessEqualpVC =
                                             True
         ? (mVC m₁ `vcLess` mVC m₂)      === mVC m₁ `vcLessEqual` mVC m₂
-        ? mVCEqualsEventVC (pID p) m₂   === (mVC m₂ == eventVC e₂)
-        ? e₂inTail ? histElemLessEqualHistVC e₂ p
-                                        === eventVC e₂ `vcLessEqual` pHistVC p
+                                        === mVC m₂ == mVC (eventMessage n e₂)
+        ? e₂inTail ? histElemLessEqualHistVC n e₂ p
+                                        === mVC (eventMessage n e₂) `vcLessEqual` pHistVC p
         ? pCHA                          === pHistVC p `vcLessEqual` pVC p
-        ? vcLessEqualTransitive n (mVC m₁) (eventVC e₂) (pHistVC p)
+        ? vcLessEqualTransitive n (mVC m₁) (mVC (eventMessage n e₂)) (pHistVC p)
         ? vcLessEqualTransitive n (mVC m₁) (pHistVC p) (pVC p)
                                         === mVC m₁ `vcLessEqual` pVC p
                                         *** QED

@@ -1,11 +1,12 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-}
 
 -- | Clock-history agreement definition.
 module UCausalDelivery_CHA where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Redefined.Fin
-import Redefined.Ord
-import Redefined.Proof (proofConst)
+import Redefined.Ord -- For LH reflected & aliases
+--import Redefined.Proof (proofConst)
 
 import SystemModel
 import Properties
@@ -149,7 +150,7 @@ pHistVC_unfoldBroadcast n p₀ _m e@Broadcast{} p₁ =
     === pHistVCHelper n (pHist p₀)
     === pHistVCHelper (listLength (pVC p₀)) (pHist p₀)
     === pHistVC p₀
-    *** Admit
+    *** QED
 -- QQQ: Does this definition pass when you add a check-var annotation for it?
 
 {-@
