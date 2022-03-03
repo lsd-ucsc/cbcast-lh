@@ -15,8 +15,8 @@ import UCausalDelivery_PLCD
 
 {-@ ple receivePreservesIDandHist @-}
 {-@
-receivePreservesIDandHist :: m:M r -> p:PasM r {m} -> { pID p == pID (receive m p)
-                                                     && pHist p == pHist (receive m p) } @-}
+receivePreservesIDandHist :: m:M r -> p:PasM r {m} -> { pID p == pID (internalReceive m p)
+                                                     && pHist p == pHist (internalReceive m p) } @-}
 receivePreservesIDandHist :: M r -> P r -> Proof
 receivePreservesIDandHist m p -- by cases from receive
     | mSender m == pID p = ()
@@ -24,10 +24,10 @@ receivePreservesIDandHist m p -- by cases from receive
 
 {-@ ple receivePLCDpres @-}
 {-@
-receivePLCDpres :: m:M r -> PLCDpreservation r {len (mVC m)} {receive m} @-}
+receivePLCDpres :: m:M r -> PLCDpreservation r {len (mVC m)} {internalReceive m} @-}
 receivePLCDpres :: Eq r => M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 receivePLCDpres m p pPLCD m₁ m₂ =
-    let p' = receive m p
+    let p' = internalReceive m p
     in  True
     === Deliver (pID p') m₁ `listElem` pHist p' -- restate a premise
     === Deliver (pID p') m₂ `listElem` pHist p' -- restate a premise

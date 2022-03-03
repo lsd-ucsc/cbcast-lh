@@ -95,24 +95,24 @@ dequeueImpliesDeliverable vc (x:xs)
 
 {-@
 deliverImpliesDeliverable
-    :: {p:P r | isJust (deliver p)}
-    -> {deliverable (fst (fromJust (deliver p))) (pVC p)}
+    :: {p:P r | isJust (internalDeliver p)}
+    -> {deliverable (fst (fromJust (internalDeliver p))) (pVC p)}
 @-}
 deliverImpliesDeliverable :: P r -> Proof
 deliverImpliesDeliverable p =
     case dequeue (pVC p) (pDQ p) of
-        Nothing ->                      impossible
-            {-restate premise-}     $   deliver p
-            {-by def of deliver-}   === Nothing
+        Nothing ->                              impossible
+            {-restate premise-}             $   internalDeliver p
+            {-by def of internalDeliver-}   === Nothing
         Just (m, pDQ') ->
-            {-restate premise-}     deliver p
-            {-by def of deliver-}   === Just (m, p
-                                            { pVC = vcCombine (pVC p) (mVC m)
-                                            , pDQ = pDQ'
-                                            , pHist = Deliver (pID p) (coerce m) : pHist p
-                                            })
+            {-restate premise-}                 internalDeliver p
+            {-by def of internalDeliver-}   === Just (m, p
+                                                { pVC = vcCombine (pVC p) (mVC m)
+                                                , pDQ = pDQ'
+                                                , pHist = Deliver (pID p) (coerce m) : pHist p
+                                                })
             ? dequeueImpliesDeliverable (pVC p) (pDQ p)
-                                    *** QED
+                                            *** QED
 
 {-@
 deliverPLCDpres_lemma1
@@ -120,10 +120,10 @@ deliverPLCDpres_lemma1
     -> p:Psized r {n}
     -> ClockHistoryAgreement {p}
     -> PLCD r {p}
-    -> {p':Psized r {n} | isJust (deliver p)
-                        && p' == snd (fromJust (deliver p)) }
+    -> {p':Psized r {n} | isJust (internalDeliver p)
+                        && p' == snd (fromJust (internalDeliver p)) }
     -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p')
-                        && m1 == fst (fromJust (deliver p)) }
+                        && m1 == fst (fromJust (internalDeliver p)) }
     -> {m2:Msized r {n} | listElem (Deliver (pID p') m2) (pHist p')
                         && vcLess (mVC m1) (mVC m2) }
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
@@ -134,13 +134,13 @@ deliverPLCDpres_lemma1 n p pCHA _pPLCD p' m₁ m₂ =
     e₁  =   Deliver (pID p) (coerce m₁)
     e₂  =   Deliver (pID p) (coerce m₂)
     deliverBody
-        =   deliver p
+        =   internalDeliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m, pDQ') -> Just (m, p
                 { pVC = vcCombine (pVC p) (mVC m)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
-                }) -- by def of deliver
+                }) -- by def of internalDeliver
     e₂inTail =
         {-restate a premise-}           e₂ `listElem` pHist p'
         ? deliverBody               === (pHist p' == e₁ : pHist p)
@@ -173,12 +173,12 @@ deliverPLCDpres_lemma2
     -> p:Psized r {n}
     -> ClockHistoryAgreement {p}
     -> PLCD r {p}
-    -> {p':Psized r {n} | isJust (deliver p)
-                        && p' == snd (fromJust (deliver p)) }
+    -> {p':Psized r {n} | isJust (internalDeliver p)
+                        && p' == snd (fromJust (internalDeliver p)) }
     -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p') }
     -> {m2:Msized r {n} | listElem (Deliver (pID p') m2) (pHist p')
                         && vcLess (mVC m1) (mVC m2)
-                        && m2 == fst (fromJust (deliver p)) }
+                        && m2 == fst (fromJust (internalDeliver p)) }
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemma2 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
@@ -189,13 +189,13 @@ deliverPLCDpres_lemma2 _n p _pCHA _pPLCD p' m₁ m₂ =
     e₂  =   Deliver (pID p) m₂
         === Deliver (pID p) (coerce m₂)
     deliverBody
-        =   deliver p
+        =   internalDeliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m, pDQ') -> Just (m, p
                 { pVC = vcCombine (pVC p) (mVC m)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
-                }) -- by def of deliver
+                }) -- by def of internalDeliver
     p'Hist
         =   pHist p' ? deliverBody
         === e₂ : pHist p
@@ -216,12 +216,12 @@ deliverPLCDpres_lemma3
     -> p:Psized r {n}
     -> ClockHistoryAgreement {p}
     -> PLCD r {p}
-    -> {p':Psized r {n} | isJust (deliver p)
-                        && p' == snd (fromJust (deliver p)) }
+    -> {p':Psized r {n} | isJust (internalDeliver p)
+                        && p' == snd (fromJust (internalDeliver p)) }
     -> {m1:M r          | listElem (Deliver (pID p') m1) (pHist p') }
     -> {m2:MasM r {m1}  | listElem (Deliver (pID p') m2) (pHist p')
                         && vcLess (mVC m1) (mVC m2) }
-    -> { m:Msized r {n} | m == fst (fromJust (deliver p))
+    -> { m:Msized r {n} | m == fst (fromJust (internalDeliver p))
                         && m /= m1
                         && m /= m2 }
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
@@ -236,13 +236,13 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
     e₃  =   Deliver (pID p) m
         === Deliver (pID p) (coerce m)
     deliverBody
-        =   deliver p
+        =   internalDeliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m', pDQ') -> Just (m', p
                 { pVC = vcCombine (pVC p) (mVC m')
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m') : pHist p
-                }) -- by def of deliver
+                }) -- by def of internalDeliver
     p'Hist
         =   pHist p' ? deliverBody
         === e₃ : pHist p
@@ -268,7 +268,7 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
 deliverPLCDpres :: n:Nat -> PLCDpreservation' r {n} {deliverShim} @-}
 deliverPLCDpres :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
-    case dequeue (pVC p) (pDQ p) of -- by cases of deliver
+    case dequeue (pVC p) (pDQ p) of -- by cases of internalDeliver
         Nothing -> pPLCD m₁ m₂ -- p is unchanged
 ----    Nothing -> -- p is unchanged
 ----        let p' = deliverShim p in

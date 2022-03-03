@@ -12,11 +12,11 @@ import Properties
 import Properties2
 import UCausalDelivery
 
--- | The deliver function, but throw away the message.
+-- | The internalDeliver function, but throw away the message.
 {-@ deliverShim :: p:P r -> PasP r {p} @-}
 deliverShim :: P r -> P r
 deliverShim p =
-    case deliver p of
+    case internalDeliver p of
         Nothing -> p
         Just (_, p') -> p'
 {-@ inline deliverShim @-}
@@ -29,9 +29,9 @@ broadcastPrepareInjectShim raw p =
     broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p
 {-@ inline broadcastPrepareInjectShim @-}
 
--- | The broadcast function, but throw away the message.
+-- | The internalBroadcast function, but throw away the message.
 {-@ broadcastShim :: r -> p:P r -> PasP r {p} @-}
 broadcastShim :: r -> P r -> P r
 broadcastShim raw p =
-    let (_, p') = broadcast raw p in p'
+    let (_, p') = internalBroadcast raw p in p'
 {-@ inline broadcastShim @-}

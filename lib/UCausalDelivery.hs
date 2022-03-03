@@ -156,20 +156,20 @@ vcCombine = listZipWith ordMax
 -- | Put a message in the dq. Messages with the sender ID of the current
 -- process are ignored. The MPA should use this for messages from the network.
 {-@
-receive :: m:M r -> PasM r {m} -> PasM r {m} @-}
-receive :: M r -> P r -> P r
-receive m p
+internalReceive :: m:M r -> PasM r {m} -> PasM r {m} @-}
+internalReceive :: M r -> P r -> P r
+internalReceive m p
     | mSender m == pID p = p -- NOTE: Ignores network messages with local pid
 --  | otherwise = p{ pDQ = enqueue m (pDQ p) } -- FIXME: record update syntax breaks PLE
     | otherwise = P (pVC p) (pID p) (enqueue m (pDQ p)) (pHist p)
-{-@ reflect receive @-}
+{-@ reflect internalReceive @-}
 
 -- | Get a message from the dq, update the local vc and history. After this,
 -- the MPA should pass the message to the UAP for processing.
 {-@
-deliver :: p:P r -> Maybe (MasP r {p}, PasP r {p}) @-}
-deliver :: P r -> Maybe (M r, P r)
-deliver p =
+internalDeliver :: p:P r -> Maybe (MasP r {p}, PasP r {p}) @-}
+internalDeliver :: P r -> Maybe (M r, P r)
+internalDeliver p =
     case dequeue (pVC p) (pDQ p) of
         Nothing -> Nothing
         Just (m, pDQ') -> Just (m, p -- FIXME: record update syntax breaks PLE
@@ -177,20 +177,20 @@ deliver p =
             , pDQ = pDQ'
             , pHist = Deliver (pID p) (coerce m) : pHist p
             })
-{-@ reflect deliver @-}
+{-@ reflect internalDeliver @-}
 
 -- | Prepare a message for broadcast, put it into this process's delay queue,
 -- and then perform a normal delivery. After this, the MPA should place the
 -- message on the network and pass the message to the UAP for processing.
 {-@
-broadcast :: r -> p:P r -> (MasP r {p}, PasP r {p}) @-}
-broadcast :: r -> P r -> (M r, P r)
-broadcast raw p₀ =
+internalBroadcast :: r -> p:P r -> (MasP r {p}, PasP r {p}) @-}
+internalBroadcast :: r -> P r -> (M r, P r)
+internalBroadcast raw p₀ =
     let m = broadcastHelper_prepareMessage raw p₀
         p₁ = broadcastHelper_injectMessage m p₀
-    in case deliver p₁ `proofConst` broadcastAlwaysDelivers raw p₀ of
+    in case internalDeliver p₁ `proofConst` broadcastAlwaysDelivers raw p₀ of
             Just tup -> tup
-{-@ reflect broadcast @-}
+{-@ reflect internalBroadcast @-}
 
 {-@
 broadcastHelper_injectMessage :: m:M r -> PasM r {m} -> PasM r {m} @-}
@@ -327,8 +327,8 @@ deliverableNewMessage raw p
 broadcastAlwaysDelivers
     :: raw:r
     -> p:P r
-    -> { isJust (deliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p))
-    && fst (fromJust (deliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p)))
+    -> { isJust (internalDeliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p))
+    && fst (fromJust (internalDeliver (broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p)))
     == broadcastHelper_prepareMessage raw p }
 @-}
 broadcastAlwaysDelivers :: r -> P r -> Proof
@@ -347,7 +347,7 @@ broadcastAlwaysDelivers raw p₀ =
                 -- QQQ: Why is PLE necessary for this step?
             === Just (m, pDQ p₀)
         deliverBody
-            = deliver p₁
+            = internalDeliver p₁
                 ? dequeueBody
             === Just (m, p₁
                 { pVC = vcCombine (pVC p₁) (mVC m)

@@ -60,16 +60,16 @@ broadcastPLCDpres raw n p pCHA pPLCD = -- ∀ m m'
     -- relate p and p' and p''
     broadcastBody                                   =   p''
     --  {-by def of p''-}                           === broadcastShim raw p
-        {-by def of broadcastShim-}                 === (let (_m, _p) = broadcast raw p in _p)
+        {-by def of broadcastShim-}                 === (let (_m, _p) = internalBroadcast raw p in _p)
         ? broadcastAlwaysDelivers raw p
-    --  {-by def of broadcast-}                     === (let _m = broadcastHelper_prepareMessage raw p
+    --  {-by def of internalBroadcast-}             === (let _m = broadcastHelper_prepareMessage raw p
     --                                                       _p = broadcastHelper_injectMessage _m p
-    --                                                       Just (__m, __p) = deliver _p in __p)
+    --                                                       Just (__m, __p) = internalDeliver _p in __p)
     --  {-by composition of functions-}             === (let _p = broadcastHelper_injectMessage (broadcastHelper_prepareMessage raw p) p
-    --                                                       Just (__m, __p) = deliver _p in __p)
+    --                                                       Just (__m, __p) = internalDeliver _p in __p)
     --  {-by def of broadcastPrepareInjectShim-}    === (let _p = broadcastPrepareInjectShim raw p
-    --                                                       Just (__m, __p) = deliver _p in __p)
-        {-by def of p'-}                            === (let Just (__m, __p) = deliver p' in __p)
+    --                                                       Just (__m, __p) = internalDeliver _p in __p)
+        {-by def of p'-}                            === (let Just (__m, __p) = internalDeliver p' in __p)
 
 --  in
 --  deliverPLCDpres n p' -- p'PLCD to p''PLCD

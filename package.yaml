@@ -1,13 +1,9 @@
 name: cbcast-lh
 
 dependencies:
-    - liquid-base
-    - liquid-containers
-    - liquid-prelude
     - liquidhaskell
-    - uuid
-    - exceptions # cbcast monadic
-    - mtl # cbcast monadic
+    - liquid-base
+    - liquid-prelude
 
 ghc-options:
     - -Wall
@@ -17,13 +13,13 @@ library:
     ghc-options:
         - -fno-warn-incomplete-patterns # liquidhaskell aready does this for us
         - -fplugin=LiquidHaskell
+        - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
+
+        - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
+        - -fplugin-opt=LiquidHaskell:--ple-local # enable PLE where explicitly turned on
         - -fplugin-opt=LiquidHaskell:--exact-data # fix an error where a function that matched a `[]` pattern had "Unbound symbol is$GHC.Types[]"
         - -fplugin-opt=LiquidHaskell:--exact-data-cons # make reflect able to handle functions with custom data structures
         - -fplugin-opt=LiquidHaskell:--no-adt # required for partial constructors
-        - -fplugin-opt=LiquidHaskell:--ple-local # enable PLE where explicitly turned on
-        - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
-        - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
-        - -fplugin-opt=LiquidHaskell:--counter-examples
 
 executables:
     example:
