@@ -7,6 +7,8 @@ import SystemModel
 import Properties
 import UCausalDelivery
 
+-- TODO: vcTick?
+
 {-@ ple vcCombineAssociativity @-}
 {-@
 vcCombineAssociativity :: n:Nat -> Associative (VCsized {n}) {vcCombine} @-}
@@ -49,6 +51,7 @@ vcCombineResultLarger (x:xs) (y:ys)
         === ordMax x y : listZipWith ordMax xs ys
         === (if x < y then y else x) : listZipWith ordMax xs ys
 
+-- | TODO: prove this generally for anything which is commutative and has mono-right
 {-@ ple vcCombineVCLessEqualMonotonicLeft @-}
 {-@
 vcCombineVCLessEqualMonotonicLeft :: n:Nat -> MonotonicLeft (VCsized {n}) {vcLessEqual} {vcCombine} @-}
@@ -57,6 +60,7 @@ vcCombineVCLessEqualMonotonicLeft _n [] [] [] = ()
 vcCombineVCLessEqualMonotonicLeft n (_x:xs) (_y:ys) (_k:ks) =
     vcCombineVCLessEqualMonotonicLeft (n - 1) xs ys ks
 
+-- | TODO: prove this generally for anything which is commutative and has mono-left
 {-@ ple vcCombineVCLessEqualMonotonicRight @-}
 {-@
 vcCombineVCLessEqualMonotonicRight :: n:Nat -> MonotonicRight (VCsized {n}) {vcLessEqual} {vcCombine} @-}
@@ -65,6 +69,7 @@ vcCombineVCLessEqualMonotonicRight _n [] [] [] = ()
 vcCombineVCLessEqualMonotonicRight n (_k:ks) (_x:xs) (_y:ys) =
     vcCombineVCLessEqualMonotonicRight (n - 1) ks xs ys
 
+-- | TODO: prove this generally for anything which has mono-left and mono-right
 {-@ ple vcCombineVCLessEqualMonotonic @-}
 {-@
 vcCombineVCLessEqualMonotonic :: n:Nat -> Monotonic (VCsized {n}) {vcLessEqual} {vcCombine} @-}

@@ -184,6 +184,7 @@ deliverPLCDpres_lemma2
 deliverPLCDpres_lemma2 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> Proof
 deliverPLCDpres_lemma2 _n p _pCHA _pPLCD p' m₁ m₂ =
     let
+    -- TODO: See if we can remove the non-coerce events?
     e₁  =   Deliver (pID p) m₁
         === Deliver (pID p) (coerce m₁)
     e₂  =   Deliver (pID p) m₂
@@ -229,6 +230,7 @@ deliverPLCDpres_lemma3
 deliverPLCDpres_lemma3 :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> P r -> M r -> M r -> M r -> Proof
 deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
     let
+    -- TODO: See if we can remove the non-coerce events?
     e₁  =   Deliver (pID p) m₁
         === Deliver (pID p) (coerce m₁)
     e₂  =   Deliver (pID p) m₂
@@ -246,12 +248,12 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
     p'Hist
         =   pHist p' ? deliverBody
         === e₃ : pHist p
-    e₁inTail =
+    e₁inTail = -- TODO: use UCausalDelivery_CHA.tailElem
         {-restate a premise-}       e₁ `listElem` pHist p'
         ? p'Hist                === e₁ `listElem` (e₃ : pHist p)
         {-by def of listElem-}  === (e₁==e₃ || e₁ `listElem` pHist p)
         ? m₁ /= m               === e₁ `listElem` pHist p
-    e₂inTail =
+    e₂inTail = -- TODO: use UCausalDelivery_CHA.tailElem
         {-restate a premise-}       e₂ `listElem` pHist p'
         ? p'Hist                === e₂ `listElem` (e₃ : pHist p)
         {-by def of listElem-}  === (e₂==e₃ || e₂ `listElem` pHist p)

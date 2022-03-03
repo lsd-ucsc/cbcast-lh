@@ -1,3 +1,4 @@
+--- {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs Redefined.Ord
 module SystemModel where
 
 import Language.Haskell.Liquid.ProofCombinators
