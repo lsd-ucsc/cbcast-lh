@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-}
 
 -- Proof that delivery preserves PLCD.
 module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver where

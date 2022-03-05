@@ -5,11 +5,16 @@ module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Broadcast where
 
 import Language.Haskell.Liquid.ProofCombinators
 
+import Redefined
+import VectorClock
+import MessagePassingAlgorithm
 import MessagePassingAlgorithm.CBCAST
 import MessagePassingAlgorithm.VectorClockAdapter
 
+import Redefined.Verification
 import MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery
 import MessagePassingAlgorithm.CBCAST.Verification.Shims
+import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreement
 import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreementProofs
 import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver
 

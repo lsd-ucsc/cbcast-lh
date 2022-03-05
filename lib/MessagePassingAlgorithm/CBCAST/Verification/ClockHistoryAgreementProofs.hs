@@ -3,11 +3,13 @@ module MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreementProofs w
 
 import Language.Haskell.Liquid.ProofCombinators
 
+import Redefined
 import VectorClock
 import MessagePassingAlgorithm
 import MessagePassingAlgorithm.CBCAST
 import MessagePassingAlgorithm.VectorClockAdapter
 
+import VectorClock.Verification
 import MessagePassingAlgorithm.CBCAST.Verification.Shims
 import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreement
 
