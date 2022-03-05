@@ -1,16 +1,11 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
--- | Proof shims to make types correct for proving preservation properties.
-module UCausalDelivery_Shims where
+-- | Shim functions to make types correct for proving preservation properties.
+module MessagePassingAlgorithm.CBCAST.Verification.Shims where
 
-import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin
-import Redefined.Ord
-import Redefined.Proof (proofConst)
-
-import SystemModel
-import Properties
-import Properties2
-import UCausalDelivery
+import VectorClock
+import MessagePassingAlgorithm.CBCAST
+import MessagePassingAlgorithm.VectorClockAdapter
 
 -- | The internalDeliver function, but throw away the message.
 {-@ deliverShim :: p:P r -> PasP r {p} @-}

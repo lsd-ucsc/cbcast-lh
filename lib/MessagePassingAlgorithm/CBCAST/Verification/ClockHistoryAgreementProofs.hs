@@ -1,18 +1,15 @@
 
-module UCausalDelivery_CHAproofs where
+module MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreementProofs where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin
-import Redefined.Ord
-import Redefined.Proof (proofConst)
 
-import SystemModel
-import Properties
-import Properties2
-import UCausalDelivery
-import UCausalDelivery_Shims
-import UCausalDelivery_CHA
+import VectorClock
+import MessagePassingAlgorithm
+import MessagePassingAlgorithm.CBCAST
+import MessagePassingAlgorithm.VectorClockAdapter
 
+import MessagePassingAlgorithm.CBCAST.Verification.Shims
+import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreement
 
 
 

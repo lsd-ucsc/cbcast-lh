@@ -1,22 +1,17 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-}
 
 -- Proof that broadcast preserves PLCD.
-module UCausalDelivery_PLCDbroadcast where
+module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Broadcast where
 
 import Language.Haskell.Liquid.ProofCombinators
---import Redefined.Fin
---import Redefined.Ord
---import Redefined.Proof (proofConst)
 
-import SystemModel -- For LH reflected & aliases
---import Properties
---import Properties2
-import UCausalDelivery
-import UCausalDelivery_Shims
-import UCausalDelivery_CHA -- For LH reflected & aliases
-import UCausalDelivery_CHAproofs
-import UCausalDelivery_PLCD
-import UCausalDelivery_PLCDdeliver
+import MessagePassingAlgorithm.CBCAST
+import MessagePassingAlgorithm.VectorClockAdapter
+
+import MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery
+import MessagePassingAlgorithm.CBCAST.Verification.Shims
+import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreementProofs
+import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver
 
 {-@
 broadcastPrepareInjectPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastPrepareInjectShim raw} @-}

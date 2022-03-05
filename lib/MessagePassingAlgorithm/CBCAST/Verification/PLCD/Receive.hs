@@ -1,17 +1,18 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 -- Proof that receive preserves PLCD.
-module UCausalDelivery_PLCDreceive where
+module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Receive where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin
-import Redefined.Ord
-import Redefined.Proof (proofConst)
 
-import SystemModel
-import Properties
-import Properties2
-import UCausalDelivery
-import UCausalDelivery_PLCD
+import Redefined
+import VectorClock
+import MessagePassingAlgorithm
+import MessagePassingAlgorithm.CBCAST
+import MessagePassingAlgorithm.VectorClockAdapter
+
+import MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery
+import MessagePassingAlgorithm.CBCAST.Verification.PLCD
 
 {-@ ple receivePreservesIDandHist @-}
 {-@

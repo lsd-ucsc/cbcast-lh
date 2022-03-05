@@ -11,15 +11,13 @@ ghc-options:
 library:
     source-dirs: lib
     ghc-options:
-        - -fno-warn-incomplete-patterns # liquidhaskell aready does this for us
+        - -fno-warn-incomplete-patterns # LH aready does this
         - -fplugin=LiquidHaskell
-        - -fplugin-opt=LiquidHaskell:--short-names # make errors more readable
-
-          #        - -fplugin-opt=LiquidHaskell:--reflection # fix an error where a function taking a function-argument had an "Unbound symbol"; also necessary for extrinsic properties
-          #        - -fplugin-opt=LiquidHaskell:--ple-local # enable PLE where explicitly turned on
-          #        - -fplugin-opt=LiquidHaskell:--exact-data # fix an error where a function that matched a `[]` pattern had "Unbound symbol is$GHC.Types[]"
-          #        - -fplugin-opt=LiquidHaskell:--exact-data-cons # make reflect able to handle functions with custom data structures
-          #        - -fplugin-opt=LiquidHaskell:--no-adt # required for partial constructors
+        - -fplugin-opt=LiquidHaskell:--short-names # Readable errors
+        - -fplugin-opt=LiquidHaskell:--exact-data-cons # Constructors in refinements
+        - -fplugin-opt=LiquidHaskell:--reflection # Extrinsic proofs
+        - -fplugin-opt=LiquidHaskell:--no-adt # Partial constructors
+        - -fplugin-opt=LiquidHaskell:--ple-local # PLE when you ask for it
 
           #executables:
           #    example:

@@ -1,17 +1,19 @@
-{-# OPTIONS_GHC "-Wno-unused-imports" #-}
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
--- | Clock-history agreement definition.
-module UCausalDelivery_CHA where
+-- | Clock-history agreement definition for a CBCAST process, and a few lemmas
+-- about it.
+module MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreement where
 
 import Language.Haskell.Liquid.ProofCombinators
-import Redefined.Fin
-import Redefined.Ord -- For LH reflected & aliases
---import Redefined.Proof (proofConst)
 
-import SystemModel
-import Properties
-import Properties2
-import UCausalDelivery
+import Redefined
+import VectorClock
+import MessagePassingAlgorithm
+import MessagePassingAlgorithm.VectorClockAdapter
+import MessagePassingAlgorithm.CBCAST
+
+import Redefined.Verification
+import VectorClock.Verification
 
 {-@
 type ClockHistoryAgreement P
@@ -25,6 +27,9 @@ type CHApreservation r N OP
     -> ClockHistoryAgreement {OP p}
 @-}
 
+-- | The empty CBCAST process observes clock history agreement. This proof is
+-- in this module because it exercises the definition of CHA and forces LH to
+-- resolve all the symbols.
 {-@ ple pEmptyCHA @-}
 {-@
 pEmptyCHA :: n:Nat -> p_id:PIDsized {n} -> ClockHistoryAgreement {pEmpty n p_id} @-}
@@ -41,12 +46,12 @@ pEmptyCHA n p_id =
 
 -- * Hist VC
 
+-- | The supremum of vector clocks on delivered messages in a process history.
 {-@
-eventMessage :: n:Nat -> Event (VCMMsized {n}) r -> Msized r {n} @-}
-eventMessage :: Int -> Event VCMM r -> M r
-eventMessage _n (Broadcast (Message a b)) = Message a b
-eventMessage _n (Deliver _pid (Message a b)) = Message a b
-{-@ reflect eventMessage @-}
+pHistVC :: p:P r -> VCasP {p} @-}
+pHistVC :: P r -> VC
+pHistVC p = pHistVCHelper (listLength (pVC p)) (pHist p)
+{-@ reflect pHistVC @-}
 
 {-@
 pHistVCHelper :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
@@ -56,30 +61,12 @@ pHistVCHelper n (Broadcast{}:es) = pHistVCHelper n es
 pHistVCHelper n (e@Deliver{}:es) = mVC (eventMessage n e) `vcCombine` pHistVCHelper n es
 {-@ reflect pHistVCHelper @-}
 
--- | The supremum of vector clocks on delivered messages in a process history.
 {-@
-pHistVC :: p:P r -> VCasP {p} @-}
-pHistVC :: P r -> VC
-pHistVC p = pHistVCHelper (listLength (pVC p)) (pHist p)
-{-@ reflect pHistVC @-}
-
-
-
-
--- * Generic lemmas
-
-{-@ tailElem :: e:_ -> {x:_ | e /= x} -> {yzs:_ | listElem e (cons x yzs)} -> { listElem e yzs } @-}
-tailElem :: Eq a => a -> a -> [a] -> Proof
-tailElem e x []             =   impossible
-    {-restate premise-}     $   listElem e (x:[])
-    {-by def of listElem-}  === (e==x || listElem e [])
-    {-by e/=x premise-}     === listElem e []
-    {-premise failed-}      *** QED
-tailElem e x (y:zs)
-    {-restate premise-}     =   listElem e (x:y:zs)
-    {-by def of listElem-}  === (e==x || listElem e (y:zs))
-    {-by e/=x premise-}     === listElem e (y:zs)
-                            *** QED
+eventMessage :: n:Nat -> Event (VCMMsized {n}) r -> Msized r {n} @-}
+eventMessage :: Int -> Event VCMM r -> M r
+eventMessage _n (Broadcast (Message a b)) = Message a b
+eventMessage _n (Deliver _pid (Message a b)) = Message a b
+{-@ reflect eventMessage @-}
 
 
 
@@ -96,7 +83,10 @@ isDeliver Deliver{} = True
 isDeliver _ = False
 {-@ measure isDeliver @-}
 
---- Consider using isDeliver instead of "== Deliver ..."
+-- | After adding a deliver event the new histVC is the old one combined with
+-- the delivered message vc.
+--
+-- XXX Consider using isDeliver instead of "== Deliver ..."
 {-@
 pHistVC_unfoldDeliver
     ::   n:Nat
@@ -128,7 +118,9 @@ pHistVC_unfoldDeliver n p₀ m@(Message x y) e@Deliver{} p₁ =
     === mVC m `vcCombine` pHistVC p₀
     *** QED
 
---- Consider using isBroadcast instead of "== Broadcast ..."
+-- | After adding a broadcast event the new histVC is the same as the old one.
+--
+-- XXX Consider using isBroadcast instead of "== Broadcast ..."
 {-@
 pHistVC_unfoldBroadcast
     ::   n:Nat
@@ -153,6 +145,8 @@ pHistVC_unfoldBroadcast n p₀ _m e@Broadcast{} p₁ =
     *** QED
 -- QQQ: Does this definition pass when you add a check-var annotation for it?
 
+-- | The VCs of messages on deliveries in the history are all less-equal than
+-- the histVC of the whole history.
 {-@
 histElemLessEqualHistVC
     ::   n:Nat
