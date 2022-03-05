@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC "-Wno-unused-imports" #-}
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 -- Proof that broadcast preserves PLCD.
 module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Broadcast where

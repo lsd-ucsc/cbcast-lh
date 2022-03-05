@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 module MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreementProofs where
 
