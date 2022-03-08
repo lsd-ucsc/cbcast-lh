@@ -13,82 +13,76 @@ import MessagePassingAlgorithm.CBCAST
 
 
 data Input r
-    = InputReceive Int (M r)
-    | InputDeliver Int
-    | InputBroadcast Int r
+    = InputReceive Int (M r) (P r)
+    | InputDeliver Int (P r)
+    | InputBroadcast Int r (P r)
 {-@
 data Input r
     = InputReceive
         { inputReceiveN::Nat
         , inputReceiveMessage::Msized r {inputReceiveN}
+        , inputReceiveProcess::Psized r {inputReceiveN}
         }
     | InputDeliver
         { inputDeliverN::Nat
+        , inputDeliverProcess::Psized r {inputDeliverN}
         }
     | InputBroadcast
         { inputBroadcastN::Nat
         , inputBroadcastRaw::r
+        , inputBroadcastProcess::Psized r {inputBroadcastN}
         }
 @-}
 
 {-@
 inputSize :: Input r -> Nat @-}
 inputSize :: Input r -> Int
-inputSize (InputReceive n _)   = n
-inputSize (InputDeliver n)     = n
-inputSize (InputBroadcast n _) = n
+inputSize (InputReceive n _ _)   = n
+inputSize (InputDeliver n _)     = n
+inputSize (InputBroadcast n _ _) = n
 {-@ measure inputSize @-}
-
-{-@ type Isized r N = {i:Input r | inputSize i == N} @-}
 
 
 
 
 data Output r
-    = OutputReceive Int
-    | OutputDeliver Int (Maybe (M r))
-    | OutputBroadcast Int (M r)
+    = OutputReceive Int (P r)
+    | OutputDeliver Int (Maybe (M r, P r))
+    | OutputBroadcast Int (M r, P r)
 {-@
 data Output r
     = OutputReceive
         { outputReceiveN::Nat
+        , outputReceiveProces::Psized r {outputReceiveN}
         }
     | OutputDeliver
         { outputDeliverN::Nat
-        , outputDeliverResult::Maybe (Msized r {outputDeliverN})
+        , outputDeliverResult::Maybe (Msized r {outputDeliverN}, Psized r {outputDeliverN})
         }
     | OutputBroadcast
         { outputBroadcastN::Nat
-        , outputBroadcastResult::Msized r {outputBroadcastN}
+        , outputBroadcastResult::(Msized r {outputBroadcastN}, Psized r {outputBroadcastN})
         }
 @-}
 
 {-@
 outputSize :: Output r -> Nat @-}
 outputSize :: Output r -> Int
-outputSize (OutputReceive n)   = n
+outputSize (OutputReceive n _)   = n
 outputSize (OutputDeliver n _)   = n
 outputSize (OutputBroadcast n _) = n
 {-@ measure outputSize @-}
 
-{-@ type Osized r N = {o:Output r | outputSize o == N} @-}
 
 
-
-
-{-@ type PasI r I = Psized r {inputSize I} @-}
-{-@ type OasI r I = Osized r {inputSize I} @-}
 
 {-@
-step :: i:Input r -> PasI r {i} -> (OasI r {i}, PasI r {i}) @-}
-step :: Input r -> P r -> (Output r, P r)
-step (InputReceive n m) p =
-    (OutputReceive n, internalReceive m p)
-step (InputBroadcast n r) p =
-    let (m, p') = internalBroadcast r p in
-    (OutputBroadcast n m, p')
-step (InputDeliver n) p =
-    case internalDeliver p of
-        Nothing -> (OutputDeliver n Nothing, p)
-        Just (m, p') -> (OutputDeliver n (Just m), p')
+step
+    ::   i:Input r
+    -> { o:Output r | inputSize i == outputSize o }
+@-}
+step :: Input r -> Output r
+step (InputReceive n m p)   = OutputReceive n (internalReceive m p)
+step (InputDeliver n p)     = OutputDeliver n (internalDeliver p)
+step (InputBroadcast n r p) = OutputBroadcast n (internalBroadcast r p)
 {-@ reflect step @-}
