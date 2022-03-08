@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 -- | A single definition about which we will be able to prove properties and
 -- say "CBCAST has these properties".
