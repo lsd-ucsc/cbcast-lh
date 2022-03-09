@@ -13,36 +13,35 @@ import MessagePassingAlgorithm.CBCAST
 
 
 data Input r
-    = InputReceive Int (M r) (P r)
-    | InputDeliver Int (P r)
-    | InputBroadcast Int r (P r)
+    = InputReceive Int (M r)
+    | InputDeliver Int
+    | InputBroadcast Int r
 {-@
 data Input r
     = InputReceive
         { inputReceiveN::Nat
         , inputReceiveMessage::Msized r {inputReceiveN}
-        , inputReceiveProcess::Psized r {inputReceiveN}
         }
     | InputDeliver
         { inputDeliverN::Nat
-        , inputDeliverProcess::Psized r {inputDeliverN}
         }
     | InputBroadcast
         { inputBroadcastN::Nat
         , inputBroadcastRaw::r
-        , inputBroadcastProcess::Psized r {inputBroadcastN}
         }
 @-}
 
 {-@
 inputSize :: Input r -> Nat @-}
 inputSize :: Input r -> Int
-inputSize (InputReceive n _ _)   = n
-inputSize (InputDeliver n _)     = n
-inputSize (InputBroadcast n _ _) = n
+inputSize (InputReceive n _)   = n
+inputSize (InputDeliver n)     = n
+inputSize (InputBroadcast n _) = n
 {-@ measure inputSize @-}
 
 {-@ type Isized r N = {i:Input r | inputSize i == N} @-}
+
+{-@ type PasI r I = Psized r {inputSize I} @-}
 
 
 
@@ -96,14 +95,15 @@ outputCommand OutputDeliver{} = CommandDeliver
 outputCommand OutputBroadcast{} = CommandBroadcast
 {-@ measure outputCommand @-}
 
-{-@ type OasI r I = {o:Osized r {inputSize I} | inputCommand I == outputCommand o} @-}
+-- {-@ type OasI r I = {o:Osized r {inputSize I} | inputCommand I == outputCommand o} @-}
+{-@ type OasI r I = Osized r {inputSize I} @-}
 
 
 
 
-{-@ step :: i:Input r -> OasI r {i} @-}
-step :: Input r -> Output r
-step (InputReceive n m p)   = OutputReceive n (internalReceive m p)
-step (InputDeliver n p)     = OutputDeliver n (internalDeliver p)
-step (InputBroadcast n r p) = OutputBroadcast n (internalBroadcast r p)
+{-@ step :: i:Input r -> PasI r {i} -> OasI r {i} @-}
+step :: Input r -> P r -> Output r
+step (InputReceive   n m) p = OutputReceive   n (internalReceive   m p)
+step (InputDeliver   n  ) p = OutputDeliver   n (internalDeliver     p)
+step (InputBroadcast n r) p = OutputBroadcast n (internalBroadcast r p)
 {-@ reflect step @-}
