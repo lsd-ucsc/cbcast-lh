@@ -2,7 +2,7 @@
 
 -- | A single definition about which we will be able to prove properties and
 -- say "CBCAST has these properties".
-module MessagePassingAlgorithm.CBCAST.Interpreter where
+module MessagePassingAlgorithm.CBCAST.Step where
 
 import Redefined
 import VectorClock

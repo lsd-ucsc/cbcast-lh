@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 -- Proof that step preserves PLCD.
-module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Step where
+module MessagePassingAlgorithm.CBCAST.Step.Verification where
 
 import Language.Haskell.Liquid.ProofCombinators
 
