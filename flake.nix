@@ -36,7 +36,7 @@
             with prev.haskell.lib; {
               cbcast-lh =
                 let
-                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "build-env" "*.cabal" "deploy/" ] ./.;
+                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "build-env" "*.cabal" "deploy/" "dist/" ] ./.;
                   drv = super.callCabal2nix "cbcast-lh" src { };
                 in
                 overrideCabal drv (old: {
