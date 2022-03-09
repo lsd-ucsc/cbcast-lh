@@ -42,6 +42,8 @@ inputSize (InputDeliver n _)     = n
 inputSize (InputBroadcast n _ _) = n
 {-@ measure inputSize @-}
 
+{-@ type Isized r N = {i:Input r | inputSize i == N} @-}
+
 
 
 
@@ -73,14 +75,33 @@ outputSize (OutputDeliver n _)   = n
 outputSize (OutputBroadcast n _) = n
 {-@ measure outputSize @-}
 
+{-@ type Osized r N = {o:Output r | outputSize o == N} @-}
 
 
 
-{-@
-step
-    ::   i:Input r
-    -> { o:Output r | inputSize i == outputSize o }
-@-}
+data Command
+    = CommandReceive
+    | CommandDeliver
+    | CommandBroadcast
+
+inputCommand :: Input r -> Command
+inputCommand InputReceive{} = CommandReceive
+inputCommand InputDeliver{} = CommandDeliver
+inputCommand InputBroadcast{} = CommandBroadcast
+{-@ measure inputCommand @-}
+
+outputCommand :: Output r -> Command
+outputCommand OutputReceive{} = CommandReceive
+outputCommand OutputDeliver{} = CommandDeliver
+outputCommand OutputBroadcast{} = CommandBroadcast
+{-@ measure outputCommand @-}
+
+{-@ type OasI r I = {o:Osized r {inputSize I} | inputCommand I == outputCommand o} @-}
+
+
+
+
+{-@ step :: i:Input r -> OasI r {i} @-}
 step :: Input r -> Output r
 step (InputReceive n m p)   = OutputReceive n (internalReceive m p)
 step (InputDeliver n p)     = OutputDeliver n (internalDeliver p)
