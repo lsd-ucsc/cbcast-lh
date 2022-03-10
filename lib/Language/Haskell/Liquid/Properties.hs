@@ -20,9 +20,10 @@ import Language.Haskell.Liquid.ProofCombinators
 {-@ type Total a R = x:a -> y:a -> {(R x y || R y x) && not (R x y && R y x)} @-}
 
 -- Preorder                  : Transitive, Reflexive
--- Partial order (non-strict): Transitive, Reflexive, Antisymmetric
--- Total order               : Transitive, Reflexive, Antisymmetric, Total
--- Partial order (strict)    : Transitive, (ONE-OF: Irreflexive, Asymmetric)
+-- Partial order (non-strict): Transitive,   Reflexive, Antisymmetric
+-- Partial order (strict)    : Transitive, Irreflexive, Antisymmetric
+-- Total order (non-strict)  : Transitive,   Reflexive, Antisymmetric, Total
+-- Total order (strict)      : Transitive, Irreflexive, Antisymmetric, Total
 -- Equivalence               : Transitive, Reflexive, Symmetric
 
 
