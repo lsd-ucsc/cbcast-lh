@@ -44,7 +44,7 @@ data P r = P {pVC::VC, pID::PID, pDQ::DQ r, pHist::H r}
 -- | The empty, initial, p₀, for processes.
 {-@
 pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
-pEmpty :: Int -> Fin -> P r
+pEmpty :: Int -> PID -> P r
 pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
 {-@ reflect pEmpty @-}
 

@@ -40,6 +40,7 @@ inputSize (InputBroadcast n _) = n
 {-@ measure inputSize @-}
 
 {-@ type Isized r N = {i:Input r | inputSize i == N} @-}
+{-@ type IasP r P = Isized r {len (pVC P)} @-}
 
 {-@ type PasI r I = Psized r {inputSize I} @-}
 

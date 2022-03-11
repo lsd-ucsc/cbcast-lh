@@ -7,6 +7,7 @@ import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined
 import VectorClock
+import MessagePassingAlgorithm
 import MessagePassingAlgorithm.VectorClockAdapter
 import MessagePassingAlgorithm.CBCAST
 import MessagePassingAlgorithm.CBCAST.Step
@@ -46,3 +47,52 @@ stepPLCDpres i p pCHA pPLCD = -- ∀ m m'
     InputReceive   n m -> receivePLCDpres   m   p      pPLCD ? (step i p === OutputReceive   n (internalReceive   m p))
     InputDeliver   n   -> deliverPLCDpres     n p pCHA pPLCD ? (step i p === OutputDeliver   n (internalDeliver     p))
     InputBroadcast n r -> broadcastPLCDpres r n p pCHA pPLCD ? (step i p === OutputBroadcast n (internalBroadcast r p))
+
+-- | Fold right over the inputs, applying them to the process. Since stepShim
+-- is inlined to LH, we have to fully apply it here by inlining foldr.
+{-@
+foldrInputs :: p:P r -> [IasP r {p}] -> PasP r {p} @-}
+foldrInputs :: P r -> [Input r] -> P r
+foldrInputs p [] = p
+foldrInputs p (x:xs) = stepShim x (foldrInputs p xs)
+{-@ reflect foldrInputs @-}
+
+data Reachable r = Reachable
+    { reachableN :: Int
+    , reachablePID :: PID
+    , reachableInputs :: [Input r]
+    , reachableProcess :: P r
+    }
+{-@
+data Reachable [reachableSize] r = Reachable
+    { reachableN :: Nat
+    , reachablePID :: PIDsized {reachableN}
+    , reachableInputs :: [Isized r {reachableN}]
+    , reachableProcess :: {p : Psized r {reachableN} | p == foldrInputs (pEmpty reachableN reachablePID) reachableInputs }
+    }
+@-}
+reachableSize :: Reachable r -> Int
+reachableSize (Reachable _ _ inputs _) = listLength inputs
+{-@ measure reachableSize @-}
+
+{-@
+reachableCHA :: p:Reachable r -> ClockHistoryAgreement {reachableProcess p} @-}
+reachableCHA :: Reachable r -> Proof
+reachableCHA (Reachable n p_id [] p) =
+    pEmptyCHA n p_id
+    ? (p === foldrInputs (pEmpty n p_id) [] {- === pEmpty n p_id -})
+reachableCHA (Reachable n p_id (x:xs) p) =
+    let previous = Reachable n p_id xs (foldrInputs (pEmpty n p_id) xs) in
+    stepCHApres x (reachableProcess previous) (reachableCHA previous)
+    ? (p === foldrInputs (pEmpty n p_id) (x:xs) {- === stepShim x (foldrInputs (pEmpty n p_id) xs) -})
+
+{-@
+reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
+reachablePLCD :: Eq r => Reachable r -> M r -> M r -> Proof
+reachablePLCD (Reachable n p_id [] p) =
+    pEmptyPLCD n p_id
+    ? (p === foldrInputs (pEmpty n p_id) [] {- === pEmpty n p_id -})
+reachablePLCD (Reachable n p_id (x:xs) p) =
+    let previous = Reachable n p_id xs (foldrInputs (pEmpty n p_id) xs) in
+    stepPLCDpres x (reachableProcess previous) (reachableCHA previous) (reachablePLCD previous)
+    ? (p === foldrInputs (pEmpty n p_id) (x:xs) {- === stepShim x (foldrInputs (pEmpty n p_id) xs) -})
