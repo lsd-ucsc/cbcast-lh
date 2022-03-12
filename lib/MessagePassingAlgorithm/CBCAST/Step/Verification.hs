@@ -113,7 +113,7 @@ reachableSize (Reachable _ _ inputs _) = listLength inputs
 {-@
 reachableCHA :: p:Reachable r -> ClockHistoryAgreement {reachableProcess p} @-}
 reachableCHA :: Reachable r -> Proof
-reachableCHA (Reachable n p_id xs p) =
+reachableCHA (Reachable n p_id xs _p) =
     reachableFromCHApres n xs (pEmpty n p_id) (pEmptyCHA n p_id)
 
 {-@
