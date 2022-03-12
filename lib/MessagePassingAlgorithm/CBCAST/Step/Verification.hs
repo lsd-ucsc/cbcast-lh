@@ -20,6 +20,11 @@ import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Receive
 import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver
 import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Broadcast
 
+
+
+
+-- * Step from satisfying
+
 -- | The step function but drops the output.
 {-@ stepShim :: i:Input r -> PasI r {i} -> PasI r {i} @-}
 stepShim :: Input r -> P r -> P r
@@ -48,6 +53,11 @@ stepPLCDpres i p pCHA pPLCD = -- ∀ m m'
     InputDeliver   n   -> deliverPLCDpres     n p pCHA pPLCD ? (step i p === OutputDeliver   n (internalDeliver     p))
     InputBroadcast n r -> broadcastPLCDpres r n p pCHA pPLCD ? (step i p === OutputBroadcast n (internalBroadcast r p))
 
+
+
+
+-- * Reachable from satisfying
+
 -- | Fold right over the inputs, applying them to the process. Since stepShim
 -- is inlined to LH, we have to fully apply it here by inlining foldr.
 {-@
@@ -56,6 +66,31 @@ foldrInputs :: P r -> [Input r] -> P r
 foldrInputs p [] = p
 foldrInputs p (x:xs) = stepShim x (foldrInputs p xs)
 {-@ reflect foldrInputs @-}
+
+flip :: (a -> b -> c) -> b -> a -> c
+flip f b a = f a b
+{-@ inline flip @-}
+
+{-@
+reachableFromCHApres :: n:Nat -> i:[Isized r {n}] -> CHApreservation r {n} {flip foldrInputs i} @-}
+reachableFromCHApres :: Int -> [Input r] -> P r -> Proof -> Proof
+reachableFromCHApres _n [] p pCHA =
+    pCHA
+    ? (foldrInputs p [] {- === p -})
+reachableFromCHApres n (x:xs) p pCHA =
+    let prev = foldrInputs p xs
+        prevCHA = reachableFromCHApres n xs p pCHA in
+    stepCHApres x prev prevCHA
+    ? (foldrInputs p (x:xs) {- === stepShim x (foldrInputs p xs) -})
+
+{-@
+reachableFromPLCDpres :: n:Nat -> i:[Isized r {n}] -> PLCDpreservation' r {n} {flip foldrInputs i} @-}
+reachableFromPLCDpres :: Int -> [Input r] -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+
+
+
+
+-- * Reachable from empty
 
 data Reachable r = Reachable
     { reachableN :: Int
@@ -78,13 +113,8 @@ reachableSize (Reachable _ _ inputs _) = listLength inputs
 {-@
 reachableCHA :: p:Reachable r -> ClockHistoryAgreement {reachableProcess p} @-}
 reachableCHA :: Reachable r -> Proof
-reachableCHA (Reachable n p_id [] p) =
-    pEmptyCHA n p_id
-    ? (p === foldrInputs (pEmpty n p_id) [] {- === pEmpty n p_id -})
-reachableCHA (Reachable n p_id (x:xs) p) =
-    let previous = Reachable n p_id xs (foldrInputs (pEmpty n p_id) xs) in
-    stepCHApres x (reachableProcess previous) (reachableCHA previous)
-    ? (p === foldrInputs (pEmpty n p_id) (x:xs) {- === stepShim x (foldrInputs (pEmpty n p_id) xs) -})
+reachableCHA (Reachable n p_id xs p) =
+    reachableFromCHApres n xs (pEmpty n p_id) (pEmptyCHA n p_id)
 
 {-@
 reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
