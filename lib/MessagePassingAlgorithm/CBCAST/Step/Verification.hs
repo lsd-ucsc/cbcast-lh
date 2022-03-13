@@ -79,13 +79,24 @@ reachableFromCHApres _n [] p pCHA =
     ? (foldrInputs p [] {- === p -})
 reachableFromCHApres n (x:xs) p pCHA =
     let prev = foldrInputs p xs
-        prevCHA = reachableFromCHApres n xs p pCHA in
+        prevCHA = reachableFromCHApres n xs p pCHA
+    in
     stepCHApres x prev prevCHA
     ? (foldrInputs p (x:xs) {- === stepShim x (foldrInputs p xs) -})
 
 {-@
-reachableFromPLCDpres :: n:Nat -> i:[Isized r {n}] -> PLCDpreservation' r {n} {flip foldrInputs i} @-}
-reachableFromPLCDpres :: Int -> [Input r] -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+reachableFromPLCDpres :: n:Nat -> i:[Isized r {n}] -> PLCDpreservation' r {n} {flip foldrInputs i} / [len i] @-}
+reachableFromPLCDpres :: Eq r => Int -> [Input r] -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+reachableFromPLCDpres _n [] p _pCHA pPLCD = -- ∀ m m'
+    pPLCD -- ∀ m m'
+    ? (foldrInputs p [] {- === p -})
+reachableFromPLCDpres n (x:xs) p pCHA pPLCD =
+    let prev = foldrInputs p xs
+        prevCHA = reachableFromCHApres n xs p pCHA
+        prevPLCD = reachableFromPLCDpres n xs p pCHA pPLCD
+    in
+    stepPLCDpres x prev prevCHA prevPLCD -- ∀ m m'
+    ? (foldrInputs p (x:xs) {- === stepShim x (foldrInputs p xs) -})
 
 
 
@@ -119,10 +130,5 @@ reachableCHA (Reachable n p_id xs _p) =
 {-@
 reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
 reachablePLCD :: Eq r => Reachable r -> M r -> M r -> Proof
-reachablePLCD (Reachable n p_id [] p) =
-    pEmptyPLCD n p_id
-    ? (p === foldrInputs (pEmpty n p_id) [] {- === pEmpty n p_id -})
-reachablePLCD (Reachable n p_id (x:xs) p) =
-    let previous = Reachable n p_id xs (foldrInputs (pEmpty n p_id) xs) in
-    stepPLCDpres x (reachableProcess previous) (reachableCHA previous) (reachablePLCD previous)
-    ? (p === foldrInputs (pEmpty n p_id) (x:xs) {- === stepShim x (foldrInputs (pEmpty n p_id) xs) -})
+reachablePLCD (Reachable n p_id xs _p) =
+    reachableFromPLCDpres n xs (pEmpty n p_id) (pEmptyCHA n p_id) (pEmptyPLCD n p_id)
