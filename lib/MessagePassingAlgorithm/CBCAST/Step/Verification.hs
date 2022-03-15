@@ -132,3 +132,112 @@ reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
 reachablePLCD :: Eq r => Reachable r -> M r -> M r -> Proof
 reachablePLCD (Reachable n p_id xs _p) =
     reachableFromPLCDpres n xs (pEmpty n p_id) (pEmptyCHA n p_id) (pEmptyPLCD n p_id)
+
+
+
+type C = Integer
+{-@ type C = {c:Integer | 0 <= c} @-}
+
+type Vc = [C]
+{-@ type Vc = [C] @-} -- This alias ensures vc contents are Integer|0<=n
+{-@ type VcN N = {v:Vc | len v == N} @-}
+{-@ type VcV V = VcN {len V} @-}
+
+type Pid = Int
+{-@ type PidN N = {p:Nat | p < N} @-}
+{-@ type PidV V = PidN {len V} @-}
+
+data Ev
+    = Bcast {bcastVC :: Vc}
+    | Deliv {delivVC :: Vc}
+{-@
+data Ev
+    = Bcast {bcastVC :: Vc}
+    | Deliv {delivVC :: Vc}
+@-}
+
+{-@ evVc :: Ev -> Vc @-}
+evVc :: Ev -> Vc
+evVc (Bcast v) = v
+evVc (Deliv v) = v
+{-@ measure evVc @-}
+
+{-@ type EvN N = {e:Ev | len (evVc e) == N } @-}
+{-@ type EvV V = EvN {len V} @-}
+{-@ type EvE E = EvV {evVc E} @-}
+
+{-@
+replicate' :: n:Nat -> a -> {xs:[a] | len xs == n} @-}
+replicate' :: Int -> a -> [a]
+replicate' 0 _x = []
+replicate' n x = x : replicate' (n - 1) x
+{-@ reflect replicate' @-}
+
+max' :: Ord a => a -> a -> a
+max' x y
+    | x < y = y
+    | otherwise = x
+{-@ reflect max' @-}
+
+{-@
+combine :: v:Vc -> VcV {v} -> VcV {v} @-}
+combine :: Vc -> Vc -> Vc
+combine [] [] = []
+combine (x:xs) (y:ys) = (max' x y) : combine xs ys
+{-@ reflect combine @-}
+
+{-@
+histVC :: n:Nat -> [EvN {n}] -> VcN {n} @-}
+histVC :: Int -> [Ev] -> Vc
+histVC n [] = replicate' n 0
+histVC n (Bcast _:es) = histVC n es
+histVC n (Deliv v:es) = combine v (histVC n es)
+{-@ reflect histVC @-}
+
+data HistoryClock = HistoryClock
+    { vc :: Vc
+    , pid :: Pid
+    , hist :: [Ev]
+    }
+{-@
+data HistoryClock = HistoryClock
+    { vc :: Vc
+    , pid :: PidV {vc}
+    , hist :: {h:[EvV {vc}] | histVC (len vc) h == vc}
+    }
+@-}
+
+{-@ type HcN N = {h:HistoryClock | len (vc h) == N} @-}
+{-@ type HcV V = HcN {len V} @-}
+{-@ type HcH H = HcV {vc H} @-}
+
+{-@ type VcH H = VcV {vc H} @-}
+
+{-@
+tick :: v:Vc -> PidV {v} -> VcV {v} @-}
+tick :: Vc -> Pid -> Vc
+tick (x:xs) 0 = (x + 1):xs
+tick (x:xs) n = x:tick xs (n - 1)
+{-@ reflect tick @-}
+
+-- | Record a broadcast event in the history and return its clock.
+{-@
+bcast :: h:HistoryClock -> (VcH {h}, HcH {h}) @-}
+bcast :: HistoryClock -> (Vc, HistoryClock)
+bcast h =
+    let vc' = tick (vc h) (pid h) in
+    ( vc'
+    , h{hist = Bcast vc':hist h}
+    )
+{-@ ple bcast @-} -- histVC n (Bcast v:h) === histVC n h
+{-@ reflect bcast @-}
+
+{-@
+deliv :: v:Vc -> HcV {v} -> HcV {v} @-}
+deliv :: Vc -> HistoryClock -> HistoryClock
+deliv v h = h
+    { vc = combine v (vc h)
+    , hist = Deliv v:hist h
+    }
+{-@ ple deliv @-} -- histVC n (Deliv v:h) === combine v (histVC n h)
+{-@ reflect deliv @-}
