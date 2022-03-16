@@ -19,7 +19,7 @@ $(CONFIG_FILE): $(CABAL_FILE)
 	$(SETUP_CMD) configure --enable-tests
 
 check: clean
-	if grep '==!\|Admit\|undefined\|--check-var' -r lib/; then \
+	if grep '==!\|Admit\|undefined\|--check-var\|--skip-module' -r lib/; then \
 		echo Found banned identifiers; false; \
 	fi
 	make build

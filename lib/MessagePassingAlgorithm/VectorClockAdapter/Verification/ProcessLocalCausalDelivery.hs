@@ -4,6 +4,7 @@
 module MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery where
 
 import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.Properties
 
 import Redefined
 import VectorClock
@@ -69,3 +70,61 @@ extendProcessOrder h e₁ e₂ e₃
   where premiseLemma
     {-restate premise-}                 =   processOrder h e₁ e₂
     {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ h)
+
+
+
+
+-- * procesOrder strict total order
+
+{-@ type UniqueProcessHistory mm r = ProcessHistory<{\x y -> x /= y}> mm r @-}
+
+{-@
+processOrder2 :: UniqueProcessHistory mm r -> _ -> _ -> _ @-}
+processOrder2 :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Bool
+processOrder2 hist e e' = listElem e (listTailForHead e' hist)
+{-@ reflect processOrder2 @-}
+
+{-@
+uniqueListHeadNotInTail' :: {xs:[a]<{\j k -> j /= k}> | xs /= []} -> {not (listElem (head xs) (tail xs))} @-}
+uniqueListHeadNotInTail' :: Eq a => [a] -> Proof
+uniqueListHeadNotInTail' (x:xs) = uniqueListHeadNotInTail x xs
+
+-- | The head is not in the tail of a list containing unique elements. This
+-- type looks weird, but the relationship between e and xs is exactly what a
+-- unique list expresses (see (uniqueListHeadNotInTail'@). The purpose of
+-- keeping this lemma around is it allows callers to call with arguments that
+-- don't prove the list is nonempty.
+{-@
+uniqueListHeadNotInTail :: e:a -> xs:[{x:a | e /= x}] -> {not (listElem e xs)} @-}
+uniqueListHeadNotInTail :: Eq a => a -> [a] -> Proof
+uniqueListHeadNotInTail e [] = listElem e [] *** QED
+uniqueListHeadNotInTail e (x:xs) =
+        listElem e (x:xs)
+    === (e==x || listElem e xs)
+    === listElem e xs
+        ? uniqueListHeadNotInTail e xs
+    *** QED
+
+{-@
+processOrder2IrreflexiveNoPLE :: hs:UniqueProcessHistory mm r -> Irreflexive (Event mm r) {processOrder2 hs} @-}
+processOrder2IrreflexiveNoPLE :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Proof
+processOrder2IrreflexiveNoPLE [] e =
+    {-restate part of conclusion-}      processOrder2 [] e e
+    {-by def of processOrder2-}     === listElem e (listTailForHead e [])
+    {-by def of listTailForHead-}   === listElem e []
+    {-by def of listElem-}          === False
+                                    *** QED
+processOrder2IrreflexiveNoPLE (h:hs) e
+  | e == h =
+    {-restate part of conclusion-}      processOrder2 (h:hs) e e
+    {-by def of processOrder2-}     === listElem e (listTailForHead e (h:hs))
+    {-by def of listTailForHead-}   === listElem e hs
+    ? uniqueListHeadNotInTail h hs  === False
+                                    *** QED
+  | e /= h =
+    {-restate part of conclusion-}              processOrder2 (h:hs) e e
+    {-by def of processOrder2-}             === listElem e (listTailForHead e (h:hs))
+    {-by def of listTailForHead-}           === listElem e (listTailForHead e hs)
+    {-by def of processORder2-}             === processOrder2 hs e e
+    ? processOrder2IrreflexiveNoPLE hs e    === False
+                                            *** QED
