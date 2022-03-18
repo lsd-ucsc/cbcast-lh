@@ -85,28 +85,6 @@ processOrder2 hist e e' = listElem e (listTailForHead e' hist)
 {-@ reflect processOrder2 @-}
 
 {-@
-uniqueListHeadNotInTail' :: {xs:[a]<{\j k -> j /= k}> | xs /= []} -> {not (listElem (head xs) (tail xs))} @-}
-uniqueListHeadNotInTail' :: Eq a => [a] -> Proof
-uniqueListHeadNotInTail' (x:xs) = uniqueListHeadNotInTail x xs
-
--- | The head is not in the tail of a list containing unique elements. This
--- type looks weird, but the relationship between e and xs is exactly what a
--- unique list expresses (see (uniqueListHeadNotInTail'@). The purpose of
--- keeping this lemma around is it allows callers to call with arguments that
--- don't prove the list is nonempty.
-{-@
-uniqueListHeadNotInTail
-    :: e:a -> xs:[{x:a | e /= x}] -> {not (listElem e xs)} @-}
-uniqueListHeadNotInTail :: Eq a => a -> [a] -> Proof
-uniqueListHeadNotInTail e [] = listElem e [] *** QED
-uniqueListHeadNotInTail e (x:xs) =
-        listElem e (x:xs)
-    === (e==x || listElem e xs)
-    === listElem e xs
-        ? uniqueListHeadNotInTail e xs
-    *** QED
-
-{-@
 processOrder2IrreflexiveNoPLE :: hs:UniqueProcessHistory mm r -> Irreflexive (Event mm r) {processOrder2 hs} @-}
 processOrder2IrreflexiveNoPLE :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Proof
 processOrder2IrreflexiveNoPLE [] e =
@@ -134,18 +112,18 @@ processOrder2IrreflexiveNoPLE (h:hs) e
 {-@
 processOrder2Irreflexive :: hs:UniqueProcessHistory mm r -> Irreflexive (Event mm r) {processOrder2 hs} @-}
 processOrder2Irreflexive :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Proof
-processOrder2Irreflexive [] _e = ()
+processOrder2Irreflexive [] _e = () -- trivially ¬(e∈[]) holds
 processOrder2Irreflexive (h:hs) e
-    | e == h = uniqueListHeadNotInTail h hs
-    | e /= h = processOrder2Irreflexive hs e
+    | e == h = uniqueListHeadNotInTail h hs -- uniqueness premise means e≡h ⇒ ¬(e∈hs)
+    | e /= h = processOrder2Irreflexive hs e -- inductive assumption
 
 {-@ ple processOrder2Transitive @-}
 {-@
 processOrder2Transitive :: hs:UniqueProcessHistory mm r -> Transitive (Event mm r) {processOrder2 hs} @-}
 processOrder2Transitive :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Event mm r -> Proof
-processOrder2Transitive [] _e₁ e₂ _e₃ = impossible $ listElem e₂ [] -- contradicts premise e₂→e₃
+processOrder2Transitive [] _e₁ e₂ _e₃ = impossible $ listElem e₂ [] -- empty history contradicts premise e₂→e₃
 processOrder2Transitive (h:hs) e₁ e₂ e₃
-  | e₂ == h && e₃ == h = impossible $ processOrder2Irreflexive (h:hs) h -- contradicts premise e₂→e₃
-  | e₂ == h && e₃ /= h = impossible $ truncateElemTail4Head e₂ e₃ hs &&& uniqueListHeadNotInTail e₂ hs -- in this case e₂≡h ∧ e₂∈hs
-  | e₂ /= h && e₃ == h = truncateElemTail4Head e₁ e₂ hs -- in this case tail4e₃≡hs so show e₁∈hs
+  | e₂ == h && e₃ == h = impossible $ processOrder2Irreflexive (h:hs) h -- irreflexivity contradicts premise e₂→e₃
+  | e₂ == h && e₃ /= h = impossible $ truncateElemTail4Head e₂ e₃ hs &&& uniqueListHeadNotInTail e₂ hs -- e₂∈hs contradicts uniqueness premise
+  | e₂ /= h && e₃ == h = truncateElemTail4Head e₁ e₂ hs -- tail4e₃≡hs so show e₁∈hs
   | e₂ /= h && e₃ /= h = processOrder2Transitive hs e₁ e₂ e₃ -- neither element is at the head of history, so use the inductive assumption

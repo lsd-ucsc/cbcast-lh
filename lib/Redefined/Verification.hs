@@ -6,6 +6,8 @@ import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined
 
+-- * proofs about lists
+
 -- | If e is in x:xs but e isn't x then e is in xs.
 --
 -- ∀e,x,xs. e∈x:xs ∧ e≠x ⇒ e∈xs
@@ -99,3 +101,27 @@ extendElemTail4Head e h xs w -- by cases of listTailForHead
         {-by def of listTailForhead-}   === listElem e (if h==w then xs else listTailForHead h xs)
         {-simplify IfThenElse-}         === listElem e (listTailForHead h xs)
                                         *** QED
+
+-- * proofs about lists of unique elements
+
+{-@
+uniqueListHeadNotInTail' :: {xs:[a]<{\j k -> j /= k}> | xs /= []} -> {not (listElem (head xs) (tail xs))} @-}
+uniqueListHeadNotInTail' :: Eq a => [a] -> Proof
+uniqueListHeadNotInTail' (x:xs) = uniqueListHeadNotInTail x xs
+
+-- | The head is not in the tail of a list containing unique elements. This
+-- type looks weird, but the relationship between e and xs is exactly what a
+-- unique list expresses (see (uniqueListHeadNotInTail'@). The purpose of
+-- keeping this lemma around is it allows callers to call with arguments that
+-- don't prove the list is nonempty.
+{-@
+uniqueListHeadNotInTail
+    :: e:a -> xs:[{x:a | e /= x}] -> {not (listElem e xs)} @-}
+uniqueListHeadNotInTail :: Eq a => a -> [a] -> Proof
+uniqueListHeadNotInTail e [] = listElem e [] *** QED
+uniqueListHeadNotInTail e (x:xs) =
+        listElem e (x:xs)
+    === (e==x || listElem e xs)
+    === listElem e xs
+        ? uniqueListHeadNotInTail e xs
+    *** QED
