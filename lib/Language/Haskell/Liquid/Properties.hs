@@ -17,14 +17,16 @@ import Language.Haskell.Liquid.ProofCombinators
 {-@ type Antisymmetric a R = x:a -> {y:a | R x y && R y x} -> {x == y} @-}
 
 {-@ type Transitive a R = x:a -> {y:a | R x y} -> {z:a | R y z} -> {R x z} @-}
-{-@ type Total a R = x:a -> y:a -> {(R x y || R y x) && not (R x y && R y x)} @-}
 
--- Preorder                  : Transitive, Reflexive
--- Partial order (non-strict): Transitive,   Reflexive, Antisymmetric
--- Partial order (strict)    : Transitive, Irreflexive, Antisymmetric
--- Total order (non-strict)  : Transitive,   Reflexive, Antisymmetric, Total
--- Total order (strict)      : Transitive, Irreflexive, Antisymmetric, Total
--- Equivalence               : Transitive, Reflexive, Symmetric
+{-@ type         Connected a R = x:a -> {y:a | x /= y} -> {R x y || R y x} @-}
+{-@ type StronglyConnected a R = x:a ->  y:a           -> {R x y || R y x} @-}
+
+-- Pre-    order              : Transitive,   Reflexive
+-- Partial order (non-strict) : Transitive,   Reflexive, Antisymmetric
+-- Partial order     (strict) : Transitive, Irreflexive, Antisymmetric
+-- Total   order (non-strict) : Transitive,   Reflexive, Antisymmetric, Strongly Connected
+-- Total   order     (strict) : Transitive, Irreflexive, Connected
+-- Equivalence                : Transitive,   Reflexive, Symmetric
 
 
 
