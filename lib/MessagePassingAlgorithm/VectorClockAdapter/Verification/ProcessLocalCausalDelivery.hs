@@ -127,3 +127,13 @@ processOrder2Transitive (h:hs) e₁ e₂ e₃
   | e₂ == h && e₃ /= h = impossible $ truncateElemTail4Head e₂ e₃ hs &&& uniqueListHeadNotInTail e₂ hs -- e₂∈hs contradicts uniqueness premise
   | e₂ /= h && e₃ == h = truncateElemTail4Head e₁ e₂ hs -- tail4e₃≡hs so show e₁∈hs
   | e₂ /= h && e₃ /= h = processOrder2Transitive hs e₁ e₂ e₃ -- neither element is at the head of history, so use the inductive assumption
+
+{-@ ple processOrder2Connected @-}
+{-@
+processOrder2Connected :: hs:UniqueProcessHistory mm r -> Connected ({e:Event mm r | listElem e hs}) {processOrder2 hs} @-}
+processOrder2Connected :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Proof
+processOrder2Connected [] _e₁ e₂ = impossible $ listElem e₂ [] -- empty history contradicts premise e₁∈hist
+processOrder2Connected (h:hs) e₁ e₂
+  | e₁ == h && e₂ /= h = processOrder2 (h:hs) e₂ e₁ ? tailElem e₂ h hs *** QED
+  | e₁ /= h && e₂ == h = processOrder2 (h:hs) e₁ e₂ ? tailElem e₁ h hs *** QED
+  | e₁ /= h && e₂ /= h = processOrder2Connected hs e₁ e₂ -- neither element is at the front of history so use the inductive assumption
