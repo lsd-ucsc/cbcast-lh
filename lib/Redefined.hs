@@ -135,3 +135,34 @@ listZipWith3 :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
 listZipWith3 _ [] [] [] = []
 listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
 {-@ reflect listZipWith3 @-}
+
+
+
+
+-- * Unique lists
+
+{-@ type UniqueList a = [a]<{\j k -> j /= k}> @-}
+
+-- | Push evidence @not (listElem e xs)@ into the type parameter of @xs@ such
+-- that the result is type @[{x:a | e /= x}]@.
+{-@
+uniqueListConsable
+    :: e:a
+    -> {xs:UniqueList a | not (listElem e xs)}
+    -> {ys:UniqueList ({y:a | e /= y}) | xs == ys}
+@-}
+uniqueListConsable :: Eq a => a -> [a] -> [a]
+uniqueListConsable _e [] = []
+uniqueListConsable e (x:xs) = x : uniqueListConsable e xs
+{-@ ple uniqueListConsable @-} -- e≠x ∧ ¬(e∈xs)
+{-@ reflect uniqueListConsable @-}
+
+{-@
+uCons
+    ::   e:a
+    -> {xs:UniqueList a | not (listElem e xs)}
+    -> {ys:UniqueList a | ys == cons e xs}
+@-}
+uCons :: Eq a => a -> [a] -> [a]
+uCons e xs = e : uniqueListConsable e xs
+{-@ reflect uCons @-}
