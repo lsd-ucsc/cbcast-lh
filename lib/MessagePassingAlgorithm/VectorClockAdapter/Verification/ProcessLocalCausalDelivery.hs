@@ -15,9 +15,8 @@ import Redefined.Verification
 
 {-@
 type ProcessLocalCausalDelivery r PID PHIST
-    =  {m1 : Message VCMM r | listElem (Deliver PID m1) PHIST }
-    -> {m2 : Message VCMM r | listElem (Deliver PID m2) PHIST
-                && len (mVC m1) == len (mVC m2)
+    =  {m1 : M r         | listElem (Deliver PID m1) PHIST }
+    -> {m2 : MasM r {m1} | listElem (Deliver PID m2) PHIST
                 && vcLess (mVC m1) (mVC m2) }
     -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
 @-}
@@ -28,7 +27,7 @@ type ProcessLocalCausalDelivery r PID PHIST
 {-@ ple emptyPHistObservesPLCD @-}
 {-@
 emptyPHistObservesPLCD :: p:_ -> ProcessLocalCausalDelivery r {p} {[]} @-}
-emptyPHistObservesPLCD :: PID -> Message VCMM r -> Message VCMM r -> Proof
+emptyPHistObservesPLCD :: PID -> M r -> M r -> Proof
 emptyPHistObservesPLCD _p _m1 _m2 = ()
 
 
