@@ -61,18 +61,18 @@ processOrder hist e e' = listElem e (listTailForHead e' hist)
 -- ∀e₁,e₂,e₃,h. e₁→e₂ in h ⇒ e₁→e₂ in e₃:h
 {-@
 extendProcessOrder
-    ::    h:UniqueProcessHistory mm r
+    ::    h:_
     ->   e1:_
     -> { e2:_ | processOrder h e1 e2 }
-    -> { e3:_ | not (listElem e3 h) }
+    ->   e3:_
     -> { processOrder (cons e3 h) e1 e2 }
 @-}
 extendProcessOrder :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Event mm r -> Proof
 extendProcessOrder h e₁ e₂ e₃
     {-restate premise-}                 =   processOrder h e₁ e₂
     {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ h)
-    ? extendElemTail4Head e₁ e₂ h e₃    === listElem e₁ (listTailForHead e₂ (e₃ `uCons` h))
-    {-restate conclusion-}              === processOrder (e₃ `uCons` h) e₁ e₂
+    ? extendElemTail4Head e₁ e₂ h e₃    === listElem e₁ (listTailForHead e₂ (e₃ : h))
+    {-restate conclusion-}              === processOrder (e₃ : h) e₁ e₂
                                         *** QED
 
 
