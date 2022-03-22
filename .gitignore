@@ -2,7 +2,6 @@
 *.svg
 *.swp
 .liquid/
-Setup.hs
 dist-newstyle/
 dist/
 *.svg
