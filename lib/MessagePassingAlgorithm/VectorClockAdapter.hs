@@ -1,7 +1,9 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 -- | Types and functions to use vector clocks in a message passing algorithm.
 module MessagePassingAlgorithm.VectorClockAdapter where
 
+import Redefined
 import VectorClock
 import MessagePassingAlgorithm
 
@@ -90,3 +92,27 @@ coerce :: m:Message VCMM r -> {m':Message (VCMMasM {m}) r | m == m'} @-}
 coerce :: Message VCMM r -> Message VCMM r
 coerce (Message a b) = Message a b
 {-@ reflect coerce @-}
+
+
+
+
+-- * Hist VC
+
+-- CHA_MIGRATION: This isn't part of the implementation. It is used as in a
+-- constraint on the Process structure.
+
+-- | The supremum of vector clocks on delivered messages in a process history.
+{-@
+histVC :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
+histVC :: Int -> H r -> VC
+histVC n [] = vcEmpty n
+histVC n (Broadcast{}:es) = histVC n es
+histVC n (e@Deliver{}:es) = mVC (eventMessage n e) `vcCombine` histVC n es
+{-@ reflect histVC @-}
+
+{-@
+eventMessage :: n:Nat -> Event (VCMMsized {n}) r -> Msized r {n} @-}
+eventMessage :: Int -> Event VCMM r -> M r
+eventMessage _n (Broadcast (Message a b)) = Message a b
+eventMessage _n (Deliver _pid (Message a b)) = Message a b
+{-@ reflect eventMessage @-}

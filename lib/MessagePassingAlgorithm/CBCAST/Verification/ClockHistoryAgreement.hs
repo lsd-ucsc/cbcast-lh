@@ -37,41 +37,23 @@ pEmptyCHA :: Int -> Fin -> Proof
 pEmptyCHA n p_id =
     let p = pEmpty n p_id in
         pHistVC p `vcLessEqual` pVC p -- restate conclusion
-    === vcEmpty n `vcLessEqual` vcEmpty n -- by def of pEmpty,pHistVC,pHistVCHelper
+    === vcEmpty n `vcLessEqual` vcEmpty n -- by def of pEmpty,pHistVC,histVC
         ? vcLessEqualReflexive (vcEmpty n)
     *** QED
 
 
 
 
--- * Hist VC
+-- * Hist VC lemmas
 
--- | The supremum of vector clocks on delivered messages in a process history.
+-- CHA_MIGRATION: This doesn't need it's own name anymore. Also, the
+-- implementation is in MPA.VCA now.
 {-@
 pHistVC :: p:P r -> VCasP {p} @-}
 pHistVC :: P r -> VC
-pHistVC p = pHistVCHelper (listLength (pVC p)) (pHist p)
+pHistVC p = histVC (listLength (pVC p)) (pHist p)
 {-@ reflect pHistVC @-}
 
-{-@
-pHistVCHelper :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
-pHistVCHelper :: Int -> H r -> VC
-pHistVCHelper n [] = vcEmpty n
-pHistVCHelper n (Broadcast{}:es) = pHistVCHelper n es
-pHistVCHelper n (e@Deliver{}:es) = mVC (eventMessage n e) `vcCombine` pHistVCHelper n es
-{-@ reflect pHistVCHelper @-}
-
-{-@
-eventMessage :: n:Nat -> Event (VCMMsized {n}) r -> Msized r {n} @-}
-eventMessage :: Int -> Event VCMM r -> M r
-eventMessage _n (Broadcast (Message a b)) = Message a b
-eventMessage _n (Deliver _pid (Message a b)) = Message a b
-{-@ reflect eventMessage @-}
-
-
-
-
--- * Hist VC lemmas
 
 isBroadcast :: Event m r -> Bool
 isBroadcast Broadcast{} = True
@@ -109,12 +91,12 @@ pHistVC_unfoldDeliver n p₀ m@(Message x y) e@Deliver{} p₁ =
         === m
     in
         pHistVC p₁
-    === pHistVCHelper (listLength (pVC p₁)) (pHist p₁)
-    === pHistVCHelper n (e : pHist p₀)
-    === mVC (eventMessage n e) `vcCombine` pHistVCHelper n (pHist p₀)
+    === histVC (listLength (pVC p₁)) (pHist p₁)
+    === histVC n (e : pHist p₀)
+    === mVC (eventMessage n e) `vcCombine` histVC n (pHist p₀)
         ? eventMessageBody
-    === mVC m `vcCombine` pHistVCHelper n (pHist p₀)
-    === mVC m `vcCombine` pHistVCHelper (listLength (pVC p₀)) (pHist p₀)
+    === mVC m `vcCombine` histVC n (pHist p₀)
+    === mVC m `vcCombine` histVC (listLength (pVC p₀)) (pHist p₀)
     === mVC m `vcCombine` pHistVC p₀
     *** QED
 
@@ -136,11 +118,11 @@ pHistVC_unfoldBroadcast _n _p₀ m e@Deliver{} _p₁
     $ e === Broadcast m -- restate (failed) premise
 pHistVC_unfoldBroadcast n p₀ _m e@Broadcast{} p₁ =
         pHistVC p₁
-    === pHistVCHelper (listLength (pVC p₁)) (pHist p₁)
-    === pHistVCHelper n (e : pHist p₀)
-        --- by def of pHistVCHelper which skips over Broadcasts
-    === pHistVCHelper n (pHist p₀)
-    === pHistVCHelper (listLength (pVC p₀)) (pHist p₀)
+    === histVC (listLength (pVC p₁)) (pHist p₁)
+    === histVC n (e : pHist p₀)
+        --- by def of histVC which skips over Broadcasts
+    === histVC n (pHist p₀)
+    === histVC (listLength (pVC p₀)) (pHist p₀)
     === pHistVC p₀
     *** QED
 -- QQQ: Does this definition pass when you add a check-var annotation for it?
@@ -157,8 +139,8 @@ histElemLessEqualHistVC
 histElemLessEqualHistVC :: Eq r => Int -> Event VCMM r -> P r -> Proof
 histElemLessEqualHistVC n e p =
         mVC (eventMessage n e) `vcLessEqual` pHistVC p -- restate conclusion
-    === mVC (eventMessage n e) `vcLessEqual` pHistVCHelper (listLength (pVC p)) (pHist p) -- by def of pHistVC
-    === mVC (eventMessage n e) `vcLessEqual` pHistVCHelper n (pHist p) -- by premise about VC sizes
+    === mVC (eventMessage n e) `vcLessEqual` histVC (listLength (pVC p)) (pHist p) -- by def of pHistVC
+    === mVC (eventMessage n e) `vcLessEqual` histVC n (pHist p) -- by premise about VC sizes
         ? histElemLessEqualHistVC_lemma n e (pHist p)
     *** QED
 
@@ -167,7 +149,7 @@ histElemLessEqualHistVC_lemma
     ::     n:Nat
     -> {   e:Event (VCMMsized {n}) r | isDeliver e }
     -> { hhs:Hsized r {n} | listElem e hhs }
-    -> { vcLessEqual (mVC (eventMessage n e)) (pHistVCHelper n hhs) }
+    -> { vcLessEqual (mVC (eventMessage n e)) (histVC n hhs) }
 @-}
 histElemLessEqualHistVC_lemma :: Eq r => Int -> Event VCMM r -> H r -> Proof
 histElemLessEqualHistVC_lemma _n e@Deliver{} [] =
@@ -180,8 +162,8 @@ histElemLessEqualHistVC_lemma n e@Deliver{} (h@Broadcast{}:hs) =
                                             *** QED
   where
     eVC = mVC (eventMessage n e)
-    hsVC = pHistVCHelper n hs
-    hhsVC = pHistVCHelper n (h:hs)
+    hsVC = histVC n hs
+    hhsVC = histVC n (h:hs)
         === hsVC -- h is Broadcast
 
 histElemLessEqualHistVC_lemma n e@Deliver{} (h@Deliver{}:hs)
@@ -199,6 +181,6 @@ histElemLessEqualHistVC_lemma n e@Deliver{} (h@Deliver{}:hs)
   where
     eVC = mVC (eventMessage n e)
     hVC = mVC (eventMessage n h)
-    hsVC = pHistVCHelper n hs
-    hhsVC = pHistVCHelper n (h:hs)
+    hsVC = histVC n hs
+    hhsVC = histVC n (h:hs)
         === hVC `vcCombine` hsVC -- h is Deliver
