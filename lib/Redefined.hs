@@ -5,6 +5,15 @@ module Redefined where
 
 
 
+-- * Identity
+
+identity :: a -> a
+identity x = x
+{-@ inline identity @-}
+
+
+
+
 -- * Ord
 
 -- | Implementation of 'max' lifted to specifications.

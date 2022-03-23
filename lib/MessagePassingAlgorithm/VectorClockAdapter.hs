@@ -29,6 +29,9 @@ type M r = Message VCMM r
 -- | Vector clock sized to a message that uses VCs.
 {-@ type VCasM M = VCsized {len (mVC M)} @-}
 
+-- | PID sized to a message that uses VCs.
+{-@ type PIDasM M = PIDsized {len (mVC M)} @-}
+
 -- | ProcessHistory in an MPA that uses VCs.
 type H r = ProcessHistory VCMM r
 {-@ type Hsized r N = ProcessHistory (VCMMsized {N}) r @-}

@@ -28,17 +28,8 @@ type PLCDpreservation r N OP
     -> PLCD r {OP p}
 @-}
 
--- | PLCD preservation with an extra CHA precondition.
-{-@
-type PLCDpreservation' r N OP
-    =  p:Psized r {N}
-    -> ClockHistoryAgreement {p}
-    -> PLCD r {p}
-    -> PLCD r {OP p}
-@-}
-
 -- | The empty CBCAST process observes PLCD. This proof is in this module
--- because it exercises the definition of CHA and forces LH to resolve all the
+-- because it exercises the definition of PLCD and forces LH to resolve all the
 -- symbols.
 {-@ ple pEmptyPLCD @-}
 {-@

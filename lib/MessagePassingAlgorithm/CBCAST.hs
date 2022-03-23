@@ -25,9 +25,15 @@ type DQ r = [M r]
 
 -- | Process structure with an explicit history of local broadcast and delivery
 -- events.
-{-@
-data P r = P {pVC::VC, pID::PIDasV {pVC}, pDQ::DQsized r {len pVC}, pHist::Hsized r {len pVC}} @-}
 data P r = P {pVC::VC, pID::PID, pDQ::DQ r, pHist::H r}
+{-@
+data P r = P
+    { pVC :: VC
+    , pID :: PIDasV {pVC}
+    , pDQ :: DQsized r {len pVC}
+    , pHist :: {h:Hsized r {len pVC} | histVC (len pVC) h == pVC}
+    }
+@-}
 {-@ type Psized r N = {p:P r | len (pVC p) == N} @-}
 {-@ type PasP r P = Psized r {len (pVC P)} @-}
 {-@ type PasM r M = Psized r {len (mVC M)} @-}
@@ -45,7 +51,13 @@ data P r = P {pVC::VC, pID::PID, pDQ::DQ r, pHist::H r}
 {-@
 pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
 pEmpty :: Int -> PID -> P r
-pEmpty n p_id = P{pVC=vcEmpty n, pID=p_id, pDQ=[], pHist=[]}
+pEmpty n p_id = P
+    { pVC = vcEmpty n
+    , pID = p_id
+    , pDQ = []
+    , pHist = []
+        `proofConst` pEmptyCHA n -- CHA_MIGRATION
+    }
 {-@ reflect pEmpty @-}
 
 
@@ -125,6 +137,7 @@ internalDeliver p =
             { pVC = vcCombine (mVC m) (pVC p) -- Could use tick here.
             , pDQ = pDQ'
             , pHist = Deliver (pID p) (coerce m) : pHist p
+                `proofConst` internalDeliverCHA m (pID p) (pVC p) (pHist p) -- CHA_MIGRATION
             })
 {-@ reflect internalDeliver @-}
 
@@ -159,8 +172,67 @@ broadcastHelper_injectMessage :: M r -> P r -> P r
 broadcastHelper_injectMessage m p = p
     { pDQ = m : pDQ p
     , pHist = Broadcast (coerce m) : pHist p
+        `proofConst` internalBroadcastCHA m (pVC p) (pHist p) -- CHA_MIGRATION
     }
 {-@ reflect broadcastHelper_injectMessage @-}
+
+
+
+
+-- * Clock-history agreement
+
+-- CHA_MIGRATION: This isn't part of the implementation. It is used as in a
+-- constraint on the Process structure.
+
+{-@ cha2predicate :: v:VC -> Hsized r {len v} -> Bool @-}
+cha2predicate :: VC -> H r -> Bool
+cha2predicate v h =
+    v == histVC (listLength v) h
+{-@ inline cha2predicate @-}
+
+{-@ type CHA2property V H =
+        {_ : Proof | cha2predicate V H } @-}
+
+{-@ pEmptyCHA :: n:Nat -> CHA2property {vcEmpty n} {[]} @-} -- CHA_MIGRATION
+pEmptyCHA :: Int -> Proof
+pEmptyCHA n =
+        histVC n []
+    === vcEmpty n
+    *** QED
+
+{-@ type CHA2preservation N VF HF =
+        v:VCsized {N} -> {h:Hsized r {N} | cha2predicate v h} -> CHA2property {VF v} {HF h} @-}
+
+{-@
+internalDeliverCHA
+    ::    m:M r
+    -> p_id:PIDasM {m}
+    -> CHA2preservation {len (mVC m)} {vcCombine (mVC m)} {cons (Deliver p_id m)} @-}
+internalDeliverCHA :: M r -> PID -> VC -> H r -> Proof
+internalDeliverCHA m p_id p_vc p_hist =
+    let
+    p_vc' = vcCombine (mVC m) p_vc
+    n = listLength p_vc'
+    e = Deliver p_id (coerce m)
+    in
+        histVC n (e : p_hist)
+    === mVC (eventMessage n e) `vcCombine` histVC n p_hist
+    === mVC m `vcCombine`  p_vc
+    *** QED
+
+{-@
+internalBroadcastCHA
+    ::    m:M r
+    -> CHA2preservation {len (mVC m)} {identity} {cons (Broadcast m)} @-}
+internalBroadcastCHA :: M r -> VC -> H r -> Proof
+internalBroadcastCHA m p_vc p_hist =
+    let
+    n = listLength p_vc
+    e = Broadcast (coerce m)
+    in
+        histVC n (e : p_hist)
+    === p_vc
+    *** QED
 
 
 
@@ -202,6 +274,7 @@ broadcastAlwaysDelivers raw p₀ =
                 { pVC = vcCombine (mVC m) (pVC p₁)
                 , pDQ = pDQ p₀
                 , pHist = Deliver (pID p₁) (coerce m) : pHist p₁
+                    `proofConst` internalDeliverCHA m (pID p₁) (pVC p₁) (pHist p₁) -- CHA_MIGRATION
                 })
     in
     deliverBody *** QED
