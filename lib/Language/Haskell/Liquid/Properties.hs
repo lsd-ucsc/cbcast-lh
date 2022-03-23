@@ -62,6 +62,6 @@ irreflexiveAntisymmetric r irrefl antisym x y
         --- `x == y && not (r y y)` contradicts the case assumption
         *** QED
     | otherwise
-        = () -- assumed the conclusion `not (r a b)` or the reverse
+        = () -- case assumption is conclusion `not (r a b)` or the reverse
 
 -- TODO: prove something like MonotonicLeft → MonotonicRight → Monotonic, etc.
