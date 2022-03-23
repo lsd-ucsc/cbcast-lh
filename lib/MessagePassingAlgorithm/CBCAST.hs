@@ -183,10 +183,12 @@ broadcastAlwaysDelivers raw p₀ =
     let
         m = broadcastHelper_prepareMessage raw p₀
         p₁ = broadcastHelper_injectMessage m p₀
-            === P (pVC p₀)
-                  (pID p₀)
-                  (m : pDQ p₀)
-                  (Broadcast (coerce m) : pHist p₀)
+            --- QQQ: Why does this step require PLE?
+            === p₀
+                { pDQ = m : pDQ p₀
+                , pHist = Broadcast (coerce m) : pHist p₀
+                    `proofConst` internalBroadcastCHA m (pVC p₀) (pHist p₀) -- CHA_MIGRATION
+                }
         dequeueBody
             = dequeue (pVC p₁) (pDQ p₁)
             === dequeue (pVC p₁) (m : pDQ p₀)
