@@ -122,7 +122,7 @@ internalDeliver p =
     case dequeue (pVC p) (pDQ p) of
         Nothing -> Nothing
         Just (m, pDQ') -> Just (m, p
-            { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
+            { pVC = vcCombine (mVC m) (pVC p) -- Could use tick here.
             , pDQ = pDQ'
             , pHist = Deliver (pID p) (coerce m) : pHist p
             })
@@ -197,7 +197,7 @@ broadcastAlwaysDelivers raw p₀ =
             = internalDeliver p₁
                 ? dequeueBody
             === Just (m, p₁
-                { pVC = vcCombine (pVC p₁) (mVC m)
+                { pVC = vcCombine (mVC m) (pVC p₁)
                 , pDQ = pDQ p₀
                 , pHist = Deliver (pID p₁) (coerce m) : pHist p₁
                 })

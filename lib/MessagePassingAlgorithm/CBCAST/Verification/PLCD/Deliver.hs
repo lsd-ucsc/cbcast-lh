@@ -110,7 +110,7 @@ deliverImpliesDeliverable p =
         Just (m, pDQ') ->
             {-restate premise-}                 internalDeliver p
             {-by def of internalDeliver-}   === Just (m, p
-                                                { pVC = vcCombine (pVC p) (mVC m)
+                                                { pVC = vcCombine (mVC m) (pVC p)
                                                 , pDQ = pDQ'
                                                 , pHist = Deliver (pID p) (coerce m) : pHist p
                                                 })
@@ -140,7 +140,7 @@ deliverPLCDpres_lemma1 n p pCHA _pPLCD p' m₁ m₂ =
         =   internalDeliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m, pDQ') -> Just (m, p
-                { pVC = vcCombine (pVC p) (mVC m)
+                { pVC = vcCombine (mVC m) (pVC p)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
                 }) -- by def of internalDeliver
@@ -196,7 +196,7 @@ deliverPLCDpres_lemma2 _n p _pCHA _pPLCD p' m₁ m₂ =
         =   internalDeliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m, pDQ') -> Just (m, p
-                { pVC = vcCombine (pVC p) (mVC m)
+                { pVC = vcCombine (mVC m) (pVC p)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
                 }) -- by def of internalDeliver
@@ -244,7 +244,7 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
         =   internalDeliver p
         === case dequeue (pVC p) (pDQ p) of
               Just (m', pDQ') -> Just (m', p
-                { pVC = vcCombine (pVC p) (mVC m')
+                { pVC = vcCombine (mVC m') (pVC p)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m') : pHist p
                 }) -- by def of internalDeliver
