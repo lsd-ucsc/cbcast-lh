@@ -278,7 +278,7 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
 deliverPLCDpres :: n:Nat -> PLCDpreservation r {n} {deliverShim} @-}
 deliverPLCDpres :: Eq r => Int -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 deliverPLCDpres n p pPLCD m₁ m₂ =
-    let pCHA = cha2bridge p (() ? (pVC p === histVC n (pHist p))) in -- CHA_MIGRATION
+    let pCHA = bridgeCHA2 p in -- CHA_MIGRATION
     case dequeue (pVC p) (pDQ p) of -- by cases of internalDeliver
         Nothing -> pPLCD m₁ m₂ -- p is unchanged
 ----    Nothing -> -- p is unchanged

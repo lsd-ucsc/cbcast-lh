@@ -18,9 +18,9 @@ import VectorClock.Verification
 
 -- CHA_MIGRATION: We should be able to get rid of most of this file, including
 -- this CHA bridge, in the future.
-{-@ cha2bridge :: p:P r -> CHA2property {pVC p} {pHist p} -> ClockHistoryAgreement {p} @-}
-cha2bridge :: P r -> Proof -> Proof
-cha2bridge p _pCHA2 =
+{-@ bridgeCHA2 :: p:P r -> ClockHistoryAgreement {p} @-}
+bridgeCHA2 :: P r -> Proof
+bridgeCHA2 p =
                                         pVC p
     {-by CHA2 premise-}             === histVC (listLength (pVC p)) (pHist p)
     {-by def of pHistVC-}           === pHistVC p
@@ -30,27 +30,6 @@ cha2bridge p _pCHA2 =
 type ClockHistoryAgreement P
     = {_ : Proof | vcLessEqual (pHistVC P) (pVC P) }
 @-}
-
-{-@
-type CHApreservation r N OP
-    =  p:Psized r {N}
-    -> ClockHistoryAgreement {p}
-    -> ClockHistoryAgreement {OP p}
-@-}
-
--- | The empty CBCAST process observes clock history agreement. This proof is
--- in this module because it exercises the definition of CHA and forces LH to
--- resolve all the symbols.
-{-@ ple pEmptyCHA @-}
-{-@
-pEmptyCHA :: n:Nat -> p_id:PIDsized {n} -> ClockHistoryAgreement {pEmpty n p_id} @-}
-pEmptyCHA :: Int -> Fin -> Proof
-pEmptyCHA n p_id =
-    let p = pEmpty n p_id in
-        pHistVC p `vcLessEqual` pVC p -- restate conclusion
-    === vcEmpty n `vcLessEqual` vcEmpty n -- by def of pEmpty,pHistVC,histVC
-        ? vcLessEqualReflexive (vcEmpty n)
-    *** QED
 
 
 
@@ -64,7 +43,7 @@ pHistVC :: p:P r -> VCasP {p} @-}
 pHistVC :: P r -> VC
 pHistVC p = histVC (listLength (pVC p)) (pHist p)
 {-@ reflect pHistVC @-}
-
+{-# DEPRECATED pHistVC "use MPA.VCA.histVC directly" #-} -- CHA_MIGRATION
 
 isBroadcast :: Event m r -> Bool
 isBroadcast Broadcast{} = True

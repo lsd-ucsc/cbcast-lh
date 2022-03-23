@@ -4,6 +4,7 @@
 module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Broadcast where
 
 import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinatorsExtra
 
 import Redefined
 import VectorClock
@@ -15,13 +16,13 @@ import Redefined.Verification
 import MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery
 import MessagePassingAlgorithm.CBCAST.Verification.Shims
 import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreement
-import MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreementProofs
 import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver
 
 {-@
-broadcastPrepareInjectPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastPrepareInjectShim raw} @-}
-broadcastPrepareInjectPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-broadcastPrepareInjectPLCDpres raw _n p _pCHA pPLCD m₁ m₂ =
+broadcastPrepareInjectPLCDpres :: raw:r -> n:Nat -> PLCDpreservation r {n} {broadcastPrepareInjectShim raw} @-}
+broadcastPrepareInjectPLCDpres :: Eq r => r -> Int -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+broadcastPrepareInjectPLCDpres raw _n p pPLCD m₁ m₂ =
+    let pCHA = bridgeCHA2 p in -- CHA_MIGRATION
     let
     m = broadcastHelper_prepareMessage raw p
     p' = broadcastHelper_injectMessage m p
@@ -31,7 +32,9 @@ broadcastPrepareInjectPLCDpres raw _n p _pCHA pPLCD m₁ m₂ =
     injectMessageBody
         =   broadcastHelper_injectMessage m p
         === p { pDQ = m : pDQ p
-              , pHist = Broadcast (coerce m) : pHist p }
+              , pHist = Broadcast (coerce m) : pHist p
+                  `proofConst` internalBroadcastCHA m (pVC p) (pHist p) -- CHA_MIGRATION
+              }
     pIDLemma
                             =   pID p'
         ? injectMessageBody === pID p
@@ -39,7 +42,7 @@ broadcastPrepareInjectPLCDpres raw _n p _pCHA pPLCD m₁ m₂ =
                             =   pHist p'
         ? injectMessageBody === e₃ : pHist p
     in
-                                                True
+                                            True
     ? pIDLemma
     ? tailElem e₁ e₃ (pHist p)
     ? tailElem e₂ e₃ (pHist p)
@@ -50,9 +53,9 @@ broadcastPrepareInjectPLCDpres raw _n p _pCHA pPLCD m₁ m₂ =
     *** QED
 
 {-@
-broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation' r {n} {broadcastShim raw} @-}
-broadcastPLCDpres :: Eq r => r -> Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-broadcastPLCDpres raw n p pCHA pPLCD = -- ∀ m m'
+broadcastPLCDpres :: raw:r -> n:Nat -> PLCDpreservation r {n} {broadcastShim raw} @-}
+broadcastPLCDpres :: Eq r => r -> Int -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+broadcastPLCDpres raw n p pPLCD = -- ∀ m m'
     let
     p' = broadcastPrepareInjectShim raw p
     p'' = broadcastShim raw p
@@ -79,9 +82,10 @@ broadcastPLCDpres raw n p pCHA pPLCD = -- ∀ m m'
 --      -- ∀ m m'
 
     -- convert evidence from p to p'
-    p'CHA = broadcastPrepareInjectCHApres raw n p pCHA
-    p'PLCD = broadcastPrepareInjectPLCDpres raw n p pCHA pPLCD -- ∀ m m'
+    p'PLCD = broadcastPrepareInjectPLCDpres raw n p pPLCD -- ∀ m m'
+        ? bridgeCHA2 p -- CHA_MIGRATION
     -- convert evidence from p' to p''
-    p''PLCD = deliverPLCDpres n p' p'CHA p'PLCD -- ∀ m m'
+    p''PLCD = deliverPLCDpres n p' p'PLCD -- ∀ m m'
+        ? bridgeCHA2 p' -- CHA_MIGRATION
     in
     (p''PLCD ? broadcastBody) -- ∀ m m'
