@@ -110,8 +110,7 @@ internalReceive :: m:M r -> PasM r {m} -> PasM r {m} @-}
 internalReceive :: M r -> P r -> P r
 internalReceive m p
     | mSender m == pID p = p -- NOTE: Ignores network messages with local pid
---  | otherwise = p{ pDQ = enqueue m (pDQ p) } -- FIXME: record update syntax breaks PLE
-    | otherwise = P (pVC p) (pID p) (enqueue m (pDQ p)) (pHist p)
+    | otherwise = p{ pDQ = enqueue m (pDQ p) }
 {-@ reflect internalReceive @-}
 
 -- | Get a message from the dq, update the local vc and history. After this,
@@ -122,7 +121,7 @@ internalDeliver :: P r -> Maybe (M r, P r)
 internalDeliver p =
     case dequeue (pVC p) (pDQ p) of
         Nothing -> Nothing
-        Just (m, pDQ') -> Just (m, p -- FIXME: record update syntax breaks PLE
+        Just (m, pDQ') -> Just (m, p
             { pVC = vcCombine (pVC p) (mVC m) -- Could use tick here.
             , pDQ = pDQ'
             , pHist = Deliver (pID p) (coerce m) : pHist p
@@ -157,13 +156,10 @@ broadcastHelper_prepareMessage raw p = Message
 {-@
 broadcastHelper_injectMessage :: m:M r -> PasM r {m} -> PasM r {m} @-}
 broadcastHelper_injectMessage :: M r -> P r -> P r
-broadcastHelper_injectMessage m p =
---  p { pDQ = m : pHist p -- FIXME: record update syntax breaks PLE
---    , pHist = Broadcast (coerce m) : pHist p }
-    P (pVC p)
-      (pID p)
-      (m : pDQ p)
-      (Broadcast (coerce m) : pHist p)
+broadcastHelper_injectMessage m p = p
+    { pDQ = m : pDQ p
+    , pHist = Broadcast (coerce m) : pHist p
+    }
 {-@ reflect broadcastHelper_injectMessage @-}
 
 
