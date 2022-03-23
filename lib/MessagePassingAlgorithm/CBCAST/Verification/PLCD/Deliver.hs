@@ -4,6 +4,7 @@
 module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver where
 
 import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinatorsExtra
 
 import Redefined
 import VectorClock
@@ -113,6 +114,7 @@ deliverImpliesDeliverable p =
                                                 { pVC = vcCombine (mVC m) (pVC p)
                                                 , pDQ = pDQ'
                                                 , pHist = Deliver (pID p) (coerce m) : pHist p
+                                                    `proofConst` internalDeliverCHA m (pID p) (pVC p) (pHist p) -- CHA_MIGRATION
                                                 })
             ? dequeueImpliesDeliverable (pVC p) (pDQ p)
                                             *** QED
@@ -143,6 +145,7 @@ deliverPLCDpres_lemma1 n p pCHA _pPLCD p' m₁ m₂ =
                 { pVC = vcCombine (mVC m) (pVC p)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
+                    `proofConst` internalDeliverCHA m (pID p) (pVC p) (pHist p) -- CHA_MIGRATION
                 }) -- by def of internalDeliver
     e₂inTail =
         {-restate a premise-}           e₂ `listElem` pHist p'
@@ -199,6 +202,7 @@ deliverPLCDpres_lemma2 _n p _pCHA _pPLCD p' m₁ m₂ =
                 { pVC = vcCombine (mVC m) (pVC p)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m) : pHist p
+                    `proofConst` internalDeliverCHA m (pID p) (pVC p) (pHist p) -- CHA_MIGRATION
                 }) -- by def of internalDeliver
     p'Hist
         =   pHist p' ? deliverBody
@@ -247,6 +251,7 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
                 { pVC = vcCombine (mVC m') (pVC p)
                 , pDQ = pDQ'
                 , pHist = Deliver (pID p) (coerce m') : pHist p
+                    `proofConst` internalDeliverCHA m' (pID p) (pVC p) (pHist p) -- CHA_MIGRATION
                 }) -- by def of internalDeliver
     p'Hist
         =   pHist p' ? deliverBody
@@ -270,9 +275,10 @@ deliverPLCDpres_lemma3 _n p _pCHA pPLCD p' m₁ m₂ m =
 
 {-@ ple deliverPLCDpres @-}
 {-@
-deliverPLCDpres :: n:Nat -> PLCDpreservation' r {n} {deliverShim} @-}
-deliverPLCDpres :: Eq r => Int -> P r -> Proof -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-deliverPLCDpres n p pCHA pPLCD m₁ m₂ =
+deliverPLCDpres :: n:Nat -> PLCDpreservation r {n} {deliverShim} @-}
+deliverPLCDpres :: Eq r => Int -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+deliverPLCDpres n p pPLCD m₁ m₂ =
+    let pCHA = cha2bridge p (() ? (pVC p === histVC n (pHist p))) in -- CHA_MIGRATION
     case dequeue (pVC p) (pDQ p) of -- by cases of internalDeliver
         Nothing -> pPLCD m₁ m₂ -- p is unchanged
 ----    Nothing -> -- p is unchanged

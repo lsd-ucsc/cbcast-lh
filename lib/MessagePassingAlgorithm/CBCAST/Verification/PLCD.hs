@@ -4,6 +4,7 @@
 module MessagePassingAlgorithm.CBCAST.Verification.PLCD where
 
 import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinatorsExtra
 
 import Redefined
 import VectorClock

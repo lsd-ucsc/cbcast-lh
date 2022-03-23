@@ -21,7 +21,10 @@ receivePreservesIDandHist :: m:M r -> p:PasM r {m} -> { pID p == pID (internalRe
 receivePreservesIDandHist :: M r -> P r -> Proof
 receivePreservesIDandHist m p -- by cases from receive
     | mSender m == pID p = ()
-    | otherwise = ()
+    | otherwise =
+            internalReceive m p
+        === p{ pDQ = enqueue m (pDQ p) }
+        *** QED
 
 {-@ ple receivePLCDpres @-}
 {-@

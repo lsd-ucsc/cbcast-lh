@@ -5,6 +5,7 @@
 module MessagePassingAlgorithm.CBCAST.Verification.ClockHistoryAgreement where
 
 import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinatorsExtra
 
 import Redefined
 import VectorClock
@@ -15,6 +16,15 @@ import MessagePassingAlgorithm.CBCAST
 import Redefined.Verification
 import VectorClock.Verification
 
+-- CHA_MIGRATION: We should be able to get rid of most of this file, including
+-- this CHA bridge, in the future.
+{-@ cha2bridge :: p:P r -> CHA2property {pVC p} {pHist p} -> ClockHistoryAgreement {p} @-}
+cha2bridge :: P r -> Proof -> Proof
+cha2bridge p _pCHA2 =
+                                        pVC p
+    {-by CHA2 premise-}             === histVC (listLength (pVC p)) (pHist p)
+    {-by def of pHistVC-}           === pHistVC p
+    ? vcLessEqualReflexive (pVC p)  *** QED
 
 {-@
 type ClockHistoryAgreement P
