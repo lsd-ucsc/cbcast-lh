@@ -15,6 +15,7 @@ import MessagePassingAlgorithm.CBCAST
 import Redefined.Verification
 import VectorClock.Verification
 
+
 {-@
 type ClockHistoryAgreement P
     = {_ : Proof | vcLessEqual (pHistVC P) (pVC P) }

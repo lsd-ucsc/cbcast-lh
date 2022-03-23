@@ -265,11 +265,12 @@ broadcastAlwaysDelivers raw p₀ =
             = dequeue (pVC p₁) (pDQ p₁)
             === dequeue (pVC p₁) (m : pDQ p₀)
                 ? deliverableNewMessage raw p₀
-                -- QQQ: Why is PLE necessary for this step?
+            --- QQQ: Why does this step require PLE?
             === Just (m, pDQ p₀)
         deliverBody
             = internalDeliver p₁
-                ? dequeueBody
+            ? dequeueBody
+            --- QQQ: Why does this step require PLE?
             === Just (m, p₁
                 { pVC = vcCombine (mVC m) (pVC p₁)
                 , pDQ = pDQ p₀
