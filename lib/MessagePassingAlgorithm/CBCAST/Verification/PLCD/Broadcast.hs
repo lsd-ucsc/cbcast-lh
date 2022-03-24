@@ -22,7 +22,7 @@ import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Deliver
 broadcastPrepareInjectPLCDpres :: raw:r -> n:Nat -> PLCDpreservation r {n} {broadcastPrepareInjectShim raw} @-}
 broadcastPrepareInjectPLCDpres :: Eq r => r -> Int -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 broadcastPrepareInjectPLCDpres raw _n p pPLCD m₁ m₂ =
-    let pCHA = bridgeCHA2 p in -- CHA_MIGRATION
+    let _pCHA = bridgeCHA2 p in -- CHA_MIGRATION
     let
     m = broadcastHelper_prepareMessage raw p
     p' = broadcastHelper_injectMessage m p
