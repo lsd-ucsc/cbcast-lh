@@ -62,14 +62,18 @@ flip f b a = f a b
 {-@ inline flip @-}
 
 {-@
-reachableFromPLCDpres :: n:Nat -> i:[Isized r {n}] -> PLCDpreservation r {n} {flip foldrInputs i} / [len i] @-}
-reachableFromPLCDpres :: Eq r => Int -> [Input r] -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-reachableFromPLCDpres _n [] p pPLCD = -- ∀ m m'
+stepsPLCDpres
+    :: n:Nat
+    -> i:[Isized r {n}]
+    -> PLCDpreservation r {n} {flip foldrInputs i} / [len i]
+@-}
+stepsPLCDpres :: Eq r => Int -> [Input r] -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+stepsPLCDpres _n [] p pPLCD = -- ∀ m m'
     pPLCD -- ∀ m m'
     ? (foldrInputs p [] {- === p -})
-reachableFromPLCDpres n (x:xs) p pPLCD =
+stepsPLCDpres n (x:xs) p pPLCD =
     let prev = foldrInputs p xs
-        prevPLCD = reachableFromPLCDpres n xs p pPLCD
+        prevPLCD = stepsPLCDpres n xs p pPLCD
     in
     stepPLCDpres x prev prevPLCD -- ∀ m m'
     ? (foldrInputs p (x:xs) {- === stepShim x (foldrInputs p xs) -})
@@ -101,4 +105,4 @@ reachableSize (Reachable _ _ inputs _) = listLength inputs
 reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
 reachablePLCD :: Eq r => Reachable r -> M r -> M r -> Proof
 reachablePLCD (Reachable n p_id xs _p) =
-    reachableFromPLCDpres n xs (pEmpty n p_id) (pEmptyPLCD n p_id)
+    stepsPLCDpres n xs (pEmpty n p_id) (pEmptyPLCD n p_id)
