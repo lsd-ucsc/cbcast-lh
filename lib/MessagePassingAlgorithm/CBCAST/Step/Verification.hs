@@ -65,7 +65,7 @@ flip f b a = f a b
 stepsPLCDpres
     :: n:Nat
     -> i:[Isized r {n}]
-    -> PLCDpreservation r {n} {flip foldrInputs i} / [len i]
+    -> PLCDpreservation r {n} {flip foldrInputs i}
 @-}
 stepsPLCDpres :: Eq r => Int -> [Input r] -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
 stepsPLCDpres _n [] p pPLCD = -- ∀ m m'
