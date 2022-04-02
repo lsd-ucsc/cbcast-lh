@@ -108,3 +108,98 @@ reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
 reachablePLCD :: Eq r => Reachable r -> M r -> M r -> Proof
 reachablePLCD (Reachable n p_id xs _p) =
     trcOrigPLCDpres n xs (pEmpty n p_id) (pEmptyPLCD n p_id)
+
+
+
+
+-- * Like the paper
+
+data Op r
+    = OpReceive Int (M r)
+    | OpDeliver Int
+    | OpBroadcast Int r
+{-@
+data Op r
+    = OpReceive
+        { opReceiveN::Nat
+        , opReceiveMessage::Msized r {opReceiveN}
+        }
+    | OpDeliver
+        { opDeliverN::Nat
+        }
+    | OpBroadcast
+        { opBroadcastN::Nat
+        , opBroadcastRaw::r
+        }
+@-}
+{-@
+opSize :: Op r -> Nat @-}
+opSize :: Op r -> Int
+opSize (OpReceive n _)   = n
+opSize (OpDeliver n)     = n
+opSize (OpBroadcast n _) = n
+{-@ measure opSize @-}
+{-@ type OPsized r N = {op:Op r | opSize op == N} @-}
+{-@ type OPasP r P = OPsized r {len (pVC P)} @-}
+{-@ type PasOP r OP = Psized r {opSize OP} @-}
+
+{-@ step :: op:Op r -> PasOP r {op} -> PasOP r {op} @-}
+step :: Op r -> P r -> P r
+step (OpReceive   _n m) p = internalReceive m p
+step (OpBroadcast _n r) p = case internalBroadcast r p of  (_, p') -> p'
+step (OpDeliver   _n  ) p = case internalDeliver p of Just (_, p') -> p'
+                                                      Nothing      -> p
+{-@ reflect step @-}
+
+{-@
+stepPLCDpres
+    ::  op : Op r
+    ->   p : PasOP r {op}
+    -> PLCD r {p}
+    -> PLCD r {step op p}
+@-}
+stepPLCDpres :: Eq r => Op r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+stepPLCDpres op p pPLCD = -- ∀ m m'
+  case op ? step op p of
+    OpReceive  _n m -> receivePLCDpres   m   p pPLCD
+    OpDeliver   n   -> deliverPLCDpres     n p pPLCD
+    OpBroadcast n r -> broadcastPLCDpres r n p pPLCD
+
+---- -- | QQQ: Why can't we use this @foldr@ with @step@?
+---- foldr :: (a -> b -> b) -> b -> [a] -> b
+---- foldr f acc (x:xs) = f x (foldr f acc xs)
+---- foldr _ acc [] = acc
+---- {-@ reflect foldr @-}
+
+-- | This is @foldr step@ inlined, such that instead of @foldr@ taking an
+-- argument, the body of @foldr@ is defined with @step@ inside.
+{-@
+foldr_step
+    :: p:P r
+    -> [OPasP r {p}]
+    -> PasP r {p}
+@-}
+foldr_step :: P r -> [Op r] -> P r
+foldr_step acc (x:xs) = step x (foldr_step acc xs)
+foldr_step acc [] = acc
+{-@ reflect foldr_step @-}
+
+{-@
+trcPLCDpres
+    ::   n : Nat
+    -> ops : [OPsized r {n}]
+    ->   p : Psized r {n}
+    -> PLCD r {p}
+    -> PLCD r {foldr_step p ops}
+@-}
+trcPLCDpres :: Eq r => Int -> [Op r] -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+trcPLCDpres _n [] p pPLCD = -- ∀ m m'
+    pPLCD -- ∀ m m'
+    ? (foldr_step p [] === p)
+trcPLCDpres n (op:ops) p pPLCD =
+    let
+        prev = foldr_step p ops
+        prevPLCD = trcPLCDpres n ops p pPLCD
+    in
+    stepPLCDpres op prev prevPLCD -- ∀ m m'
+    ? (foldr_step p (op:ops) === step op (foldr_step p ops))
