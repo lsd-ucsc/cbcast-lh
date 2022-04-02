@@ -3,6 +3,8 @@
 -- Proof that step preserves PLCD.
 module MessagePassingAlgorithm.CBCAST.Step.Verification where
 
+import Prelude hiding (foldr)
+
 import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined
