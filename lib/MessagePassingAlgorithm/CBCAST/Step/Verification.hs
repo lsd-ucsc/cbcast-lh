@@ -24,37 +24,37 @@ import MessagePassingAlgorithm.CBCAST.Verification.PLCD.Broadcast
 
 -- * Step from satisfying
 
--- | The step function but drops the output.
-{-@ stepShim :: i:Input r -> PasI r {i} -> PasI r {i} @-}
-stepShim :: Input r -> P r -> P r
-stepShim i p₀ = case step i p₀ of
+-- | The stepOrig function but drops the output.
+{-@ stepOrigShim :: i:Input r -> PasI r {i} -> PasI r {i} @-}
+stepOrigShim :: Input r -> P r -> P r
+stepOrigShim i p₀ = case stepOrig i p₀ of
     OutputReceive _ p             -> p
     OutputBroadcast _ (_, p)      -> p
     OutputDeliver _ (Just (_, p)) -> p
     OutputDeliver _ Nothing       -> p₀
-{-@ inline stepShim @-}
+{-@ inline stepOrigShim @-}
 
 {-@
-stepPLCDpres :: i:Input r -> PLCDpreservation r {inputSize i} {stepShim i} @-}
-stepPLCDpres :: Eq r => Input r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-stepPLCDpres i p pPLCD = -- ∀ m m'
+stepOrigPLCDpres :: i:Input r -> PLCDpreservation r {inputSize i} {stepOrigShim i} @-}
+stepOrigPLCDpres :: Eq r => Input r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+stepOrigPLCDpres i p pPLCD = -- ∀ m m'
   case i of
-    InputReceive   n m -> receivePLCDpres   m   p pPLCD ? (step i p === OutputReceive   n (internalReceive   m p))
-    InputDeliver   n   -> deliverPLCDpres     n p pPLCD ? (step i p === OutputDeliver   n (internalDeliver     p))
-    InputBroadcast n r -> broadcastPLCDpres r n p pPLCD ? (step i p === OutputBroadcast n (internalBroadcast r p))
+    InputReceive   n m -> receivePLCDpres   m   p pPLCD ? (stepOrig i p === OutputReceive   n (internalReceive   m p))
+    InputDeliver   n   -> deliverPLCDpres     n p pPLCD ? (stepOrig i p === OutputDeliver   n (internalDeliver     p))
+    InputBroadcast n r -> broadcastPLCDpres r n p pPLCD ? (stepOrig i p === OutputBroadcast n (internalBroadcast r p))
 
 
 
 
 -- * Reachable from satisfying
 
--- | Fold right over the inputs, applying them to the process. Since stepShim
+-- | Fold right over the inputs, applying them to the process. Since stepOrigShim
 -- is inlined to LH, we have to fully apply it here by inlining foldr.
 {-@
 foldrInputs :: p:P r -> [IasP r {p}] -> PasP r {p} @-}
 foldrInputs :: P r -> [Input r] -> P r
 foldrInputs p [] = p
-foldrInputs p (x:xs) = stepShim x (foldrInputs p xs)
+foldrInputs p (x:xs) = stepOrigShim x (foldrInputs p xs)
 {-@ reflect foldrInputs @-}
 
 flip :: (a -> b -> c) -> b -> a -> c
@@ -62,21 +62,21 @@ flip f b a = f a b
 {-@ inline flip @-}
 
 {-@
-stepsPLCDpres
+trcOrigPLCDpres
     :: n:Nat
     -> i:[Isized r {n}]
     -> PLCDpreservation r {n} {flip foldrInputs i}
 @-}
-stepsPLCDpres :: Eq r => Int -> [Input r] -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-stepsPLCDpres _n [] p pPLCD = -- ∀ m m'
+trcOrigPLCDpres :: Eq r => Int -> [Input r] -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+trcOrigPLCDpres _n [] p pPLCD = -- ∀ m m'
     pPLCD -- ∀ m m'
     ? (foldrInputs p [] {- === p -})
-stepsPLCDpres n (x:xs) p pPLCD =
+trcOrigPLCDpres n (x:xs) p pPLCD =
     let prev = foldrInputs p xs
-        prevPLCD = stepsPLCDpres n xs p pPLCD
+        prevPLCD = trcOrigPLCDpres n xs p pPLCD
     in
-    stepPLCDpres x prev prevPLCD -- ∀ m m'
-    ? (foldrInputs p (x:xs) {- === stepShim x (foldrInputs p xs) -})
+    stepOrigPLCDpres x prev prevPLCD -- ∀ m m'
+    ? (foldrInputs p (x:xs) {- === stepOrigShim x (foldrInputs p xs) -})
 
 
 
@@ -105,4 +105,4 @@ reachableSize (Reachable _ _ inputs _) = listLength inputs
 reachablePLCD :: p:Reachable r -> PLCD r {reachableProcess p} @-}
 reachablePLCD :: Eq r => Reachable r -> M r -> M r -> Proof
 reachablePLCD (Reachable n p_id xs _p) =
-    stepsPLCDpres n xs (pEmpty n p_id) (pEmptyPLCD n p_id)
+    trcOrigPLCDpres n xs (pEmpty n p_id) (pEmptyPLCD n p_id)

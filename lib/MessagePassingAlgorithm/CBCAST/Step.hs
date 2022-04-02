@@ -102,9 +102,9 @@ outputCommand OutputBroadcast{} = CommandBroadcast
 
 
 
-{-@ step :: i:Input r -> PasI r {i} -> OasI r {i} @-}
-step :: Input r -> P r -> Output r
-step (InputReceive   n m) p = OutputReceive   n (internalReceive   m p)
-step (InputDeliver   n  ) p = OutputDeliver   n (internalDeliver     p)
-step (InputBroadcast n r) p = OutputBroadcast n (internalBroadcast r p)
-{-@ reflect step @-}
+{-@ stepOrig :: i:Input r -> PasI r {i} -> OasI r {i} @-}
+stepOrig :: Input r -> P r -> Output r
+stepOrig (InputReceive   n m) p = OutputReceive   n (internalReceive   m p)
+stepOrig (InputDeliver   n  ) p = OutputDeliver   n (internalDeliver     p)
+stepOrig (InputBroadcast n r) p = OutputBroadcast n (internalBroadcast r p)
+{-@ reflect stepOrig @-}
