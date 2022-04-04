@@ -45,40 +45,44 @@ xEmptyCD p_id m₁ _m₂ =
     === listElem e₁ [] -- premise failed
     *** QED
 
+-- | Same as our normal definition for PLCD, except this one takes the VC size.
+{-@
+type ProcessLocalCausalDeliveryN r N PID PHIST
+    =  {m1 : Msized r {n}   | listElem (Deliver PID m1) PHIST }
+    -> {m2 : Msized r {n}   | listElem (Deliver PID m2) PHIST
+                           && vcLess (mVC m1) (mVC m2) }
+    -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
+@-}
+
+-- | Same as the other coerce, but instead of pushing inward it pushes the
+-- refinement outward.
+{-@
+coerce2 :: n:Nat -> m:Message (VCMMsized {n}) r -> {m':Msized r {n} | m == m'} @-}
+coerce2 :: Int -> Message VCMM r -> Message VCMM r
+coerce2 _n (Message a b) = Message a b
+{-@ reflect coerce2 @-}
+
 {-@
 local2global
-    ::     x : Execution VCMM r
+    ::     n : Nat
+    ->     x : Execution (VCMMsized {n}) r
     ->  p_id : PID
-    ->  ProcessLocalCausalDelivery r {p_id} {x p_id}
-    ->  CausalDelivery VCMM r {x} {p_id}
+    ->  ProcessLocalCausalDeliveryN r {n} {p_id} {x p_id}
+    ->  CausalDelivery (VCMMsized {n}) r {x} {p_id}
 @-}
-local2global :: Execution VCMM r -> PID -> (M r -> M r -> Proof) -> M r -> M r -> Proof
-local2global x p_id pPLCD m₁ m₂ =
-    -- pPLCD m₁ m₂ -- OOPS currently proving false, probably b/c body of happensBefore is False
-    () *** Admit
+local2global :: Int -> Execution VCMM r -> PID -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+local2global n x _p_id pPLCD m₁ m₂ =
+    let m₁' = coerce2 n m₁ in
+    let m₂' = coerce2 n m₂ in
+    pPLCD m₁' (m₂' ? vchbiso n x m₁' m₂')
 
--- Need axiom
---   :: happensBefore X (Broadcast m1) (Broadcast m2)
---   -> vcLess (mVC m1) (mVC m2)
-
----- -- | Same as our normal definition for PLCD, except this one takes the VC size.
----- {-@
----- type ProcessLocalCausalDeliveryN r N PID PHIST
-----     =  {m1 : Msized r {n}   | listElem (Deliver PID m1) PHIST }
-----     -> {m2 : Msized r {n}   | listElem (Deliver PID m2) PHIST
-----                            && vcLess (mVC m1) (mVC m2) }
-----     -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
----- @-}
----- 
----- {-@
----- local2global
-----     ::     n : Nat
-----     ->     x : Execution (VCMMsized {n}) r
-----     ->  p_id : PIDsized {n}
-----     ->  ProcessLocalCausalDeliveryN r {n} {p_id} {x p_id}
-----     ->  CausalDelivery (VCMMsized {n}) r {x} {p_id}
----- @-}
----- local2global :: Int -> Execution VCMM r -> PID -> (M r -> M r -> Proof) -> M r -> M r -> Proof
----- local2global n x p_id pPLCD m₁ m₂ =
-----     pPLCD (coerce m₁) (coerce m₂)
----- {-@ ple local2global @-}
+{-@
+vchbiso
+    ::   n : Nat
+    ->   x : Execution (VCMMsized {n}) r
+    ->  m1 : Msized r {n}
+    ->{ m2 : Msized r {n} | happensBefore x (Broadcast m1) (Broadcast m2) }
+    -> {_:Proof | vcLess (mVC m1) (mVC m2) }
+@-}
+vchbiso :: Int -> Execution VCMM r -> M r -> M r -> Proof
+vchbiso _n _x _m₁ _m₂ = () *** Admit
