@@ -37,14 +37,14 @@ library:
           #            - servant-server
           #            - stm
           #            - warp
-          #
-          #tests:
+
+tests:
           #    doctest:
           #        main: Doctest.hs
           #        dependencies:
           #            - doctest
           #            - QuickCheck
-          #    listing:
-          #        main: Listing.hs
-          #        dependencies:
-          #            - cbcast-lh
+    listing:
+        main: Listing.hs
+        dependencies:
+            - cbcast-lh
