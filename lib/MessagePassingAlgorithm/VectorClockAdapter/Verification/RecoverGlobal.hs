@@ -86,3 +86,13 @@ vchbiso
 @-}
 vchbiso :: Int -> Execution VCMM r -> M r -> M r -> Proof
 vchbiso _n _x _m₁ _m₂ = () *** Admit
+
+
+
+
+-- | Inlining histVC to show it in the paper
+histVC2 :: Int -> H r -> VC
+histVC2 n                    []  =                   vcEmpty n
+histVC2 n ((Broadcast    _m):xs) =                   histVC n xs
+histVC2 n ((Deliver _p_id m):xs) = mVC m `vcCombine` histVC n xs
+{-@ ignore histVC2 @-}
