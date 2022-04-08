@@ -4,46 +4,47 @@ dependencies:
     - liquidhaskell
     - liquid-base
     - liquid-prelude
+    - liquid-containers
 
 ghc-options:
     - -Wall
 
 library:
     source-dirs: lib
-    ghc-options:
-        - -fno-warn-incomplete-patterns # LH aready does this
-        - -fplugin=LiquidHaskell
-        - -fplugin-opt=LiquidHaskell:--short-names # Readable errors
-        - -fplugin-opt=LiquidHaskell:--exact-data-cons # Constructors in refinements
-        - -fplugin-opt=LiquidHaskell:--reflection # Extrinsic proofs
-        - -fplugin-opt=LiquidHaskell:--no-adt # Partial constructors
-        - -fplugin-opt=LiquidHaskell:--ple-local # PLE when you ask for it
+    #   ghc-options:
+    #       - -fno-warn-incomplete-patterns # LH aready does this
+    #       - -fplugin=LiquidHaskell
+    #       - -fplugin-opt=LiquidHaskell:--short-names # Readable errors
+    #       - -fplugin-opt=LiquidHaskell:--exact-data-cons # Constructors in refinements
+    #       - -fplugin-opt=LiquidHaskell:--reflection # Extrinsic proofs
+    #       - -fplugin-opt=LiquidHaskell:--no-adt # Partial constructors
+    #       - -fplugin-opt=LiquidHaskell:--ple-local # PLE when you ask for it
 
-          #executables:
-          #    example:
-          #        main: ExampleKvServer.hs
-          #        ghc-options:
-          #            - -threaded
-          #            - -rtsopts
-          #            - -with-rtsopts=-N
-          #        dependencies:
-          #            - cbcast-lh
-          #            - aeson
-          #            - async
-          #            - http-client
-          #            - servant
-          #            - servant-client
-          #            - servant-client-core
-          #            - servant-server
-          #            - stm
-          #            - warp
+executables:
+    example:
+        main: ExampleKvServer.hs
+        ghc-options:
+            - -threaded
+            - -rtsopts
+            - -with-rtsopts=-N
+        dependencies:
+            - cbcast-lh
+            - aeson
+            - async
+            - http-client
+            - servant
+            - servant-client
+            - servant-client-core
+            - servant-server
+            - stm
+            - warp
 
 tests:
-          #    doctest:
-          #        main: Doctest.hs
-          #        dependencies:
-          #            - doctest
-          #            - QuickCheck
+    doctest:
+        main: Doctest.hs
+        dependencies:
+            - doctest
+            - QuickCheck
     listing:
         main: Listing.hs
         dependencies:

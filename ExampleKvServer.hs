@@ -3,13 +3,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC "-Wno-orphans" #-}
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.Tuple (swap)
 import Text.Printf (printf)
 import Text.Read (readEither)
+import qualified Control.Exception as Exc
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad as Monad
@@ -25,13 +26,9 @@ import Servant.API.Generic ((:-), Generic, ToServantApi)
 import qualified Servant.Client as Servant
 import qualified Servant.Client.Generic as Servant
 
-import qualified Causal.CBCAST.VectorClock as CBCAST
-import qualified Causal.CBCAST.Message as CBCAST
-import qualified Causal.CBCAST.Process as CBCAST
-import qualified Causal.CBCAST.Protocol as CBCAST
-import qualified Causal.CBCAST.DelayQueue as CBCAST
-
-import Debug.Trace
+import qualified MessagePassingAlgorithm as MPA
+import qualified MessagePassingAlgorithm.VectorClockAdapter as VCA
+import qualified MessagePassingAlgorithm.CBCAST as CBCAST
 
 -- * KV Application
 
@@ -62,9 +59,9 @@ data KvRoutes mode = KvRoutes
 
 -- * CBCAST Node & Peers
 
-type Broadcast = CBCAST.Message KvCommand
+type Broadcast = VCA.M KvCommand
 
-type NodeState = CBCAST.Process KvCommand
+type NodeState = CBCAST.P KvCommand
 
 data PeerRoutes mode = PeerRoutes
     { cbcast :: mode :- "cbcast" :> ReqBody '[JSON] Broadcast :> PostNoContent
@@ -76,6 +73,8 @@ type Peers = [Servant.BaseUrl]
 peerRoutes :: PeerRoutes (Servant.AsClientT Servant.ClientM)
 peerRoutes = Servant.genericClient
 
+type PeerQueues = [STM.TQueue (Int, Broadcast)]
+
 
 -- * Backend
 
@@ -83,8 +82,8 @@ peerRoutes = Servant.genericClient
 -- ** Handle requests
 
 -- | Handle requests to send or receive messages.
-handlers :: STM.TVar NodeState -> STM.TVar KvState -> Application
-handlers nodeState kvState = serve
+handlers :: PeerQueues -> STM.TVar NodeState -> STM.TVar KvState -> Application
+handlers peerQueues nodeState kvState = serve
     (Proxy :: Proxy (ToServantApi KvRoutes :<|> ToServantApi PeerRoutes))
     (kvHandlers :<|> nodeHandlers)
   where
@@ -92,10 +91,14 @@ handlers nodeState kvState = serve
     kvHandlers :: Server (ToServantApi KvRoutes)
     kvHandlers
         =    (\key val -> liftIO . STM.atomically $ do
-                STM.modifyTVar' nodeState . CBCAST.broadcast $ KvPut key val
+                m <- STM.stateTVar nodeState . CBCAST.internalBroadcast $ KvPut key val
+                feedPeerQueues peerQueues m -- send message to network
+                applyMessage kvState m -- apply message locally
                 return NoContent)
         :<|> (\key -> liftIO . STM.atomically $ do
-                STM.modifyTVar' nodeState . CBCAST.broadcast $ KvDel key
+                m <- STM.stateTVar nodeState . CBCAST.internalBroadcast $ KvDel key
+                feedPeerQueues peerQueues m -- send message to network
+                applyMessage kvState m -- apply message locally
                 return NoContent)
         :<|> (\key -> do
                 kv <- liftIO $ STM.readTVarIO kvState
@@ -103,60 +106,52 @@ handlers nodeState kvState = serve
     nodeHandlers :: Server (ToServantApi PeerRoutes)
     nodeHandlers
         =    (\message -> liftIO . STM.atomically $ do
-                STM.modifyTVar' nodeState $ CBCAST.receive message
+                STM.modifyTVar' nodeState $ CBCAST.internalReceive message
                 return NoContent)
 
 
 -- ** Deliver messages
 
--- | Pop a deliverable message and apply it to application state. Blocks until
--- there is a deliverable message to apply and then returns.
+-- | Block until there is a deliverable message and apply it.
 --
 -- TODO tests
 readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
 readMail nodeState kvState = do
-    message <- STM.stateTVar nodeState $ swap . CBCAST.deliver
-    -- DEBUG
-    vc <- CBCAST.pVC <$> STM.readTVar nodeState
-    dq <- CBCAST.pDQ <$> STM.readTVar nodeState
-    self <- CBCAST.pToSelf <$> STM.readTVar nodeState
-    -- /DEBUG
-    maybe STM.retry (STM.modifyTVar' kvState . kvApply . CBCAST.mRaw)
-        . (if message == Nothing then id else
-            trace $ printf "%s; message delivered, %d in pToSelf, %d in pDQ"
-            (show vc) (CBCAST.fSize self) (CBCAST.dqSize dq))
-        $ message
+    message <- STM.stateTVar nodeState $ \p₀ ->
+        case CBCAST.internalDeliver p₀ of
+            Nothing      -> (Nothing, p₀)
+            Just (m, p₁) -> (Just m, p₁)
+    maybe STM.retry (applyMessage kvState) message
+
+-- | Apply the message to application state.
+applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
+applyMessage kvState m =
+    STM.modifyTVar' kvState . kvApply . MPA.mRaw $ m
 
 
 -- ** Broadcast messages
 
 -- | Drain broadcast messages and send them to peers, forever. Does not return.
-sendMailThread :: Peers -> STM.TVar NodeState -> IO ()
-sendMailThread peers nodeState = do
+sendMailThread :: Peers -> PeerQueues -> IO ()
+sendMailThread peers peerQueues = Exc.assert (length peers == length peerQueues) $ do
     printf "sendMailThread will deliver to peers: %s\n" (unwords $ Servant.showBaseUrl <$> peers)
     connections <- HTTP.newManager HTTP.defaultManagerSettings
     let clientEnvs = Servant.mkClientEnv connections <$> peers
-    peerQueues <- sequence $ replicate (length peers) STM.newTQueueIO
     -- Start tasks and wait forever.
     -- Note: Graceful shutdown is not implemented.
-    printf "sendMailThread exited: %s\n" . show . snd
-        =<< Async.waitAnyCatchCancel
+    (_, result)
+        <- Async.waitAnyCatchCancel
         =<< mapM (Async.async . Monad.void . Monad.forever)
-        ( feedPeerQueues nodeState peerQueues
-        : (sendToPeer <$> zip clientEnvs peerQueues)
-        )
+        (sendToPeer <$> zip clientEnvs peerQueues)
+    printf "sendMailThread exited: %s\n" $ show result
 
--- | Copy node broadcasts to all peer queues. Blocks until there are some
--- broadcasts to copy, and then returns.
+-- | Put the message on all peer queues.
 --
 -- TODO tests
-feedPeerQueues :: STM.TVar NodeState -> [STM.TQueue (Int, Broadcast)] -> IO ()
-feedPeerQueues nodeState peerQueues = STM.atomically $ do
-    messages <- STM.stateTVar nodeState $ swap . CBCAST.convey
-    STM.check . not $ null messages
+feedPeerQueues :: PeerQueues -> Broadcast -> STM.STM ()
+feedPeerQueues peerQueues m =
     Monad.forM_ peerQueues $ \q ->
-        Monad.forM_ messages $ \m ->
-            STM.writeTQueue q (0, m)
+        STM.writeTQueue q (0, m)
 
 -- | Send a message from a queue to a peer. On failure, backoff and put the
 -- message back on the queue and note failure. Return.
@@ -210,19 +205,23 @@ main = Env.getArgs >>= \argv -> case argv of
         pid <- either fail return $ parsePID num peers
         let port = Servant.baseUrlPort $ peers !! pid
         printf "Starting KV server P%d on port %d with peer list: %s\n" pid port (unwords $ Servant.showBaseUrl <$> peers)
-        nodeState <- STM.newTVarIO $ CBCAST.pNew pid (length peers)
+        nodeState <- STM.newTVarIO $ CBCAST.pEmpty (length peers) pid
         kvState <- STM.newTVarIO $ Map.empty
+        -- Note: One fewer peer queue because we don't send to ourselves.
+        peerQueues <- sequence $ replicate (length peers - 1) STM.newTQueueIO
         -- Start tasks and wait forever.
         -- Note: Graceful shutdown is not implemented.
-        printf "main thread exited: %s\n" . show . snd
-            =<< Async.waitAnyCatchCancel
+        (_, result)
+            <- Async.waitAnyCatchCancel
             =<< mapM Async.async
             [ Monad.forever . STM.atomically $ readMail nodeState kvState
             -- Note: sendMailThread does not receive the url of the current process.
-            , sendMailThread (removeIndex pid peers) nodeState
+            , sendMailThread (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
-            , Warp.run port $ handlers nodeState kvState
+            , Warp.run port $ handlers peerQueues nodeState kvState
             ]
+        printf "main thread exited: %s\n" $ show result
+        return ()
 
 
 -- * Serialization Instances
@@ -230,24 +229,25 @@ main = Env.getArgs >>= \argv -> case argv of
 instance Aeson.ToJSON KvCommand
 instance Aeson.FromJSON KvCommand
 
-deriving instance Generic CBCAST.VC
-instance Aeson.ToJSON CBCAST.VC
-instance Aeson.FromJSON CBCAST.VC
+deriving instance Generic VCA.VCMM
+instance Aeson.ToJSON VCA.VCMM
+instance Aeson.FromJSON VCA.VCMM
 
 -- |
 --
--- >>> let m = CBCAST.Message 1 (CBCAST.VC [1, 4]) (KvPut "some-key" Aeson.Null) :: Broadcast
+-- >>> let mm = VCA.VCMM [1, 4] 1
+-- >>> let m = MPA.Message mm (KvPut "some-key" Aeson.Null) :: Broadcast
 -- >>> let m' = Aeson.decode $ Aeson.encode m :: Maybe Broadcast
 -- >>> Just m == m'
 -- True
 --
 -- >>> import Data.ByteString.Lazy.Char8 as BS
 -- >>> BS.putStrLn $ Aeson.encode m'
--- {"mSender":1,"mRaw":{"tag":"KvPut","contents":["some-key",null]},"mSent":[1,4]}
+-- {"mMetadata":{"vcmmSender":1,"vcmmSent":[1,4]},"mRaw":{"tag":"KvPut","contents":["some-key",null]}}
 --
-deriving instance Generic r => Generic (CBCAST.Message r)
-instance (Generic r, Aeson.ToJSON r) => Aeson.ToJSON (CBCAST.Message r)
-instance (Generic r, Aeson.FromJSON r) => Aeson.FromJSON (CBCAST.Message r)
+deriving instance (Generic mm, Generic r) => Generic (MPA.Message mm r)
+instance (Generic mm, Generic r, Aeson.ToJSON mm, Aeson.ToJSON r) => Aeson.ToJSON (MPA.Message mm r)
+instance (Generic mm, Generic r, Aeson.FromJSON mm, Aeson.FromJSON r) => Aeson.FromJSON (MPA.Message mm r)
 
 
 -- * Helpers
@@ -261,7 +261,7 @@ instance (Generic r, Aeson.FromJSON r) => Aeson.FromJSON (CBCAST.Message r)
 -- Left "invalid integer range 4, should be (0,3]"
 -- >>> parsePID "foo" [undefined, undefined, undefined]
 -- Left "invalid integer literal 'foo'"
-parsePID :: String -> [a] -> Either String CBCAST.PID
+parsePID :: String -> [a] -> Either String MPA.PID
 parsePID s xs = case readEither s of
     Left _ -> Left $ printf "invalid integer literal '%s'" s
     Right n
