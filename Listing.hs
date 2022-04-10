@@ -81,26 +81,31 @@ rightExample = do
     -- updating their VC to [2,0,0].
     modifyIORef bob $ receive mFound
     modifyIORef bob $ receive mLost
-    Just (Message{mRaw="I lost my wallet..."}) <- modifyIORefMaybe bob $ fmap swap . deliver
-    Just (Message{mRaw="Found it!"}) <- modifyIORefMaybe bob $ fmap swap . deliver
+    modifyIORef bob $ \p ->
+        let Just (Message{mRaw="I lost my wallet..."}, p') = deliver p in p'
+    modifyIORef bob $ \p ->
+        let Just (Message{mRaw="Found it!"}, p') = deliver p in p'
 
     -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
     modifyIORef carol $ receive mLost
-    Just (Message{mRaw="I lost my wallet..."}) <- modifyIORefMaybe carol $ fmap swap . deliver
+    modifyIORef carol $ \p ->
+        let Just (Message{mRaw="I lost my wallet..."}, p') = deliver p in p'
 
     -- Bob sends 'glad' and their VC increments to [2,1,0].
     mGlad <- atomicModifyIORef bob $ swap . broadcast "Glad to hear it!"
 
     -- Carol receives 'glad' and delays it because it depends on 'found'.
     modifyIORef carol $ receive mGlad
-    Nothing <- modifyIORefMaybe carol $ fmap swap . deliver
+    Nothing <- deliver <$> readIORef carol
 
     -- Carol receives 'found' and delivers it, updating their VC to [2,0,0].
     modifyIORef carol $ receive mFound
-    Just (Message{mRaw="Found it!"}) <- modifyIORefMaybe carol $ fmap swap . deliver
+    modifyIORef carol $ \p ->
+        let Just (Message{mRaw="Found it!"}, p') = deliver p in p'
 
     -- Carol delivers 'glad', updating their VC to [2,1,0].
-    Just (Message{mRaw="Glad to hear it!"}) <- modifyIORefMaybe carol $ fmap swap . deliver
+    modifyIORef carol $ \p ->
+        let Just (Message{mRaw="Glad to hear it!"}, p') = deliver p in p'
 
     print =<< readIORef alice
     print =<< readIORef bob
