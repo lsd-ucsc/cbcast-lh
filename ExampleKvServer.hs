@@ -23,6 +23,9 @@ import qualified System.IO as IO
 
 import qualified Network.Wai.Metrics as Metrics
 import qualified System.Remote.Monitoring as EKG
+import qualified System.Metrics as EKG
+import qualified System.Metrics.Gauge as Gauge
+import qualified System.Metrics.Counter as Counter
 
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
@@ -85,20 +88,24 @@ type PeerQueues = [STM.TQueue (Int, Broadcast)]
 -- ** Handle requests
 
 -- | Handle requests to send or receive messages.
-handlers :: PeerQueues -> STM.TVar NodeState -> STM.TVar KvState -> Application
-handlers peerQueues nodeState kvState = serve
+handlers :: Stats -> PeerQueues -> STM.TVar NodeState -> STM.TVar KvState -> Application
+handlers stats peerQueues nodeState kvState = serve
     (Proxy :: Proxy (ToServantApi KvRoutes :<|> ToServantApi PeerRoutes))
     (kvHandlers :<|> nodeHandlers)
   where
     -- https://github.com/haskell-servant/servant/issues/1394
     kvHandlers :: Server (ToServantApi KvRoutes)
     kvHandlers
-        =    (\key val -> liftIO . STM.atomically $ do
+        =    (\key val -> liftIO $ do
+             Counter.inc (broadcastCount stats)
+             STM.atomically $ do
                 m <- STM.stateTVar nodeState . CBCAST.internalBroadcast $ KvPut key val
                 feedPeerQueues peerQueues m -- send message to network
                 applyMessage kvState m -- apply message locally
                 return NoContent)
-        :<|> (\key -> liftIO . STM.atomically $ do
+        :<|> (\key -> liftIO $ do
+             Counter.inc (broadcastCount stats)
+             STM.atomically $ do
                 m <- STM.stateTVar nodeState . CBCAST.internalBroadcast $ KvDel key
                 feedPeerQueues peerQueues m -- send message to network
                 applyMessage kvState m -- apply message locally
@@ -108,7 +115,9 @@ handlers peerQueues nodeState kvState = serve
                 maybe (throwError err404) return $ kvQuery key kv)
     nodeHandlers :: Server (ToServantApi PeerRoutes)
     nodeHandlers
-        =    (\message -> liftIO . STM.atomically $ do
+        =    (\message -> liftIO $ do
+             Counter.inc (receivedCount stats)
+             STM.atomically $ do
                 STM.modifyTVar' nodeState $ CBCAST.internalReceive message
                 return NoContent)
 
@@ -205,6 +214,7 @@ main = Env.getArgs >>= \argv -> case argv of
         -- Note: Ensure buffering is set so that stdout goes to syslog.
         IO.hSetBuffering IO.stdout IO.LineBuffering
         metricsStore <- mkMetricsStore
+        stats <- processMetrics metricsStore
         metricsMiddleware <- waiMetricsMiddleware metricsStore
         peers <- mapM Servant.parseBaseUrl urls
         pid <- either fail return $ parsePID num peers
@@ -225,7 +235,8 @@ main = Env.getArgs >>= \argv -> case argv of
             -- Note: Server listens on the port specified in the peer list.
             , Warp.run port
                 . metricsMiddleware
-                $ handlers peerQueues nodeState kvState
+                $ handlers stats peerQueues nodeState kvState
+            , gaugeDqSizes stats nodeState 0
             ]
         printf "main thread exited: %s\n" $ show result
         return ()
@@ -239,6 +250,24 @@ main = Env.getArgs >>= \argv -> case argv of
     waiMetricsMiddleware store = do
         metrics <- Metrics.registerWaiMetrics store
         return $ Metrics.metrics metrics
+    processMetrics store = do
+        dqSize <- EKG.createGauge "cbcast.dqSize" store
+        receivedCount <- EKG.createCounter "cbcast.receivedCount" store
+        broadcastCount <- EKG.createCounter "cbcast.broadcastCount" store
+        return Stats{dqSize, receivedCount, broadcastCount}
+    gaugeDqSizes stats nodeState size₀ = do
+        size <- STM.atomically $ do
+            size <- length . CBCAST.pDQ <$> STM.readTVar nodeState
+            STM.check $ size₀ /= size
+            return size
+        Gauge.set (dqSize stats) $ fromIntegral size
+        gaugeDqSizes stats nodeState size₀
+
+data Stats = Stats
+    { dqSize :: Gauge.Gauge
+    , receivedCount :: Counter.Counter
+    , broadcastCount :: Counter.Counter
+    }
 
 
 -- * Serialization Instances
