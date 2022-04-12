@@ -21,6 +21,9 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified System.Environment as Env
 import qualified System.IO as IO
 
+import qualified Network.Wai.Metrics as Metrics
+import qualified System.Remote.Monitoring as EKG
+
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
 import qualified Servant.Client as Servant
@@ -201,6 +204,8 @@ main = Env.getArgs >>= \argv -> case argv of
     (num:urls) -> do
         -- Note: Ensure buffering is set so that stdout goes to syslog.
         IO.hSetBuffering IO.stdout IO.LineBuffering
+        metricsStore <- mkMetricsStore
+        metricsMiddleware <- waiMetricsMiddleware metricsStore
         peers <- mapM Servant.parseBaseUrl urls
         pid <- either fail return $ parsePID num peers
         let port = Servant.baseUrlPort $ peers !! pid
@@ -218,10 +223,22 @@ main = Env.getArgs >>= \argv -> case argv of
             -- Note: sendMailThread does not receive the url of the current process.
             , sendMailThread (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
-            , Warp.run port $ handlers peerQueues nodeState kvState
+            , Warp.run port
+                . metricsMiddleware
+                $ handlers peerQueues nodeState kvState
             ]
         printf "main thread exited: %s\n" $ show result
         return ()
+  where
+    mkMetricsStore = do
+        let metricsHost = "localhost"
+            metricsPort = 9890
+        printf "Starting metrics server on %s and %d\n" (show metricsHost) metricsPort
+        server <- EKG.forkServer metricsHost metricsPort
+        return $ EKG.serverMetricStore server
+    waiMetricsMiddleware store = do
+        metrics <- Metrics.registerWaiMetrics store
+        return $ Metrics.metrics metrics
 
 
 -- * Serialization Instances
