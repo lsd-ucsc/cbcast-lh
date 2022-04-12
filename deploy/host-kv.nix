@@ -9,7 +9,7 @@
 let
   node-names = builtins.filter (lib.hasPrefix node-prefix) (builtins.attrNames nodes);
   get-ip = config:
-    let ip = config.networking.publicIPv4;
+    let ip = if config.networking.publicIPv4 == null then config.networking.privateIPv4 else config.networking.publicIPv4;
     in lib.traceIf (ip == null) "ip is null; are you doing --build-only?" ip;
   node-ipports = map (nn: "${get-ip nodes.${nn}.config}:${toString kv-store-port}") node-names;
   node-hostports = map (nn: "${nn}:${toString kv-store-port}") node-names; # nixops populates the hosts file with hostnames

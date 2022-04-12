@@ -7,7 +7,7 @@
 { pkgs, lib, nodes, ... }:
 let
   get-ip = config:
-    let ip = config.networking.publicIPv4;
+    let ip = if config.networking.publicIPv4 == null then config.networking.privateIPv4 else config.networking.publicIPv4;
     in lib.traceIf (ip == null) "ip is null; are you doing --build-only?" ip;
   target-ip = get-ip nodes.${target-kv-store}.config;
 in
