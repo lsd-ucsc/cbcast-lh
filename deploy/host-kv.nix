@@ -1,7 +1,6 @@
 { kv-store-offset
 , kv-store-port
 , node-prefix
-, kv-store-ip-explicit ? null
 , skip-build ? false
 , modules ? [ ]
 }:
@@ -9,7 +8,9 @@
 { pkgs, lib, nodes, ... }:
 let
   node-names = builtins.filter (lib.hasPrefix node-prefix) (builtins.attrNames nodes);
-  get-ip = config: if kv-store-ip-explicit != null then kv-store-ip-explicit else config.networking.publicIPv4; # when do we use config.networking.publicIPv4?
+  get-ip = config:
+    let ip = config.networking.publicIPv4;
+    in lib.traceIf (ip == null) "ip is null; are you doing --build-only?" ip;
   node-ipports = map (nn: "${get-ip nodes.${nn}.config}:${toString kv-store-port}") node-names;
   node-hostports = map (nn: "${nn}:${toString kv-store-port}") node-names; # nixops populates the hosts file with hostnames
   kv-store-args = "${toString kv-store-offset} ${builtins.concatStringsSep " " node-ipports}";
