@@ -16,10 +16,7 @@ import MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausa
 -- an assoc.
 type Execution mm r = PID -> ProcessHistory mm r
 
--- | POSTULATE
-happensBefore :: Execution mm r -> Event mm r -> Event mm r -> Bool
-happensBefore _x _e₁ _e₂ = False
-{-@ reflect happensBefore @-}
+{-@ measure happensBefore :: Execution mm r -> Event mm r -> Event mm r -> Bool @-}
 
 {-@
 type CausalDelivery mm r X PID
