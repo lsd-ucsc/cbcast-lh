@@ -8,7 +8,8 @@
   <https://github.com/NixOS/nixops/issues/1173> to remove the conflicting
   disks.
 * Sometimes virtualbox service fails on first deploy. Do `nixops deploy -d vm
-  --force-reboot` to clear it up.
+  --force-reboot` or open the VirtualBox UI's media manager and delete the
+  disks to clear it up.
 * Deploy like this
   ```sh-session
 nixops create -d vm net-vm.nix
