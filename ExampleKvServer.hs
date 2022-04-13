@@ -129,15 +129,16 @@ handlers stats peerQueues nodeState kvState = serve
 -- TODO tests
 readMail :: Stats -> STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
 readMail stats nodeState kvState = do
-    p₀ <- STM.readTVar nodeState
-    case CBCAST.internalDeliver p₀ of
-        Nothing -> do
-            return . unsafePerformIO . Counter.inc $ deliverFailCount stats
-            STM.retry
-        Just (m, p₁) -> do
-            return . unsafePerformIO . Counter.inc $ deliverCount stats
-            applyMessage kvState m
-            STM.writeTVar nodeState p₁
+    message <- STM.stateTVar nodeState
+        $ \p₀ -> case CBCAST.internalDeliver p₀ of
+            Nothing      -> (Nothing, p₀)
+            Just (m, p₁) -> (Just m, p₁)
+    maybe
+        (deliverFailCount `inc` STM.retry)
+        (    deliverCount `inc` applyMessage kvState)
+        message
+  where
+    inc statField = seq (unsafePerformIO . Counter.inc $ statField stats)
 
 -- | Apply the message to application state.
 applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
