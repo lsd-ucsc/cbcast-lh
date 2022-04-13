@@ -25,6 +25,7 @@ import qualified Network.Wai.Metrics as Metrics
 import qualified System.Remote.Monitoring as EKG
 import qualified System.Metrics as EKG
 import qualified System.Metrics.Counter as Counter
+import System.IO.Unsafe (unsafePerformIO) -- To collect stats within an STM transaction
 
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
@@ -126,13 +127,17 @@ handlers stats peerQueues nodeState kvState = serve
 -- | Block until there is a deliverable message and apply it.
 --
 -- TODO tests
-readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
-readMail nodeState kvState = do
-    message <- STM.stateTVar nodeState $ \p₀ ->
-        case CBCAST.internalDeliver p₀ of
-            Nothing      -> (Nothing, p₀)
-            Just (m, p₁) -> (Just m, p₁)
-    maybe STM.retry (applyMessage kvState) message
+readMail :: Stats -> STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
+readMail stats nodeState kvState = do
+    p₀ <- STM.readTVar nodeState
+    case CBCAST.internalDeliver p₀ of
+        Nothing -> do
+            return . unsafePerformIO . Counter.inc $ deliverFailCount stats
+            STM.retry
+        Just (m, p₁) -> do
+            return . unsafePerformIO . Counter.inc $ deliverCount stats
+            applyMessage kvState m
+            STM.writeTVar nodeState p₁
 
 -- | Apply the message to application state.
 applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
@@ -228,7 +233,7 @@ main = Env.getArgs >>= \argv -> case argv of
         (_, result)
             <- Async.waitAnyCatchCancel
             =<< mapM Async.async
-            [ Monad.forever . STM.atomically $ readMail nodeState kvState
+            [ Monad.forever . STM.atomically $ readMail stats nodeState kvState
             -- Note: sendMailThread does not receive the url of the current process.
             , sendMailThread (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
@@ -249,11 +254,15 @@ main = Env.getArgs >>= \argv -> case argv of
         metrics <- Metrics.registerWaiMetrics store
         return $ Metrics.metrics metrics
     processMetrics store = Stats
-        <$> EKG.createCounter "cbcast.receiveCount" store
+        <$> EKG.createCounter "cbcast.deliverCount" store
+        <*> EKG.createCounter "cbcast.deliverFailCount" store
+        <*> EKG.createCounter "cbcast.receiveCount" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
 
 data Stats = Stats
-    { receiveCount :: Counter.Counter
+    { deliverCount :: Counter.Counter
+    , deliverFailCount :: Counter.Counter
+    , receiveCount :: Counter.Counter
     , broadcastCount :: Counter.Counter
     }
 
