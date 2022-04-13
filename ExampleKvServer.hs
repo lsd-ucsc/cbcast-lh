@@ -24,7 +24,6 @@ import qualified System.IO as IO
 import qualified Network.Wai.Metrics as Metrics
 import qualified System.Remote.Monitoring as EKG
 import qualified System.Metrics as EKG
-import qualified System.Metrics.Gauge as Gauge
 import qualified System.Metrics.Counter as Counter
 
 import Servant
@@ -116,7 +115,7 @@ handlers stats peerQueues nodeState kvState = serve
     nodeHandlers :: Server (ToServantApi PeerRoutes)
     nodeHandlers
         =    (\message -> liftIO $ do
-             Counter.inc (receivedCount stats)
+             Counter.inc (receiveCount stats)
              STM.atomically $ do
                 STM.modifyTVar' nodeState $ CBCAST.internalReceive message
                 return NoContent)
@@ -236,7 +235,6 @@ main = Env.getArgs >>= \argv -> case argv of
             , Warp.run port
                 . metricsMiddleware
                 $ handlers stats peerQueues nodeState kvState
-            , gaugeDqSizes stats nodeState 0
             ]
         printf "main thread exited: %s\n" $ show result
         return ()
@@ -250,22 +248,12 @@ main = Env.getArgs >>= \argv -> case argv of
     waiMetricsMiddleware store = do
         metrics <- Metrics.registerWaiMetrics store
         return $ Metrics.metrics metrics
-    processMetrics store = do
-        dqSize <- EKG.createGauge "cbcast.dqSize" store
-        receivedCount <- EKG.createCounter "cbcast.receivedCount" store
-        broadcastCount <- EKG.createCounter "cbcast.broadcastCount" store
-        return Stats{dqSize, receivedCount, broadcastCount}
-    gaugeDqSizes stats nodeState size₀ = do
-        size <- STM.atomically $ do
-            size <- length . CBCAST.pDQ <$> STM.readTVar nodeState
-            STM.check $ size₀ /= size
-            return size
-        Gauge.set (dqSize stats) $ fromIntegral size
-        gaugeDqSizes stats nodeState size₀
+    processMetrics store = Stats
+        <$> EKG.createCounter "cbcast.receiveCount" store
+        <*> EKG.createCounter "cbcast.broadcastCount" store
 
 data Stats = Stats
-    { dqSize :: Gauge.Gauge
-    , receivedCount :: Counter.Counter
+    { receiveCount :: Counter.Counter
     , broadcastCount :: Counter.Counter
     }
 
