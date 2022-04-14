@@ -27,7 +27,15 @@ nixops check -d $DEPLOYMENT | tee check.log || true
 # start all the clients (see pkg-client.nix; they generate curl commands and then run them)
 # TODO: write a proper python client to observe conflicts
 nixops ssh-for-each -d $DEPLOYMENT -- systemctl start kv-client.service || true
-trap "nixops ssh-for-each -d $DEPLOYMENT 'systemctl status kv-client' 2>&1| tee clients.log" SIGINT EXIT
+function allDone(){
+    # extract the EKG data from the servers
+    nixops ssh-for-each -d $DEPLOYMENT -- 'curl localhost:9890 --header "Accept: application/json" > ekg.json'
+    for server in $(nixops info -d vm --plain | cut -f1 | grep -v client); do
+        nixops scp --from $server 'ekg.json' "$server.ekg.json"
+    done
+    nixops ssh-for-each -d $DEPLOYMENT 'systemctl status kv-client' 2>&1 | tee clients.log
+}
+trap allDone SIGINT EXIT
 
 # now you just watch the output here to see when the clients load has gone
 # down, meaning the test is over.. at that point, fetch the data
