@@ -33,21 +33,14 @@ nixops check -d $DEPLOYMENT || true
 nixops ssh-for-each -d $DEPLOYMENT --include $clients -- systemctl start kv-client.service
 
 # wait for the clients to finish
-truncate -s0 load.log
+truncate -s0 stats.log
 clientCount=$(echo $clients | wc -w)
 while sleep 10; do
-    # log host load
-    nixops ssh-for-each -d $DEPLOYMENT -- uptime 2>&1 | tee -a load.log
+    # log host stats
+    nixops ssh-for-each -d $DEPLOYMENT -- 'uptime && curl -s localhost:9890 --header "Accept: application/json" || true' 2>&1 | tee -a stats.log
     # check if clients are done
     doneCount=$(nixops ssh-for-each -d $DEPLOYMENT --include $clients -- journalctl -u kv-client -n2 2>&1 | grep -i succeeded -c || true)
     if [[ $clientCount -eq $doneCount ]]; then
         break
     fi
-done
-nixops ssh-for-each -d $DEPLOYMENT --include $clients -- journalctl -u kv-client -n2 2>&1 > clients.log
-
-# extract the EKG data from the servers
-nixops ssh-for-each -d $DEPLOYMENT --include $servers -- 'curl localhost:9890 --header "Accept: application/json" > ekg.json'
-for server in $servers; do
-    nixops scp --from $server 'ekg.json' "$server.ekg.json"
 done
