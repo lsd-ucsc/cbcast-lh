@@ -25,6 +25,7 @@ import qualified Network.Wai.Metrics as Metrics
 import qualified System.Remote.Monitoring as EKG
 import qualified System.Metrics as EKG
 import qualified System.Metrics.Counter as Counter
+import qualified System.Metrics.Distribution as Distribution
 
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
@@ -229,8 +230,11 @@ main = Env.getArgs >>= \argv -> case argv of
             <- Async.waitAnyCatchCancel
             =<< mapM Async.async
             [ Monad.forever $ do
-                STM.atomically $ readMail nodeState kvState
+                dqSize <- STM.atomically $ do
+                    readMail nodeState kvState
+                    length . CBCAST.pDQ <$> STM.readTVar nodeState
                 Counter.inc (deliverCount stats)
+                Distribution.add (dqSizeDist stats) (fromIntegral dqSize)
             -- Note: sendMailThread does not receive the url of the current process.
             , sendMailThread (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
@@ -252,11 +256,13 @@ main = Env.getArgs >>= \argv -> case argv of
         return $ Metrics.metrics metrics
     processMetrics store = Stats
         <$> EKG.createCounter "cbcast.deliverCount" store
+        <*> EKG.createDistribution "cbcast.dqSizeDist" store
         <*> EKG.createCounter "cbcast.receiveCount" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
 
 data Stats = Stats
     { deliverCount :: Counter.Counter
+    , dqSizeDist :: Distribution.Distribution
     , receiveCount :: Counter.Counter
     , broadcastCount :: Counter.Counter
     }
