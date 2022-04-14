@@ -51,5 +51,5 @@ if __name__ == '__main__':
         req = random.choice([get,delete,put]) if ns.mut else get
         cmd = req(ns.addr,random.choice(string.ascii_lowercase),randdata(5))
         if not ns.verbose:
-            cmd += ' > /dev/null'
+            cmd += ' 2> /dev/null'
         print(cmd)
