@@ -41,6 +41,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('addr')
+    ap.add_argument('--verbose', action='store_true')
     ap.add_argument('--mut', action='store_true')
     ns = ap.parse_args()
 
@@ -49,6 +50,6 @@ if __name__ == '__main__':
     for n in range(round(1e4)):
         req = random.choice([get,delete,put]) if ns.mut else get
         cmd = req(ns.addr,random.choice(string.ascii_lowercase),randdata(5))
-        #if ns.mut:
-        #    cmd += ' > /dev/null'
+        if not ns.verbose:
+            cmd += ' > /dev/null'
         print(cmd)
