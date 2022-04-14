@@ -25,7 +25,6 @@ import qualified Network.Wai.Metrics as Metrics
 import qualified System.Remote.Monitoring as EKG
 import qualified System.Metrics as EKG
 import qualified System.Metrics.Counter as Counter
-import System.IO.Unsafe (unsafePerformIO) -- To collect stats within an STM transaction
 
 import Servant
 import Servant.API.Generic ((:-), Generic, ToServantApi)
@@ -127,18 +126,13 @@ handlers stats peerQueues nodeState kvState = serve
 -- | Block until there is a deliverable message and apply it.
 --
 -- TODO tests
-readMail :: Stats -> STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
-readMail stats nodeState kvState = do
+readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
+readMail nodeState kvState = do
     message <- STM.stateTVar nodeState
         $ \p₀ -> case CBCAST.internalDeliver p₀ of
             Nothing      -> (Nothing, p₀)
             Just (m, p₁) -> (Just m, p₁)
-    maybe
-        (deliverFailCount `inc` STM.retry)
-        (    deliverCount `inc` applyMessage kvState)
-        message
-  where
-    inc statField = seq (unsafePerformIO . Counter.inc $ statField stats)
+    maybe STM.retry (applyMessage kvState) message
 
 -- | Apply the message to application state.
 applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
@@ -234,7 +228,9 @@ main = Env.getArgs >>= \argv -> case argv of
         (_, result)
             <- Async.waitAnyCatchCancel
             =<< mapM Async.async
-            [ Monad.forever . STM.atomically $ readMail stats nodeState kvState
+            [ Monad.forever $ do
+                STM.atomically $ readMail nodeState kvState
+                Counter.inc (deliverCount stats)
             -- Note: sendMailThread does not receive the url of the current process.
             , sendMailThread (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
@@ -256,13 +252,11 @@ main = Env.getArgs >>= \argv -> case argv of
         return $ Metrics.metrics metrics
     processMetrics store = Stats
         <$> EKG.createCounter "cbcast.deliverCount" store
-        <*> EKG.createCounter "cbcast.deliverFailCount" store
         <*> EKG.createCounter "cbcast.receiveCount" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
 
 data Stats = Stats
     { deliverCount :: Counter.Counter
-    , deliverFailCount :: Counter.Counter
     , receiveCount :: Counter.Counter
     , broadcastCount :: Counter.Counter
     }
