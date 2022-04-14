@@ -2,6 +2,8 @@
 set -e -u -o pipefail
 set -x
 
+AWS_SHARED_CREDENTIALS_FILE=aws-keys
+
 DEPLOYMENT=aws
 NIX_NETWORK=net-aws.nix
 
