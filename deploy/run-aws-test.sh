@@ -12,7 +12,7 @@ if nixops info -d $DEPLOYMENT > /dev/null; then
     echo found $DEPLOYMENT deployment
 else
     nixops create -d $DEPLOYMENT $NIX_NETWORK
-    nixops deploy -d $DEPLOYMENT --force-reboot
+    nixops deploy -d $DEPLOYMENT --force-reboot --kill-obsolete --max-concurrent-copy 2
 fi
 
 # obtain lists of clients and servers
