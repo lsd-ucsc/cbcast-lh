@@ -191,11 +191,11 @@ sendToPeer stats (env, queue) = do
         Left err -> do
             Counter.inc (unicastFailCount stats)
             printf "sendToPeer error (%d, %s): %s \n" failures (Servant.showBaseUrl $ Servant.baseUrl env) (showClientError err)
-            backoff <- STM.registerDelay $ round (2^failures * 1e6 :: Double)
+            backoff <- STM.registerDelay $ round (2^(min 5 failures) * 1e6 :: Double)
             STM.atomically $ do
                 STM.check =<< STM.readTVar backoff
                 -- Max backoff 2 ^ 5 sec
-                STM.unGetTQueue queue (Sum . min 5 $ failures + 1, message)
+                STM.unGetTQueue queue (Sum $ failures + 1, message)
 
 
 -- * Demo
