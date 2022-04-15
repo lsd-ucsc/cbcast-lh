@@ -35,15 +35,15 @@ nixops check -d $DEPLOYMENT || true
 nixops ssh-for-each --parallel -d $DEPLOYMENT --parallel --include $clients -- systemctl start kv-client.service
 
 # wait for the clients to finish
-stathosts=$servers $clients
+statargs="--parallel --include $servers $clients"
 truncate -s0 stats.log
 clientCount=$(echo $clients | wc -w)
 while sleep 10; do
     # log host stats
-    nixops ssh-for-each -d $DEPLOYMENT --parallel --include $stathosts -- 'uptime && curl -s localhost:9890 --header "Accept: application/json" || true' 2>&1 | tee -a stats.log
+    nixops ssh-for-each -d $DEPLOYMENT $statargs -- 'uptime && curl -s localhost:9890 --header "Accept: application/json" || true' 2>&1 | tee -a stats.log
     # check if clients are done
     doneCount=$(nixops ssh-for-each -d $DEPLOYMENT --parallel --include $clients -- journalctl -u kv-client -n2 2>&1 | grep -i succeeded -c || true)
     if [[ $clientCount -eq $doneCount ]]; then
-        stathosts=$servers
+        statargs="--include $servers"
     fi
 done
