@@ -9,14 +9,20 @@ SETUP_CMD = runhaskell -hide-package=base Setup.hs
 .PHONY: test build clean repl
 
 test: build
-	$(SETUP_CMD) test
+	time $(SETUP_CMD) test
 
 # TODO use dist/build/%/% ? scan cabalfile for executable names?
 build: $(CONFIG_FILE)
-	$(SETUP_CMD) build
+	time $(SETUP_CMD) build
 
 $(CONFIG_FILE): $(CABAL_FILE)
 	$(SETUP_CMD) configure --enable-tests
+
+check: clean
+	if grep '==!\|Admit\|undefined\|--check-var\|--skip-module' -r lib/; then \
+		echo Found banned identifiers; false; \
+	fi
+	make build
 
 clean: $(CABAL_FILE)
 	$(SETUP_CMD) clean
@@ -34,6 +40,6 @@ repl: $(CONFIG_FILE)
 ghcid:
 	nix-shell -p ghcid --run 'ghcid -c make repl'
 entr-build:
-	git ls-files | entr -c bash -c 'make build; echo done'
+	git ls-files | entr -c bash -c 'make build'
 entr-test:
-	git ls-files | entr -c bash -c 'make test; echo done'
+	git ls-files | entr -c bash -c 'make test'

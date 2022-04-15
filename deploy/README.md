@@ -8,7 +8,8 @@
   <https://github.com/NixOS/nixops/issues/1173> to remove the conflicting
   disks.
 * Sometimes virtualbox service fails on first deploy. Do `nixops deploy -d vm
-  --force-reboot` to clear it up.
+  --force-reboot` or open the VirtualBox UI's media manager and delete the
+  disks to clear it up.
 * Deploy like this
   ```sh-session
 nixops create -d vm net-vm.nix
@@ -17,7 +18,18 @@ nixops deploy --force-reboot
 
 ## AWS
 
-Using account <cbcast-test-deploy-2021-group@ucsc.edu>
+Make a credentials file `$FILE` with a `cbcast` profile:
+```
+[cbcast]
+aws_access_key_id = AKIABOGUSACCESSKEY
+aws_secret_access_key = BOGUSSECRETACCESSKEY
+```
+Run nixops with an envvar to locate `$FILE`.
+```sh
+export AWS_SHARED_CREDENTIALS_FILE=$FILE
+```
+Make sure you have no conflicting files or profiles (such as `~/.ec2-keys` or
+`~/.aws/credentials` containing a `cbcast` profile).
 
 * Deploy like this
   ```sh-session

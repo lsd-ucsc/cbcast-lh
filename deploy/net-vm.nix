@@ -14,7 +14,14 @@ in
     # virtualbox target doesn't work for alternate ports
     services.openssh.ports = (import <nixpkgs> { }).lib.mkForce [ 22 ];
 
-    imports = [ ./common.nix ];
+    imports = [
+      ./common.nix
+      ({ lib, ... }: {
+        # Fix some version mismatch error.
+        # Don't need guest service for a proof of concept.
+        virtualisation.virtualbox.guest.enable = lib.mkForce false;
+      })
+    ];
   };
 }
   // nodes

@@ -41,14 +41,26 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('addr')
+    ap.add_argument('--verbose', action='store_true')
     ap.add_argument('--mut', action='store_true')
     ns = ap.parse_args()
 
     print('#!/usr/bin/env bash')
     print('set -x')
-    for n in range(round(1e4)):
+
+    request_count = 10_000
+    test_length_sec = 8 * 60
+    requests_per_sec = request_count / test_length_sec
+    sec_per_request = 1 / requests_per_sec
+    print('request count:', request_count)
+    print('test length sec:', test_length_sec)
+    print('RPS:', requests_per_sec)
+    print('request delay:', sec_per_request)
+
+    for n in range(request_count):
         req = random.choice([get,delete,put]) if ns.mut else get
         cmd = req(ns.addr,random.choice(string.ascii_lowercase),randdata(5))
-        #if ns.mut:
-        #    cmd += ' > /dev/null'
+        if not ns.verbose:
+            cmd += ' 2> /dev/null'
         print(cmd)
+        print(f'sleep {sec_per_request:10.10f}')

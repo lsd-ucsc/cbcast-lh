@@ -2,8 +2,11 @@
 *.svg
 *.swp
 .liquid/
-Setup.hs
 dist-newstyle/
 dist/
 *.svg
 *.gif
+result
+result-doc
+build-env
+build-env-*-link

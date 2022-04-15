@@ -59,12 +59,12 @@ let
   };
 
   # client named with both node info and client id; targets the node
-  mkClientFragment = node-spec@{ node-region, ... }: client-ofs: {
+  mkClientFragment = { node-spec, client-ofs }: {
     ${clientHostname node-spec client-ofs} = import ./host-client.nix {
       target-kv-store = nodeHostname node-spec;
       target-kv-store-port = node-port;
       inherit skip-build;
-      modules = [ (mkEc2PropsModule node-region) ];
+      modules = [ (mkEc2PropsModule node-spec.node-region) ];
     };
   };
 
@@ -91,6 +91,6 @@ let
   client-offsets = indexes clients-per-node;
 
   nodes = map mkNodeFragment node-specs;
-  clients = lib.crossLists mkClientFragment [ node-specs client-offsets ];
+  clients = map mkClientFragment (lib.cartesianProductOfSets { node-spec = node-specs; client-ofs = client-offsets; });
 in
 awsGate regionFragment // mergeNAttrs (nodes ++ clients)

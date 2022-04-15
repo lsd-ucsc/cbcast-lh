@@ -2,7 +2,7 @@
   description = "CBCAST LH";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-20.09;
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
 
     flake-utils.url = github:numtide/flake-utils;
 
@@ -14,35 +14,30 @@
   outputs = { self, nixpkgs, flake-utils, liquidhaskell }:
     let
       composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
-      haskellPackagesOverlay = compiler: final: prev: overrides: {
-        haskell = prev.haskell // {
-          packages = prev.haskell.packages // {
-            ${compiler} = prev.haskell.packages.${compiler}.extend overrides;
+      haskellOverlay = compiler: final: prev: new:
+        let new-overrides = new.overrides or (a: b: { }); in
+        {
+          haskell = prev.haskell // {
+            packages = prev.haskell.packages // {
+              ${compiler} = prev.haskell.packages.${compiler}.override
+                (old: old // new // {
+                  overrides = self: super: old.overrides self super // new-overrides self super;
+                });
+            };
           };
         };
-      };
-      ghc = "ghc8102";
+      haskellPackagesOverlay = compiler: final: prev: cur-packages-overlay:
+        haskellOverlay compiler final prev { overrides = cur-packages-overlay; };
+      ghc = "ghc8107"; # Based on https://github.com/ucsd-progsys/liquid-fixpoint/blob/develop/stack.yaml#L3
       mkOutputs = system: {
 
         overlays = {
-          upgradeServant = final: prev: haskellPackagesOverlay ghc final prev (self: super:
-            # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
-            let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
-            with prev.haskell.lib; {
-              http-media = doJailbreak super.http-media;
-              servant = self.callHackage "servant" "0.18.2" { };
-              servant-client = self.callHackage "servant-client" "0.18.2" { };
-              servant-client-core = self.callHackage "servant-client-core" "0.18.2" { };
-              servant-server = self.callHackage "servant-server" "0.18.2" { };
-            });
           addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (self: super:
-            # XXX shouldn't this be just haskellPackages.callCabal2nix? there's no reason to specify the compiler
-            let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
             with prev.haskell.lib; {
               cbcast-lh =
                 let
-                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "*.cabal" "deploy/" ] ./.;
-                  drv = callCabal2nix "cbcast-lh" src { };
+                  src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "build-env" "*.cabal" "deploy/" "dist/" ] ./.;
+                  drv = super.callCabal2nix "cbcast-lh" src { };
                 in
                 overrideCabal drv (old: {
                   enableLibraryProfiling = false;
@@ -53,7 +48,6 @@
 
         overlay = composeOverlays [
           liquidhaskell.overlay.${system}
-          self.overlays.${system}.upgradeServant
           self.overlays.${system}.addCBCASTLH
         ];
 
