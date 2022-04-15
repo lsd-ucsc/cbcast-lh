@@ -151,8 +151,9 @@ applyMessage kvState m =
 -- ** Broadcast messages
 
 -- | Drain broadcast messages and send them to peers, forever. Does not return.
-sendMailThread :: Peers -> PeerQueues -> IO ()
-sendMailThread peers peerQueues = Exc.assert (length peers == length peerQueues) $ do
+sendMailThread :: Stats -> Peers -> PeerQueues -> IO ()
+sendMailThread stats peers peerQueues =
+  Exc.assert (length peers == length peerQueues) $ do
     printf "sendMailThread will deliver to peers: %s\n" (unwords $ Servant.showBaseUrl <$> peers)
     connections <- HTTP.newManager HTTP.defaultManagerSettings
     let clientEnvs = Servant.mkClientEnv connections <$> peers
@@ -161,7 +162,7 @@ sendMailThread peers peerQueues = Exc.assert (length peers == length peerQueues)
     (_, result)
         <- Async.waitAnyCatchCancel
         =<< mapM (Async.async . Monad.void . Monad.forever)
-        (sendToPeer <$> zip clientEnvs peerQueues)
+        (sendToPeer stats <$> zip clientEnvs peerQueues)
     printf "sendMailThread exited: %s\n" $ show result
 
 -- | Put the message on all peer queues.
@@ -176,16 +177,18 @@ feedPeerQueues peerQueues m =
 -- message back on the queue and note failure. Return.
 --
 -- TODO tests
-sendToPeer :: (Servant.ClientEnv, STM.TQueue Unicast) -> IO ()
-sendToPeer (env, queue) = do
+sendToPeer :: Stats -> (Servant.ClientEnv, STM.TQueue Unicast) -> IO ()
+sendToPeer stats (env, queue) = do
     (Sum failures, message) <- STM.atomically $ do
         unicasts <- STM.flushTQueue queue
         STM.check $ [] /= unicasts
         return $ mconcat unicasts
     result <- Servant.runClientM (cbcast peerRoutes message) env
     case result of
-        Right NoContent -> return ()
+        Right NoContent -> do
+            Counter.inc (unicastCount stats)
         Left err -> do
+            Counter.inc (unicastFailCount stats)
             printf "sendToPeer error (%d, %s): %s \n" failures (Servant.showBaseUrl $ Servant.baseUrl env) (showClientError err)
             backoff <- STM.registerDelay $ round (2^failures * 1e6 :: Double)
             STM.atomically $ do
@@ -246,7 +249,7 @@ main = Env.getArgs >>= \argv -> case argv of
                 Counter.inc (deliverCount stats)
                 Distribution.add (dqSizeDist stats) (fromIntegral dqSize)
             -- Note: sendMailThread does not receive the url of the current process.
-            , sendMailThread (removeIndex pid peers) peerQueues
+            , sendMailThread stats (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
             , Warp.run port
                 . metricsMiddleware
@@ -269,12 +272,16 @@ main = Env.getArgs >>= \argv -> case argv of
         <*> EKG.createDistribution "cbcast.dqSizeDist" store
         <*> EKG.createCounter "cbcast.receiveCount" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
+        <*> EKG.createCounter "cbcast.unicastCount" store
+        <*> EKG.createCounter "cbcast.unicastFailCount" store
 
 data Stats = Stats
     { deliverCount :: Counter.Counter
     , dqSizeDist :: Distribution.Distribution
     , receiveCount :: Counter.Counter
     , broadcastCount :: Counter.Counter
+    , unicastCount :: Counter.Counter
+    , unicastFailCount :: Counter.Counter
     }
 
 
