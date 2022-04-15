@@ -50,14 +50,18 @@ for host, samples in host_samples.items():
     print(json.dumps(host))
     first = None
     for i, s in enumerate(samples):
+        if s.ekg is None:
+            continue
         if first is None:
             first = s
         # comment this branch to show all samples
-        if i < len(samples) - 1:
+        if i < len(samples) - 3:
             continue
         print(
                 t2dt(s.timestamp) - t2dt(first.timestamp),
                 f'''send {s.ekg['cbcast']['broadcastCount']['val']:6}''',
+                f'''uOK {s.ekg['cbcast']['unicastCount']['val']:6}''',
+                f'''uFX {s.ekg['cbcast']['unicastFailCount']['val']:6}''',
                 f'''recv {s.ekg['cbcast']['receiveCount']['val']:6}''',
                 f'''dlvr {s.ekg['cbcast']['deliverCount']['val']:6}''',
                 'OKAY' if s.ekg['cbcast']['receiveCount']['val'] == s.ekg['cbcast']['deliverCount']['val'] else 'WAIT',
