@@ -70,7 +70,8 @@ type Broadcast = VCA.M KvCommand
 type NodeState = CBCAST.P KvCommand
 
 data PeerRoutes mode = PeerRoutes
-    { cbcast :: mode :- "cbcast" :> ReqBody '[JSON] Broadcast :> PostNoContent
+    -- We coalesce CBCASTs by sending a list of them in each request.
+    { cbcast :: mode :- "cbcast" :> ReqBody '[JSON] [Broadcast] :> PostNoContent
     }
     deriving (Generic)
 
@@ -79,7 +80,10 @@ type Peers = [Servant.BaseUrl]
 peerRoutes :: PeerRoutes (Servant.AsClientT Servant.ClientM)
 peerRoutes = Servant.genericClient
 
-type PeerQueues = [STM.TQueue (Int, Broadcast)]
+-- | A unicast is a coalesced list of broadcasts, as well as a count of the
+-- number of failed requests to the recipient.
+type Unicast = (Int, [Broadcast])
+type PeerQueues = [STM.TQueue Unicast]
 
 
 -- * Backend
@@ -115,10 +119,12 @@ handlers stats peerQueues nodeState kvState = serve
                 maybe (throwError err404) return $ kvQuery key kv)
     nodeHandlers :: Server (ToServantApi PeerRoutes)
     nodeHandlers
-        =    (\message -> liftIO $ do
-             Counter.inc (receiveCount stats)
+        =    (\messages -> liftIO $ do
+             -- Count the whole list of messages as received
+             Counter.add (receiveCount stats) . fromIntegral $ length messages
              STM.atomically $ do
-                STM.modifyTVar' nodeState $ CBCAST.internalReceive message
+                -- Receive the whole list of messages
+                STM.modifyTVar' nodeState $ flip (foldr CBCAST.internalReceive) messages
                 return NoContent)
 
 
@@ -163,13 +169,13 @@ sendMailThread peers peerQueues = Exc.assert (length peers == length peerQueues)
 feedPeerQueues :: PeerQueues -> Broadcast -> STM.STM ()
 feedPeerQueues peerQueues m =
     Monad.forM_ peerQueues $ \q ->
-        STM.writeTQueue q (0, m)
+        STM.writeTQueue q (0, [m])
 
 -- | Send a message from a queue to a peer. On failure, backoff and put the
 -- message back on the queue and note failure. Return.
 --
 -- TODO tests
-sendToPeer :: (Servant.ClientEnv, STM.TQueue (Int, Broadcast)) -> IO ()
+sendToPeer :: (Servant.ClientEnv, STM.TQueue Unicast) -> IO ()
 sendToPeer (env, queue) = do
     (failures, message) <- STM.atomically $ STM.readTQueue queue
     result <- Servant.runClientM (cbcast peerRoutes message) env
