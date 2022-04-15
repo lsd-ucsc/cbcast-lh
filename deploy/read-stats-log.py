@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import os
+import sys
 import json
 import datetime
 import collections
 
+statlog = sys.argv[1]
+
 Sample = collections.namedtuple('Sample', 'host timestamp uptime userct one five fifteen ekg')
 host_samples = collections.defaultdict(list)
 
-for line in open('stats.log').readlines():
+for line in open(statlog).readlines():
     host, _, line = line.strip().partition('> ')
     host = host.rstrip('.')
     try:
@@ -31,9 +34,25 @@ for line in open('stats.log').readlines():
 
 # GNUPLOT
 # https://gist.github.com/fearofcode/5034126
+
+#for host, samples in host_samples.items():
+#    print(json.dumps(host))
+#    for s in samples:
+#        print(s.timestamp, s.one)
+#    print()
+#    print()
+
 for host, samples in host_samples.items():
+    if 'client' in host:
+        continue
     print(json.dumps(host))
     for s in samples:
-        print(s.timestamp, s.one)
+        print(
+                s.timestamp,
+                'send', s.ekg['cbcast']['broadcastCount']['val'],
+                'recv', s.ekg['cbcast']['receiveCount']['val'],
+                'dlvr', s.ekg['cbcast']['deliverCount']['val'],
+                'd2', s.ekg['cbcast']['dqSizeDist'],
+                )
     print()
     print()
