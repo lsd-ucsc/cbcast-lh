@@ -8,6 +8,7 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
+import Data.Monoid (Sum(..))
 import Text.Printf (printf)
 import Text.Read (readEither)
 import qualified Control.Exception as Exc
@@ -82,7 +83,7 @@ peerRoutes = Servant.genericClient
 
 -- | A unicast is a coalesced list of broadcasts, as well as a count of the
 -- number of failed requests to the recipient.
-type Unicast = (Int, [Broadcast])
+type Unicast = (Sum Int, [Broadcast])
 type PeerQueues = [STM.TQueue Unicast]
 
 
@@ -177,7 +178,10 @@ feedPeerQueues peerQueues m =
 -- TODO tests
 sendToPeer :: (Servant.ClientEnv, STM.TQueue Unicast) -> IO ()
 sendToPeer (env, queue) = do
-    (failures, message) <- STM.atomically $ STM.readTQueue queue
+    (Sum failures, message) <- STM.atomically $ do
+        unicasts <- STM.flushTQueue queue
+        STM.check $ [] /= unicasts
+        return $ mconcat unicasts
     result <- Servant.runClientM (cbcast peerRoutes message) env
     case result of
         Right NoContent -> return ()
@@ -186,7 +190,7 @@ sendToPeer (env, queue) = do
             backoff <- STM.registerDelay $ round (2^failures * 1e6 :: Double)
             STM.atomically $ do
                 STM.check =<< STM.readTVar backoff
-                STM.unGetTQueue queue (min 9 $ failures + 1, message)
+                STM.unGetTQueue queue (Sum . min 9 $ failures + 1, message)
 
 
 -- * Demo
