@@ -49,13 +49,7 @@ if __name__ == '__main__':
     print('set -x')
 
     request_count = 10_000
-    test_length_sec = 8 * 60
-    requests_per_sec = request_count / test_length_sec
-    sec_per_request = 1 / requests_per_sec
     print('request count:', request_count)
-    print('test length sec:', test_length_sec)
-    print('RPS:', requests_per_sec)
-    print('request delay:', sec_per_request)
 
     for n in range(request_count):
         req = random.choice([get,delete,put]) if ns.mut else get
@@ -63,4 +57,3 @@ if __name__ == '__main__':
         if not ns.verbose:
             cmd += ' 2> /dev/null'
         print(cmd)
-        print(f'sleep {sec_per_request:10.10f}')
