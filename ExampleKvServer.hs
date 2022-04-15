@@ -194,7 +194,8 @@ sendToPeer stats (env, queue) = do
             backoff <- STM.registerDelay $ round (2^failures * 1e6 :: Double)
             STM.atomically $ do
                 STM.check =<< STM.readTVar backoff
-                STM.unGetTQueue queue (Sum . min 9 $ failures + 1, message)
+                -- Max backoff 2 ^ 5 sec
+                STM.unGetTQueue queue (Sum . min 5 $ failures + 1, message)
 
 
 -- * Demo
