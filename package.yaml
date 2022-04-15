@@ -38,6 +38,7 @@ executables:
             - servant-server
             - stm
             - warp
+            - wai-extra
             - wai-middleware-metrics
             - ekg
             - ekg-core

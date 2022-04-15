@@ -19,6 +19,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Network.Wai.Middleware.Gzip as Gzip
 import qualified System.Environment as Env
 import qualified System.IO as IO
 
@@ -253,6 +254,7 @@ main = Env.getArgs >>= \argv -> case argv of
             -- Note: Server listens on the port specified in the peer list.
             , Warp.run port
                 . metricsMiddleware
+                . Gzip.gzip Gzip.def
                 $ handlers stats peerQueues nodeState kvState
             ]
         printf "main thread exited: %s\n" $ show result
