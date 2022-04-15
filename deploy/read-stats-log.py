@@ -42,17 +42,28 @@ for line in open(statlog).readlines():
 #    print()
 #    print()
 
+t2dt = lambda t: datetime.datetime.combine(datetime.datetime.strptime('','').date(), t)
+
 for host, samples in host_samples.items():
     if 'client' in host:
         continue
     print(json.dumps(host))
-    for s in samples:
+    first = None
+    for i, s in enumerate(samples):
+        if first is None:
+            first = s
+        # comment this branch to show all samples
+        if i < len(samples) - 1:
+            continue
         print(
-                s.timestamp,
-                'send', s.ekg['cbcast']['broadcastCount']['val'],
-                'recv', s.ekg['cbcast']['receiveCount']['val'],
-                'dlvr', s.ekg['cbcast']['deliverCount']['val'],
-                'd2', s.ekg['cbcast']['dqSizeDist'],
+                t2dt(s.timestamp) - t2dt(first.timestamp),
+                f'''send {s.ekg['cbcast']['broadcastCount']['val']:6}''',
+                f'''recv {s.ekg['cbcast']['receiveCount']['val']:6}''',
+                f'''dlvr {s.ekg['cbcast']['deliverCount']['val']:6}''',
+                'OKAY' if s.ekg['cbcast']['receiveCount']['val'] == s.ekg['cbcast']['deliverCount']['val'] else 'WAIT',
+#               'dq', s.ekg['cbcast']['dqSizeDist'],
+                f'''dq-mean-size {s.ekg['cbcast']['dqSizeDist']['mean']:<10.4}''',
+                f'''one-minute-load {s.one:<10}''',
                 )
     print()
     print()
