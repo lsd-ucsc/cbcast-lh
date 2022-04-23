@@ -1,24 +1,39 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
+{-# OPTIONS_GHC "-Wno-warnings-deprecations" #-} -- Hide the "verification only" and "internal use" warnings
 
--- Proof that receive preserves PLCD.
-module MessagePassingAlgorithm.CBCAST.Verification.PLCD.Receive where
+module CBCAST.Verification.PLCDpres {-# WARNING "Verification only" #-} where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..), (?))
 
 import Redefined
 import VectorClock
-import MessagePassingAlgorithm
-import MessagePassingAlgorithm.CBCAST
-import MessagePassingAlgorithm.VectorClockAdapter
+import CBCAST.Core
+import CBCAST.Transitions
+import CBCAST.Verification.ProcessOrder
+import CBCAST.Verification.PLCD
 
-import MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery
-import MessagePassingAlgorithm.CBCAST.Verification.PLCD
+-- | An operation OP preserves any process' observation of PLCD.
+{-@
+type PLCDpreservation r N OP
+    =  p:Psized r {N}
+    -> PLCD r {p}
+    -> PLCD r {OP p}
+@-}
 
+
+
+
+-- * PLCD preservation of Receive
+
+-- | The receive transition preserves PLCD.
+--
+-- This proof is in this module because it exercises the definition of
+-- PLCDpreservation and forces LH to resolve all the symbols.
 {-@ ple receivePreservesIDandHist @-}
 {-@
-receivePreservesIDandHist :: m:M r -> p:PasM r {m} -> { pID p == pID (internalReceive m p)
+receivePreservesIDandHist :: m:Message r -> p:PasM r {m} -> { pID p == pID (internalReceive m p)
                                                      && pHist p == pHist (internalReceive m p) } @-}
-receivePreservesIDandHist :: M r -> P r -> Proof
+receivePreservesIDandHist :: Message r -> Process r -> Proof
 receivePreservesIDandHist m p -- by cases from receive
     | mSender m == pID p = ()
     | otherwise =
@@ -28,8 +43,8 @@ receivePreservesIDandHist m p -- by cases from receive
 
 {-@ ple receivePLCDpres @-}
 {-@
-receivePLCDpres :: m:M r -> PLCDpreservation r {len (mVC m)} {internalReceive m} @-}
-receivePLCDpres :: Eq r => M r -> P r -> (M r -> M r -> Proof) -> M r -> M r -> Proof
+receivePLCDpres :: m:Message r -> PLCDpreservation r {messageSize m} {internalReceive m} @-}
+receivePLCDpres :: Eq r => Message r -> Process r -> (Message r -> Message r -> Proof) -> Message r -> Message r -> Proof
 receivePLCDpres m p pPLCD m₁ m₂ =
     let p' = internalReceive m p
     in  True
@@ -44,3 +59,4 @@ receivePLCDpres m p pPLCD m₁ m₂ =
     === processOrder (pHist p') (Deliver (pID p') m₁) (Deliver (pID p') m₂) -- restate conclusion
     *** QED
     --- NOTE: can comment out all of the equivalences here
+

@@ -1,41 +1,21 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
+{-# OPTIONS_GHC "-Wno-warnings-deprecations" #-} -- Hide the "verification only" and "internal use" warnings
 
--- Process local causal delivery definition for a process history.
-module MessagePassingAlgorithm.VectorClockAdapter.Verification.ProcessLocalCausalDelivery where
+module CBCAST.Verification.ProcessOrder {-# WARNING "Verification only" #-} where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..), (?), impossible, (&&&))
 import Language.Haskell.Liquid.Properties
 
 import Redefined
-import VectorClock
-import MessagePassingAlgorithm
-import MessagePassingAlgorithm.VectorClockAdapter
-
 import Redefined.Verification
-
-{-@
-type ProcessLocalCausalDelivery r PID PHIST
-    =  {m1 : M r         | listElem (Deliver PID m1) PHIST }
-    -> {m2 : MasM r {m1} | listElem (Deliver PID m2) PHIST
-                && vcLess (mVC m1) (mVC m2) }
-    -> {_ : Proof | processOrder PHIST (Deliver PID m1) (Deliver PID m2) }
-@-}
-
--- | The empty MPA process history observes process local causal delivery. This
--- proof is in this module because it exercises the definition of CHA and
--- forces LH to resolve all the symbols.
-{-@ ple emptyPHistObservesPLCD @-}
-{-@
-emptyPHistObservesPLCD :: p:_ -> ProcessLocalCausalDelivery r {p} {[]} @-}
-emptyPHistObservesPLCD :: PID -> M r -> M r -> Proof
-emptyPHistObservesPLCD _p _m1 _m2 = ()
+import CBCAST.Core
 
 
 
 
 -- * Process order
 
-{-@ type UniqueProcessHistory mm r = ProcessHistory<{\x y -> x /= y}> mm r @-}
+{-@ type UniqueProcessHistory r = ProcessHistory<{\x y -> x /= y}> r @-}
 
 -- | Process order e→e' indicates that e appears in the subsequence of process
 -- history prior to e'.
@@ -46,7 +26,8 @@ emptyPHistObservesPLCD _p _m1 _m2 = ()
 -- processOrder is a strict total order. We define processOrder here without
 -- such a constraint. This effectively axiomatizes our belief that the list of
 -- events contains only unique events, which we will prove in future work.
-processOrder :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Bool
+--
+processOrder :: Eq r => ProcessHistory r -> Event r -> Event r -> Bool
 processOrder hist e e' = listElem e (listTailForHead e' hist)
 {-@ reflect processOrder @-}
 
@@ -67,7 +48,7 @@ extendProcessOrder
     ->   e3:_
     -> { processOrder (cons e3 h) e1 e2 }
 @-}
-extendProcessOrder :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Event mm r -> Proof
+extendProcessOrder :: Eq r => ProcessHistory r -> Event r -> Event r -> Event r -> Proof
 extendProcessOrder h e₁ e₂ e₃
     {-restate premise-}                 =   processOrder h e₁ e₂
     {-by def of processOrder-}          === listElem e₁ (listTailForHead e₂ h)
@@ -81,8 +62,8 @@ extendProcessOrder h e₁ e₂ e₃
 -- * procesOrder strict total order
 
 {-@
-processOrderIrreflexiveNoPLE :: hs:UniqueProcessHistory mm r -> Irreflexive (Event mm r) {processOrder hs} @-}
-processOrderIrreflexiveNoPLE :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Proof
+processOrderIrreflexiveNoPLE :: hs:UniqueProcessHistory r -> Irreflexive (Event r) {processOrder hs} @-}
+processOrderIrreflexiveNoPLE :: Eq r => ProcessHistory r -> Event r -> Proof
 processOrderIrreflexiveNoPLE [] e =
     {-restate part of conclusion-}      processOrder [] e e
     {-by def of processOrder-}      === listElem e (listTailForHead e [])
@@ -106,8 +87,8 @@ processOrderIrreflexiveNoPLE (h:hs) e
 
 {-@ ple processOrderIrreflexive @-}
 {-@
-processOrderIrreflexive :: hs:UniqueProcessHistory mm r -> Irreflexive (Event mm r) {processOrder hs} @-}
-processOrderIrreflexive :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Proof
+processOrderIrreflexive :: hs:UniqueProcessHistory r -> Irreflexive (Event r) {processOrder hs} @-}
+processOrderIrreflexive :: Eq r => ProcessHistory r -> Event r -> Proof
 processOrderIrreflexive [] _e = () -- trivially ¬(e∈[]) holds
 processOrderIrreflexive (h:hs) e
     | e == h = uniqueListHeadNotInTail h hs -- uniqueness premise means e≡h ⇒ ¬(e∈hs)
@@ -115,8 +96,8 @@ processOrderIrreflexive (h:hs) e
 
 {-@ ple processOrderTransitive @-}
 {-@
-processOrderTransitive :: hs:UniqueProcessHistory mm r -> Transitive (Event mm r) {processOrder hs} @-}
-processOrderTransitive :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Event mm r -> Proof
+processOrderTransitive :: hs:UniqueProcessHistory r -> Transitive (Event r) {processOrder hs} @-}
+processOrderTransitive :: Eq r => ProcessHistory r -> Event r -> Event r -> Event r -> Proof
 processOrderTransitive [] _e₁ e₂ _e₃ = impossible $ listElem e₂ [] -- empty history contradicts premise e₂→e₃
 processOrderTransitive (h:hs) e₁ e₂ e₃
   | e₂ == h && e₃ == h = impossible $ processOrderIrreflexive (h:hs) h -- irreflexivity contradicts premise e₂→e₃
@@ -126,8 +107,8 @@ processOrderTransitive (h:hs) e₁ e₂ e₃
 
 {-@ ple processOrderConnected @-}
 {-@
-processOrderConnected :: hs:UniqueProcessHistory mm r -> Connected ({e:Event mm r | listElem e hs}) {processOrder hs} @-}
-processOrderConnected :: (Eq mm, Eq r) => ProcessHistory mm r -> Event mm r -> Event mm r -> Proof
+processOrderConnected :: hs:UniqueProcessHistory r -> Connected ({e:Event r | listElem e hs}) {processOrder hs} @-}
+processOrderConnected :: Eq r => ProcessHistory r -> Event r -> Event r -> Proof
 processOrderConnected [] _e₁ e₂ = impossible $ listElem e₂ [] -- empty history contradicts premise e₁∈hist
 processOrderConnected (h:hs) e₁ e₂
   | e₁ == h && e₂ /= h = processOrder (h:hs) e₂ e₁ ? tailElem e₂ h hs *** QED

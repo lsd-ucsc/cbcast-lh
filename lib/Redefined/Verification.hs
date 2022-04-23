@@ -1,6 +1,6 @@
 
 -- | Proofs about the redefined stdlib items.
-module Redefined.Verification where
+module Redefined.Verification {-# WARNING "Verification only" #-} where
 
 import Language.Haskell.Liquid.ProofCombinators
 

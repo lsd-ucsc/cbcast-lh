@@ -1,6 +1,7 @@
+{-# OPTIONS_GHC "-Wno-warnings-deprecations" #-} -- Hide the "verification only" and "internal use" warnings
 
 -- | Proofs about vector clock relation and operator properties.
-module VectorClock.Verification where
+module VectorClock.Verification {-# WARNING "Verification only" #-} where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Language.Haskell.Liquid.Properties

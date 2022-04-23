@@ -18,11 +18,11 @@ type Clock = Integer
 {-@
 type VC = [Clock] @-}
 type VC = [Clock]
-{-@ type VCsized N = {v:VC | len v == N} @-}
-{-@ type VCasV V = VCsized {len V} @-}
+{-@ type VCsized N = {v:VC | vcSize v == N} @-}
+{-@ type VCasV V = VCsized {vcSize V} @-}
 
 --- QQQ: everywhere an *asV type is defined, we call len, but perhaps we should
---- alias that here to vcSize
+--- alias that here to vcSize -- search for `len` and `listLength` in CBCAST.hs
 ---
 --- QQQ: similarly, everywhere we deal with proccount we specify Nat on the LH
 --- side and Int on the haskell side; perhaps we should have a type alias here
@@ -33,6 +33,12 @@ type VC = [Clock]
 
 
 -- * Initialization
+
+-- MEASURE_ISSUE
+vcSize :: VC -> Int
+vcSize v = listLength v
+{-@ inline vcSize @-}
+{-# WARNING vcSize "Verification only" #-}
 
 -- | The empty, initial, vc₀, vector clock.
 {-@
@@ -55,6 +61,7 @@ vcLessEqual a b = listAnd (listZipWith vcLessEqualHelper a b)
 vcLessEqualHelper :: Clock -> Clock -> Bool
 vcLessEqualHelper a b = a <= b
 {-@ reflect vcLessEqualHelper @-}
+{-# WARNING vcLessEqualHelper "Internal use only" #-}
 
 {-@
 vcLess :: v:VC -> VCasV {v} -> Bool @-}
@@ -75,7 +82,7 @@ vcConcurrent a b = not (vcLess a b) && not (vcLess b a)
 
 -- | Increment the ith offset into the VC (i=0 increments head).
 {-@
-vcTick :: v:VC -> {i:Nat | i < len v} -> VCasV {v} @-}
+vcTick :: v:VC -> {i:Nat | i < vcSize v} -> VCasV {v} @-}
 vcTick :: VC -> Int -> VC
 vcTick (x:xs) 0 = (x + 1) : xs
 vcTick (x:xs) i = x : vcTick xs (i - 1)
