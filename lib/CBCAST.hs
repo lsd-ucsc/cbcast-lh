@@ -30,48 +30,41 @@ newtype Process (n :: Nat) r = Process (C.Process r)
 newtype Message (n :: Nat) r = Message (C.Message r)
     deriving Show
 
+{-@ ignore newProcess @-} -- Correct by constraints on the pid and n Nats
 newProcess
     :: forall pid n r. (KnownNat pid, KnownNat n, CmpNat pid n ~ 'LT)
     => Proxy pid -> Process n r
-newProcess pidProxy
-    | 0 <= pid && pid < n = Process $ C.pEmpty n pid
-    | otherwise = undefined -- Impossible case
+newProcess pidProxy = Process $ C.pEmpty n pid
   where
     n = fromIntegral $ natVal (Proxy :: Proxy n)
     pid = fromIntegral $ natVal pidProxy
 
+{-@ ignore receive @-} -- Correct as long as n truthfully describes VC sizes
 receive
     :: forall n r. KnownNat n
     => Message n r -> Process n r -> Process n r
-receive (Message m) (Process p)
-    | 0 <= n && n == C.processSize p && n == C.messageSize m =
-        let S.ResultReceive _n ret = S.step (S.OpReceive n m) p
-        in Process ret
-    | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
+receive (Message m) (Process p) = Process ret
   where
     n = fromIntegral $ natVal (Proxy :: Proxy n)
+    S.ResultReceive _n ret = S.step (S.OpReceive n m) p
 
+{-@ ignore deliver @-} -- Correct as long as n truthfully describes VC sizes
 deliver
     :: forall n r. KnownNat n
     => Process n r -> Maybe (Message n r, Process n r)
-deliver (Process p)
-    | 0 <= n && n == C.processSize p =
-        let S.ResultDeliver _n ret = S.step (S.OpDeliver n) p
-        in fmap (bimap Message Process) ret
-    | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
+deliver (Process p) = fmap (bimap Message Process) ret
   where
     n = fromIntegral $ natVal (Proxy :: Proxy n)
+    S.ResultDeliver _n ret = S.step (S.OpDeliver n) p
 
+{-@ ignore broadcast @-} -- Correct as long as n truthfully describes VC sizes
 broadcast
     :: forall n r. KnownNat n
     => r -> Process n r -> (Message n r, Process n r)
-broadcast raw (Process p)
-    | 0 <= n && n == C.processSize p =
-        let S.ResultBroadcast _n ret = S.step (S.OpBroadcast n raw) p
-        in bimap Message Process ret
-    | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
+broadcast raw (Process p) = bimap Message Process ret
   where
     n = fromIntegral $ natVal (Proxy :: Proxy n)
+    S.ResultBroadcast _n ret = S.step (S.OpBroadcast n raw) p
 
 
 
