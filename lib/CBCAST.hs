@@ -10,6 +10,8 @@ module CBCAST where
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits (Nat, KnownNat, natVal, CmpNat)
 import Data.Bifunctor (bimap)
+import Control.Applicative (Alternative)
+import Control.Monad (guard)
 
 import qualified VectorClock as V
 import qualified CBCAST.Core as C
@@ -75,5 +77,32 @@ broadcast raw (Process p)
         let S.ResultBroadcast _n ret = S.step (S.OpBroadcast n raw) p
         in bimap Message Process ret
     | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
+  where
+    n = fromIntegral $ natVal (Proxy :: Proxy n)
+
+
+
+
+-- | Helper for deserialization parser monads which will fail when the
+-- process's VC size does not match the type.
+guardProcess
+    :: forall f n r. (Monad f, Alternative f, KnownNat n)
+    => f (Process n r) -> f (Process n r)
+guardProcess f = do
+    Process m <- f
+    guard (n == C.processSize m)
+    return $ Process m
+  where
+    n = fromIntegral $ natVal (Proxy :: Proxy n)
+
+-- | Helper for deserialization parser monads which will fail when the
+-- messages's VC size does not match the type.
+guardMessage
+    :: forall f n r. (Monad f, Alternative f, KnownNat n)
+    => f (Message n r) -> f (Message n r)
+guardMessage f = do
+    Message m <- f
+    guard (n == C.messageSize m)
+    return $ Message m
   where
     n = fromIntegral $ natVal (Proxy :: Proxy n)
