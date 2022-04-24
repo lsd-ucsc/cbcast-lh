@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-} -- Must use "forall" to introduce them
 {-# LANGUAGE TypeFamilies #-} -- For ~ constraint
+{-# LANGUAGE StandaloneDeriving #-} -- Show instances of internal CBCAST types
 
 -- | External CBCAST client functions which have no LH annotations.
 module CBCAST where
@@ -15,11 +16,17 @@ import qualified CBCAST.Core as C
 import qualified CBCAST.Transitions
 import qualified CBCAST.Step as S
 
+deriving instance Show r => Show (C.Process r)
+deriving instance Show r => Show (C.Message r)
+deriving instance Show r => Show (C.Event r)
+
 -- | CBCAST Process indexed by a phantom Nat describing its VC size.
 newtype Process (n :: Nat) r = Process (C.Process r)
+    deriving Show
 
 -- | CBCAST Message indexed by a phantom Nat describing its VC size.
 newtype Message (n :: Nat) r = Message (C.Message r)
+    deriving Show
 
 newProcess
     :: forall pid n r. (KnownNat pid, KnownNat n, CmpNat pid n ~ 'LT)
