@@ -44,10 +44,7 @@ receive
     :: forall n r. KnownNat n
     => Message n r -> Process n r -> Process n r
 receive (Message m) (Process p)
-    -- FIXME: calls to vcSize
-    | 0 <= n
-    && n == V.vcSize (C.pVC p)
-    && n == V.vcSize (C.mVC m) =
+    | 0 <= n && n == C.processSize p && n == C.messageSize m =
         let S.ResultReceive _n ret = S.step (S.OpReceive n m) p
         in Process ret
     | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
@@ -58,9 +55,7 @@ deliver
     :: forall n r. KnownNat n
     => Process n r -> Maybe (Message n r, Process n r)
 deliver (Process p)
-    -- FIXME: calls to vcSize
-    | 0 <= n
-    && n == V.vcSize (C.pVC p) =
+    | 0 <= n && n == C.processSize p =
         let S.ResultDeliver _n ret = S.step (S.OpDeliver n) p
         in fmap (bimap Message Process) ret
     | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
@@ -71,9 +66,7 @@ broadcast
     :: forall n r. KnownNat n
     => r -> Process n r -> (Message n r, Process n r)
 broadcast raw (Process p)
-    -- FIXME: calls to vcSize
-    | 0 <= n
-    && n == V.vcSize (C.pVC p) =
+    | 0 <= n && n == C.processSize p =
         let S.ResultBroadcast _n ret = S.step (S.OpBroadcast n raw) p
         in bimap Message Process ret
     | otherwise = undefined -- Impossible case (assuming deserialization of Process & Message correctly populate n::Nat phantom)
