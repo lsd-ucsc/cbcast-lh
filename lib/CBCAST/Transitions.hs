@@ -18,8 +18,7 @@ import CBCAST.Verification.Core
 
 -- ** Receive
 
--- | Put a message in the dq. Messages with the sender ID of the current
--- process are ignored. The MPA should use this for messages from the network.
+-- | See 'CBCAST.receive'.
 {-@
 internalReceive :: m:Message r -> PasM r {m} -> PasM r {m} @-}
 internalReceive :: Message r -> Process r -> Process r
@@ -34,8 +33,7 @@ internalReceive m p
 
 -- ** Deliver
 
--- | Get a message from the dq, update the local vc and history. After this,
--- the MPA should pass the message to the UAP for processing.
+-- | See 'CBCAST.deliver'.
 {-@
 internalDeliver :: p:Process r -> Maybe (MasP r {p}, PasP r {p}) @-}
 internalDeliver :: Process r -> Maybe (Message r, Process r)
@@ -56,9 +54,7 @@ internalDeliver p =
 
 -- ** Broadcast
 
--- | Prepare a message for broadcast, put it into this process's delay queue,
--- and then perform a normal delivery. After this, the MPA should place the
--- message on the network and pass the message to the UAP for processing.
+-- | See 'CBCAST.broadcast'.
 {-@
 internalBroadcast :: r -> p:Process r -> (MasP r {p}, PasP r {p}) @-}
 internalBroadcast :: r -> Process r -> (Message r, Process r)
