@@ -1,133 +1,182 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-} -- Must use "forall" to introduce them
-{-# LANGUAGE TypeFamilies #-} -- For ~ constraint
 {-# LANGUAGE StandaloneDeriving #-} -- Show instances of internal CBCAST types
 
 -- | External CBCAST client functions which do not require Liquid Haskell for
 -- correctness.
 module CBCAST
-where
--- ( Process
--- , Message
--- , guardProcess
--- , guardMessage
--- ) where
+( -- * Initialization
+  newProcess
+  -- * State transitions
+, receive
+, deliver
+, broadcast
+  -- * Types
+, CB.PID
+, CB.Process
+, CB.Message
+, content
+) where
 
-import Data.Proxy (Proxy(..))
-import GHC.TypeLits (Nat, KnownNat, natVal, CmpNat)
-import Data.Bifunctor (bimap)
-import Control.Applicative (Alternative)
-import Control.Monad (guard)
+import Text.Printf (printf)
+import Control.Arrow (first)
 
-import qualified VectorClock as V
-import qualified CBCAST.Core as C
+import qualified Redefined
 import qualified CBCAST.Transitions
-import qualified CBCAST.Step as S
+import qualified CBCAST.Core as CB
+import qualified CBCAST.Step as CB
 
-deriving instance Show r => Show (C.Process r)
-deriving instance Show r => Show (C.Message r)
-deriving instance Show r => Show (C.Event r)
+-- $setup
+-- >>> import Control.Concurrent.STM
+-- >>> import CBCAST.Core (Process, mRaw)
+-- >>> let m1       = CB.Message [0,1,0]   1 "hello!"
+-- >>> let m2       = CB.Message [0,2,0]   1 "world!"
+-- >>> let mLongVC  = CB.Message [0,1,0,0] 1 "hello!"
+-- >>> let mSamePID = CB.Message [0,0,1]   2 "hello!"
+-- >>> sendToCluster _ = return ()
 
--- | CBCAST process for a cluster with @n@ participants.
-newtype Process (n :: Nat) r = Process (C.Process r)
-    deriving Show
+isNat :: Int -> Bool
+isNat n = 0 <= n
+{-@ inline isNat @-}
 
--- | CBCAST mssage for a cluster with @n@ participants.
-newtype Message (n :: Nat) r = Message (C.Message r)
-    deriving Show
+isFin :: Redefined.Fin -> Int -> Bool
+isFin x n = x < n
+{-@ inline isFin @-}
 
--- | Create a new process for a cluster with @n@ participants exchanging
--- messages of type @r@. The process identifier is given in the phantom of
--- @Proxy @pid@.
+expectedNat :: String -> String
+expectedNat = printf "`%s` must be a `Nat`"
+
+expectedFin :: String -> Int -> String
+expectedFin = printf "`%s` must be a `Fin %d`"
+
+deriving instance Show r => Show (CB.Process r)
+deriving instance Show r => Show (CB.Message r)
+deriving instance Show r => Show (CB.Event r)
+
+-- | Extract the content of a message.
+-- 
+-- >>> content m1
+-- "hello!"
+-- >>> content m2
+-- "world!"
 --
--- >>> :set -XDataKinds
--- >>> :set -XTypeApplications
--- >>> newProcess (Proxy @2) :: Process 3 String
--- Process (Process {pVC = [0,0,0], pID = 2, pDQ = [], pHist = []})
+content :: CB.Message r -> r
+content = CB.mRaw
+{-# INLINE content #-}
+
+-- | @newProcess n pid :: Process r@ creates a new CBCAST process with
+-- identifier @pid@, for a cluster with @n@ participants, exchanging messages
+-- of type @r@.
 --
--- The process identifier must be a natural less than @n@.
+-- >>> newProcess 3 2
+-- Right (Process {pVC = [0,0,0], pID = 2, pDQ = [], pHist = []})
 --
--- >>> CBCAST.newProcess (Proxy @8) :: Process 3 String
--- ...
--- ... Couldn't match type ‘'GT’ with ‘'LT’
--- ...
+-- Both @n@ and @pid@ must be /Nat/s. Additionally @pid@ must be a /Fin @n@/.
 --
-{-@ ignore newProcess @-}
-newProcess
-    :: forall pid n r. (KnownNat pid, KnownNat n, CmpNat pid n ~ 'LT)
-    => Proxy pid -> Process n r
-newProcess pidProxy = Process $ C.pEmpty n pid
+-- >>> newProcess (-3) 2
+-- Left "<newProcess n:-3 pid:2>: `n` must be a `Nat`"
+-- >>> newProcess 3 (-2)
+-- Left "<newProcess n:3 pid:-2>: `pid` must be a `Nat`"
+-- >>> newProcess 3 8
+-- Left "<newProcess n:3 pid:8>: `pid` must be a `Fin 3`"
+--
+newProcess :: Int -> CB.PID -> Either String (CB.Process r)
+newProcess n pid
+    | not $ isNat n     = Left $ prefix ++ expectedNat "n"
+    | not $ isNat pid   = Left $ prefix ++ expectedNat "pid"
+    | not $ isFin pid n = Left $ prefix ++ expectedFin "pid" n
+    | otherwise         = Right $ CB.pEmpty n pid
   where
-    n = fromIntegral $ natVal (Proxy :: Proxy n)
-    pid = fromIntegral $ natVal pidProxy
-
--- | Create a new process ...
-newProcess'
-    :: Int -> Int -> Maybe (Process n r)
-newProcess' = undefined
+    prefix = printf "<newProcess n:%d pid:%d>: " n pid
 
 -- | Receive state transition. Call this for messages that arrive from the
--- network, to insert them in the delay queue for later delivery. Messages with
--- the sender ID of the current process are ignored.
+-- network, to insert them in the delay queue for later delivery.
 --
-{-@ ignore receive @-}
-receive
-    :: forall n r. KnownNat n
-    => Message n r -> Process n r -> Process n r
-receive (Message m) (Process p) = Process ret
+-- >>> let Right p = newProcess 3 2
+-- >>> receive m1 p
+-- Right (Process {pVC = [0,0,0], pID = 2, pDQ = [Message {mVC = [0,1,0], mSender = 1, mRaw = "hello!"}], pHist = []})
+--
+-- The vector clock size of the message must match the vector clock size of the
+-- process.
+--
+-- >>> receive mLongVC p
+-- Left "<receive m p>: `messageSize m:4` must equal `processSize p:3`"
+--
+-- Messages with the sender ID of the current process are ignored. Messages
+-- from the current process should be processed immediately after calling
+-- 'broadcast'.
+--
+-- >>> receive mSamePID p
+-- Left "<receive m p>: `mSender m:2` must be distinct from `pID p:2`"
+--
+receive :: CB.Message r -> CB.Process r -> Either String (CB.Process r)
+receive m p
+    | not $ CB.messageSize m == CB.processSize p    = Left $ printf "<receive m p>: `messageSize m:%d` must equal `processSize p:%d`" (CB.messageSize m) (CB.processSize p)
+    | CB.mSender m == CB.pID p                      = Left $ printf "<receive m p>: `mSender m:%d` must be distinct from `pID p:%d`" (CB.mSender m) (CB.pID p)
+    | otherwise                                     = let CB.ResultReceive _n ret = CB.step (CB.OpReceive n m) p in Right ret
   where
-    n = fromIntegral $ natVal (Proxy :: Proxy n)
-    S.ResultReceive _n ret = S.step (S.OpReceive n m) p
+    n = CB.messageSize m
 
 -- | Deliver state-transition. Call this to check for and return a deliverable
 -- message from the delay queue (updating the internal vector clock and history
--- as appropriate). When a message is returned, it should immediately be
--- processed by the user application.
+-- as appropriate).
 --
-{-@ ignore deliver @-}
-deliver
-    :: forall n r. KnownNat n
-    => Process n r -> Maybe (Message n r, Process n r)
-deliver (Process p) = fmap (bimap Message Process) ret
+-- >>> let Right p = receive m1 =<< newProcess 3 2
+-- >>> deliver p
+-- (Just (Message {mVC = [0,1,0], mSender = 1, mRaw = "hello!"}),Process {pVC = [0,1,0], pID = 2, pDQ = [], pHist = [...]})
+--
+-- When a message is returned, it should be immediately processed by the user
+-- application. This should be followed by repeated delivery attempts until
+-- nothing is deliverable.
+--
+-- >>> let Right p = receive m1 =<< newProcess 3 2
+-- >>> procVar <- newTVarIO p
+-- >>> appVar <- newTVarIO ([] :: [String]) -- Processed commands
+-- >>> :{
+--     atomically $ do
+--         message <- stateTVar procVar deliver
+--         maybe retry (\m -> modifyTVar appVar (content m :)) message
+--     :}
+--
+-- >>> readTVarIO appVar
+-- ["hello!"]
+--
+-- When no message in the delay queue is deliverable, @deliver p@ will return
+-- @p@ unchanged.
+--
+-- >>> let Right p = receive m2 =<< newProcess 3 2
+-- >>> deliver p
+-- (Nothing,Process {pVC = [0,0,0], pID = 2, pDQ = [Message {mVC = [0,2,0], mSender = 1, mRaw = "world!"}], pHist = []})
+--
+deliver :: CB.Process r -> (Maybe (CB.Message r), CB.Process r)
+deliver p = maybe (Nothing, p) (first Just) ret
   where
-    n = fromIntegral $ natVal (Proxy :: Proxy n)
-    S.ResultDeliver _n ret = S.step (S.OpDeliver n) p
+    n = CB.processSize p `const` ("Proof that processSize returns a Nat", Redefined.listLength $ CB.pVC p)
+    CB.ResultDeliver _n ret = CB.step (CB.OpDeliver n) p
 
 -- | Broadcast state transition. Call this to prepare a message for broadcast.
+--
+-- >>> let Right p = newProcess 3 2
+-- >>> broadcast "hooray!" p
+-- (Message {mVC = [0,0,1], mSender = 2, mRaw = "hooray!"},Process {pVC = [0,0,1], pID = 2, pDQ = [], pHist = [...]})
+--
 -- The returned message must be immediately processed by the user application,
 -- and then sent on the network to all members of the cluster.
 --
-{-@ ignore broadcast @-}
-broadcast
-    :: forall n r. KnownNat n
-    => r -> Process n r -> (Message n r, Process n r)
-broadcast raw (Process p) = bimap Message Process ret
+-- >>> let Right p = newProcess 3 2
+-- >>> procVar <- newTVarIO (p :: Process String)
+-- >>> appVar <- newTVarIO ([] :: [String]) -- Processed commands
+-- >>> :{
+--     do m <- atomically $ do
+--            message <- stateTVar procVar $ broadcast "hooray!"
+--            modifyTVar appVar (content message :)
+--            return message
+--        sendToCluster m
+--     :}
+--
+-- >>> readTVarIO appVar
+-- ["hooray!"]
+--
+broadcast :: r -> CB.Process r -> (CB.Message r, CB.Process r)
+broadcast raw p = ret
   where
-    n = fromIntegral $ natVal (Proxy :: Proxy n)
-    S.ResultBroadcast _n ret = S.step (S.OpBroadcast n raw) p
-
-
--- | Deserialization helper. Call this to ensure the process' vector clock size
--- matches its type.
-guardProcess
-    :: forall f n r. (Monad f, Alternative f, KnownNat n)
-    => f (Process n r) -> f (Process n r)
-guardProcess f = do
-    Process m <- f
-    guard (n == C.processSize m)
-    return $ Process m
-  where
-    n = fromIntegral $ natVal (Proxy :: Proxy n)
-
--- | Deserialization helper. Call this to ensure the message's vector clock
--- size matches its type.
-guardMessage
-    :: forall f n r. (Monad f, Alternative f, KnownNat n)
-    => f (Message n r) -> f (Message n r)
-guardMessage f = do
-    Message m <- f
-    guard (n == C.messageSize m)
-    return $ Message m
-  where
-    n = fromIntegral $ natVal (Proxy :: Proxy n)
+    n = CB.processSize p `const` ("Proof that processSize returns a Nat", Redefined.listLength $ CB.pVC p)
+    CB.ResultBroadcast _n ret = CB.step (CB.OpBroadcast n raw) p

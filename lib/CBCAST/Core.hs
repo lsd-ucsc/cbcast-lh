@@ -22,6 +22,7 @@ type PID = Fin
 {-@ type PIDasV V = PIDsized {vcSize V} @-}
 {-@ type PIDasM M = PIDsized {messageSize M} @-}
 
+-- | Message structure with a vector clock, sender id, and raw content.
 {-@
 data Message r = Message {mVC::VC, mSender::PIDasV {mVC}, mRaw::r} @-}
 data Message r = Message {mVC::VC, mSender::PID, mRaw::r}

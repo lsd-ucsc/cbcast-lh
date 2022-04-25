@@ -54,7 +54,7 @@ data Result r
 data Result r
     = ResultReceive
         { resultReceiveN::Nat
-        , resultReceiveProces::Psized r {resultReceiveN}
+        , resultReceiveProcess::Psized r {resultReceiveN}
         }
     | ResultDeliver
         { resultDeliverN::Nat
