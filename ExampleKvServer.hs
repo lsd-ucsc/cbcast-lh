@@ -1,10 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC "-Wno-orphans" #-}
+
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
@@ -34,9 +34,20 @@ import Servant.API.Generic ((:-), Generic, ToServantApi)
 import qualified Servant.Client as Servant
 import qualified Servant.Client.Generic as Servant
 
-import qualified MessagePassingAlgorithm as MPA
-import qualified MessagePassingAlgorithm.VectorClockAdapter as VCA
-import qualified MessagePassingAlgorithm.CBCAST as CBCAST
+import qualified CBCAST
+
+-- $setup
+-- >>> :{
+--  testCoalesce pred xs = do
+--      q <- STM.newTQueueIO
+--      print =<< (STM.atomically $ do
+--          mapM_ (STM.writeTQueue q) $ Sum <$> xs
+--          coalesceWhile pred q)
+--      print . fmap getSum =<< (STM.atomically $ STM.flushTQueue q)
+-- :}
+
+
+
 
 -- * KV Application
 
@@ -48,8 +59,10 @@ data KvCommand
     | KvDel Key
     deriving (Generic, Show, Eq)
 
+-- | State of the KV Store
 type KvState = Map.Map Key Val
 
+-- | Interpret a command to update KV Store state
 kvApply :: KvCommand -> KvState -> KvState
 kvApply (KvPut key val) = Map.insert key val
 kvApply (KvDel key) = Map.delete key
@@ -57,6 +70,7 @@ kvApply (KvDel key) = Map.delete key
 kvQuery :: Key -> KvState -> Maybe Val
 kvQuery key = Map.lookup key
 
+-- | Client routes exposed by the KV Store
 data KvRoutes mode = KvRoutes
     { kvPut :: mode :- "kv" :> Capture "key" Key :> ReqBody '[JSON] Val :> PutNoContent
     , kvDel :: mode :- "kv" :> Capture "key" Key :> DeleteNoContent
@@ -64,34 +78,87 @@ data KvRoutes mode = KvRoutes
     }
     deriving (Generic)
 
+-- | Apply a message to application state.
+applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
+applyMessage kvState m =
+    STM.modifyTVar' kvState . kvApply $ CBCAST.content m
+
+
+
 
 -- * CBCAST Node & Peers
 
-type Broadcast = VCA.M KvCommand
+-- | State of the CBCAST node
+type NodeState = CBCAST.Process KvCommand
 
-type NodeState = CBCAST.P KvCommand
+-- | Type of messages exchanged by CBCAST nodes
+type Broadcast = CBCAST.Message KvCommand
 
+-- | Routes exposed by the CBCAST node 
 data PeerRoutes mode = PeerRoutes
     -- We coalesce CBCASTs by sending a list of them in each request.
     { cbcast :: mode :- "cbcast" :> ReqBody '[JSON] [Broadcast] :> PostNoContent
     }
     deriving (Generic)
 
-type Peers = [Servant.BaseUrl]
-
 peerRoutes :: PeerRoutes (Servant.AsClientT Servant.ClientM)
 peerRoutes = Servant.genericClient
 
--- | A unicast is a coalesced list of broadcasts, as well as a count of the
--- number of failed requests to the recipient.
-type Unicast = (Sum Int, [Broadcast])
-type PeerQueues = [STM.TQueue Unicast]
+-- | Type of coalesced broadcasts stored in outbound buffers for other CBCAST
+-- nodes. The count is the number of failed requests to the recipient.
+type Coalesced = (Sum Int, [Broadcast])
+
+-- | Addresses of other CBCAST nodes
+type Peers = [Servant.BaseUrl]
+
+-- | Outbound buffers for other CBCAST nodes
+type PeerQueues = [STM.TQueue Coalesced]
+
+-- | Put a message on all peer queues.
+feedPeerQueues :: PeerQueues -> Broadcast -> STM.STM ()
+feedPeerQueues peerQueues m =
+    Monad.forM_ peerQueues $ \q ->
+        STM.writeTQueue q (0, [m])
+
+
+
+
+-- * Serialization Instances
+
+instance Aeson.ToJSON   KvCommand
+instance Aeson.FromJSON KvCommand
+
+-- | Serialization round-tripper!
+--
+-- >>> let Right p = CBCAST.newProcess 3 0
+-- >>> let (m, p') = CBCAST.broadcast (KvPut "some-key" Aeson.Null) p
+-- >>> let m' = Aeson.decode $ Aeson.encode m :: Maybe Broadcast
+-- >>> Just m == m'
+-- True
+--
+-- >>> import Data.ByteString.Lazy.Char8 as BS
+-- >>> BS.putStrLn $ Aeson.encode m'
+-- {"mVC":[1,0,0],"mSender":0,"mRaw":{"tag":"KvPut","contents":["some-key",null]}}
+--
+instance (Generic r, Aeson.ToJSON   r) => Aeson.ToJSON   (CBCAST.Message r)
+instance (Generic r, Aeson.FromJSON r) => Aeson.FromJSON (CBCAST.Message r)
+
+
 
 
 -- * Backend
 
+-- ** Request handlers
 
--- ** Handle requests
+-- | Monitoring counters
+data Stats = Stats
+    { deliverCount :: Counter.Counter
+    , receiveCount :: Counter.Counter
+    , broadcastCount :: Counter.Counter
+    , unicastSizeDist :: Distribution.Distribution
+    , unicastCount :: Counter.Counter
+    , unicastFailCount :: Counter.Counter
+    }
 
 -- | Handle requests to send or receive messages.
 handlers :: Stats -> PeerQueues -> STM.TVar NodeState -> STM.TVar KvState -> Application
@@ -103,51 +170,41 @@ handlers stats peerQueues nodeState kvState = serve
     kvHandlers :: Server (ToServantApi KvRoutes)
     kvHandlers
         =    (\key val -> liftIO $ do
-             Counter.inc (broadcastCount stats)
              STM.atomically $ do
-                m <- STM.stateTVar nodeState . CBCAST.internalBroadcast $ KvPut key val
-                feedPeerQueues peerQueues m -- send message to network
+                m <- STM.stateTVar nodeState . CBCAST.broadcast $ KvPut key val
                 applyMessage kvState m -- apply message locally
-                return NoContent)
+                feedPeerQueues peerQueues m -- nonblocking send message to network
+             Counter.inc $ broadcastCount stats
+             return NoContent)
         :<|> (\key -> liftIO $ do
-             Counter.inc (broadcastCount stats)
              STM.atomically $ do
-                m <- STM.stateTVar nodeState . CBCAST.internalBroadcast $ KvDel key
-                feedPeerQueues peerQueues m -- send message to network
+                m <- STM.stateTVar nodeState . CBCAST.broadcast $ KvDel key
                 applyMessage kvState m -- apply message locally
-                return NoContent)
+                feedPeerQueues peerQueues m -- nonblocking send message to network
+             Counter.inc $ broadcastCount stats
+             return NoContent)
         :<|> (\key -> do
                 kv <- liftIO $ STM.readTVarIO kvState
                 maybe (throwError err404) return $ kvQuery key kv)
     nodeHandlers :: Server (ToServantApi PeerRoutes)
     nodeHandlers
         =    (\messages -> liftIO $ do
-             -- Count the whole list of messages as received
-             Counter.add (receiveCount stats) . fromIntegral $ length messages
-             STM.atomically $ do
-                -- Receive the whole list of messages
-                STM.modifyTVar' nodeState $ flip (foldr CBCAST.internalReceive) messages
-                return NoContent)
-
+             err <- STM.atomically $ STM.stateTVar nodeState $ \p ->
+                either ((,p) . Just) (Nothing,)
+                $ Monad.foldM (flip CBCAST.receive) p messages
+             case err of
+                Just e -> printf "receive error: %s\n" e
+                Nothing -> Counter.add (receiveCount stats) . fromIntegral $ length messages
+             return NoContent)
 
 -- ** Deliver messages
 
--- | Block until there is a deliverable message and apply it.
---
--- TODO tests
-readMail :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
-readMail nodeState kvState = do
-    message <- STM.stateTVar nodeState
-        $ \p₀ -> case CBCAST.internalDeliver p₀ of
-            Nothing      -> (Nothing, p₀)
-            Just (m, p₁) -> (Just m, p₁)
+-- | Block until there is a deliverable message and apply it. Best used with
+-- 'Monad.forever'.
+readMailOnce :: STM.TVar NodeState -> STM.TVar KvState -> STM.STM ()
+readMailOnce nodeState kvState = do
+    message <- STM.stateTVar nodeState CBCAST.deliver
     maybe STM.retry (applyMessage kvState) message
-
--- | Apply the message to application state.
-applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
-applyMessage kvState m =
-    STM.modifyTVar' kvState . kvApply . MPA.mRaw $ m
-
 
 -- ** Broadcast messages
 
@@ -166,24 +223,14 @@ sendMailThread stats peers peerQueues =
         (sendToPeer stats <$> zip clientEnvs peerQueues)
     printf "sendMailThread exited: %s\n" $ show result
 
--- | Put the message on all peer queues.
---
--- TODO tests
-feedPeerQueues :: PeerQueues -> Broadcast -> STM.STM ()
-feedPeerQueues peerQueues m =
-    Monad.forM_ peerQueues $ \q ->
-        STM.writeTQueue q (0, [m])
-
 -- | Send a message from a queue to a peer. On failure, backoff and put the
 -- message back on the queue and note failure. Return.
---
--- TODO tests
-sendToPeer :: Stats -> (Servant.ClientEnv, STM.TQueue Unicast) -> IO ()
+sendToPeer :: Stats -> (Servant.ClientEnv, STM.TQueue Coalesced) -> IO ()
 sendToPeer stats (env, queue) = do
     (Sum failures, message) <- STM.atomically $ do
-        unicasts <- STM.flushTQueue queue
-        STM.check $ [] /= unicasts
-        return $ mconcat unicasts
+        coalesced <- coalesceWhile (\(_, xs) -> length xs < 10) queue
+        STM.check $ mempty /= coalesced
+        return coalesced
     result <- Servant.runClientM (cbcast peerRoutes message) env
     case result of
         Right NoContent -> do
@@ -196,6 +243,40 @@ sendToPeer stats (env, queue) = do
                 STM.check =<< STM.readTVar backoff
                 STM.unGetTQueue queue (Sum $ failures + 1, message)
 
+-- | Coalesce monoids from a queue while a predicate is satisfied.
+--
+-- Stop when the predicate is no longer satisfied by the coalesced monoid.
+--
+-- >>> testCoalesce (< 5) [1,3,5,2,4]
+-- Sum {getSum = 9}
+-- [2,4]
+--
+-- Always make a little progress.
+--
+-- >>> testCoalesce (< 5) [99,3,5,2,4]
+-- Sum {getSum = 99}
+-- [3,5,2,4]
+--
+-- Stop when the queue is exausted.
+--
+-- >>> testCoalesce (const True) [1,3,5,2,4]
+-- Sum {getSum = 15}
+-- []
+--
+-- Return @mempty@ when the queue is empty.
+--
+-- >>> testCoalesce (const True) []
+-- Sum {getSum = 0}
+-- []
+--
+coalesceWhile :: Monoid a => (a -> Bool) -> STM.TQueue a -> STM.STM a
+coalesceWhile more queue = f mempty
+  where
+    f x | more x    = maybe (return x) (f . (x <>)) =<< STM.tryReadTQueue queue
+        | otherwise = return x
+
+
+
 
 -- * Demo
 
@@ -204,6 +285,7 @@ sendToPeer stats (env, queue) = do
 -- $ curl 127.0.0.1:8080/kv/foo
 -- $ curl -X DELETE 127.0.0.1:8080/kv/foo
 -- $ curl -X PUT -H "Content-type: application/json" 127.0.0.1:8080/kv/foo -d '{"x":1,"y":20}'
+--
 main :: IO ()
 main = Env.getArgs >>= \argv -> case argv of
     [] -> do
@@ -227,14 +309,16 @@ main = Env.getArgs >>= \argv -> case argv of
     (num:urls) -> do
         -- Note: Ensure buffering is set so that stdout goes to syslog.
         IO.hSetBuffering IO.stdout IO.LineBuffering
+        -- !!! Set up monitoring
         metricsStore <- mkMetricsStore
         stats <- processMetrics metricsStore
         metricsMiddleware <- waiMetricsMiddleware metricsStore
+        -- !!! Set up cluster
         peers <- mapM Servant.parseBaseUrl urls
         pid <- either fail return $ parsePID num peers
         let port = Servant.baseUrlPort $ peers !! pid
-        printf "Starting KV server P%d on port %d with peer list: %s\n" pid port (unwords $ Servant.showBaseUrl <$> peers)
-        nodeState <- STM.newTVarIO $ CBCAST.pEmpty (length peers) pid
+        printf "Starting KV server PID-%d on port %d with peer list: %s\n" pid port (unwords $ Servant.showBaseUrl <$> peers)
+        nodeState <- either fail STM.newTVarIO $ CBCAST.newProcess (length peers) pid
         kvState <- STM.newTVarIO $ Map.empty
         -- Note: One fewer peer queue because we don't send to ourselves.
         peerQueues <- sequence $ replicate (length peers - 1) STM.newTQueueIO
@@ -244,11 +328,8 @@ main = Env.getArgs >>= \argv -> case argv of
             <- Async.waitAnyCatchCancel
             =<< mapM Async.async
             [ Monad.forever $ do
-                dqSize <- STM.atomically $ do
-                    readMail nodeState kvState
-                    length . CBCAST.pDQ <$> STM.readTVar nodeState
+                STM.atomically $ readMailOnce nodeState kvState
                 Counter.inc (deliverCount stats)
-                Distribution.add (dqSizeDist stats) (fromIntegral dqSize)
             -- Note: sendMailThread does not receive the url of the current process.
             , sendMailThread stats (removeIndex pid peers) peerQueues
             -- Note: Server listens on the port specified in the peer list.
@@ -271,46 +352,13 @@ main = Env.getArgs >>= \argv -> case argv of
         return $ Metrics.metrics metrics
     processMetrics store = Stats
         <$> EKG.createCounter "cbcast.deliverCount" store
-        <*> EKG.createDistribution "cbcast.dqSizeDist" store
         <*> EKG.createCounter "cbcast.receiveCount" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
+        <*> EKG.createDistribution "cbcast.unicastSizeDist" store
         <*> EKG.createCounter "cbcast.unicastCount" store
         <*> EKG.createCounter "cbcast.unicastFailCount" store
 
-data Stats = Stats
-    { deliverCount :: Counter.Counter
-    , dqSizeDist :: Distribution.Distribution
-    , receiveCount :: Counter.Counter
-    , broadcastCount :: Counter.Counter
-    , unicastCount :: Counter.Counter
-    , unicastFailCount :: Counter.Counter
-    }
 
-
--- * Serialization Instances
-
-instance Aeson.ToJSON KvCommand
-instance Aeson.FromJSON KvCommand
-
-deriving instance Generic VCA.VCMM
-instance Aeson.ToJSON VCA.VCMM
-instance Aeson.FromJSON VCA.VCMM
-
--- |
---
--- >>> let mm = VCA.VCMM [1, 4] 1
--- >>> let m = MPA.Message mm (KvPut "some-key" Aeson.Null) :: Broadcast
--- >>> let m' = Aeson.decode $ Aeson.encode m :: Maybe Broadcast
--- >>> Just m == m'
--- True
---
--- >>> import Data.ByteString.Lazy.Char8 as BS
--- >>> BS.putStrLn $ Aeson.encode m'
--- {"mMetadata":{"vcmmSender":1,"vcmmSent":[1,4]},"mRaw":{"tag":"KvPut","contents":["some-key",null]}}
---
-deriving instance (Generic mm, Generic r) => Generic (MPA.Message mm r)
-instance (Generic mm, Generic r, Aeson.ToJSON mm, Aeson.ToJSON r) => Aeson.ToJSON (MPA.Message mm r)
-instance (Generic mm, Generic r, Aeson.FromJSON mm, Aeson.FromJSON r) => Aeson.FromJSON (MPA.Message mm r)
 
 
 -- * Helpers
@@ -324,7 +372,7 @@ instance (Generic mm, Generic r, Aeson.FromJSON mm, Aeson.FromJSON r) => Aeson.F
 -- Left "invalid integer range 4, should be (0,3]"
 -- >>> parsePID "foo" [undefined, undefined, undefined]
 -- Left "invalid integer literal 'foo'"
-parsePID :: String -> [a] -> Either String MPA.PID
+parsePID :: String -> [a] -> Either String CBCAST.PID
 parsePID s xs = case readEither s of
     Left _ -> Left $ printf "invalid integer literal '%s'" s
     Right n

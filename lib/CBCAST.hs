@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-} -- Show instances of internal CBCAST types
+{-# LANGUAGE DeriveGeneric #-} -- Generic instances of internal CBCAST types
 
 -- | External CBCAST client functions which do not require Liquid Haskell for
 -- correctness.
@@ -16,6 +17,7 @@ module CBCAST
 , content
 ) where
 
+import GHC.Generics (Generic)
 import Text.Printf (printf)
 import Control.Arrow (first)
 
@@ -50,6 +52,10 @@ expectedFin = printf "`%s` must be a `Fin %d`"
 deriving instance Show r => Show (CB.Process r)
 deriving instance Show r => Show (CB.Message r)
 deriving instance Show r => Show (CB.Event r)
+
+deriving instance Generic r => Generic (CB.Process r)
+deriving instance Generic r => Generic (CB.Message r)
+deriving instance Generic r => Generic (CB.Event r)
 
 -- | Extract the content of a message.
 -- 
@@ -100,9 +106,8 @@ newProcess n pid
 -- >>> receive mLongVC p
 -- Left "<receive m p>: `messageSize m:4` must equal `processSize p:3`"
 --
--- Messages with the sender ID of the current process are ignored. Messages
--- from the current process should be processed immediately after calling
--- 'broadcast'.
+-- Messages with the sender ID of the current process are ignored (see
+-- 'broadcast' to learn how to handle messages from the current process).
 --
 -- >>> receive mSamePID p
 -- Left "<receive m p>: `mSender m:2` must be distinct from `pID p:2`"
