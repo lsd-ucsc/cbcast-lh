@@ -38,12 +38,12 @@ import qualified CBCAST
 
 -- $setup
 -- >>> :{
---  testCoalesce pred xs = do
+--  testCoalesce pred monoids = do
 --      q <- STM.newTQueueIO
 --      print =<< (STM.atomically $ do
---          mapM_ (STM.writeTQueue q) $ Sum <$> xs
+--          mapM_ (STM.writeTQueue q) monoids
 --          coalesceWhile pred q)
---      print . fmap getSum =<< (STM.atomically $ STM.flushTQueue q)
+--      print =<< (STM.atomically $ STM.flushTQueue q)
 -- :}
 
 
@@ -247,25 +247,31 @@ sendToPeer stats (env, queue) = do
 --
 -- Stop when the predicate is no longer satisfied by the coalesced monoid.
 --
--- >>> testCoalesce (< 5) [1,3,5,2,4]
+-- >>> testCoalesce (< 5) $ fmap Sum [1,3,5,2,4]
 -- Sum {getSum = 9}
--- [2,4]
+-- [Sum {getSum = 2},Sum {getSum = 4}]
 --
 -- Always make a little progress.
 --
--- >>> testCoalesce (< 5) [99,3,5,2,4]
+-- >>> testCoalesce (< 5) $ fmap Sum [99,3,5,2,4]
 -- Sum {getSum = 99}
--- [3,5,2,4]
+-- [Sum {getSum = 3},Sum {getSum = 5},Sum {getSum = 2},Sum {getSum = 4}]
+--
+-- Coalesce in FIFO-order.
+--
+-- >>> testCoalesce (\x -> length x < 10) $ words "too many ducks and not enough pond"
+-- "toomanyducks"
+-- ["and","not","enough","pond"]
 --
 -- Stop when the queue is exausted.
 --
--- >>> testCoalesce (const True) [1,3,5,2,4]
+-- >>> testCoalesce (const True) $ fmap Sum [1,3,5,2,4]
 -- Sum {getSum = 15}
 -- []
 --
 -- Return @mempty@ when the queue is empty.
 --
--- >>> testCoalesce (const True) []
+-- >>> testCoalesce (const True) $ fmap Sum []
 -- Sum {getSum = 0}
 -- []
 --
