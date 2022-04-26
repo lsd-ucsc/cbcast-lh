@@ -155,9 +155,8 @@ data Stats = Stats
     { deliverCount :: Counter.Counter
     , receiveCount :: Counter.Counter
     , broadcastCount :: Counter.Counter
-    , unicastSizeDist :: Distribution.Distribution
-    , unicastCount :: Counter.Counter
-    , unicastFailCount :: Counter.Counter
+    , unicastAttemptSuccessful :: Distribution.Distribution
+    , unicastSuccessSize :: Distribution.Distribution
     }
 
 -- | Handle requests to send or receive messages.
@@ -234,10 +233,10 @@ sendToPeer stats (env, queue) = do
     result <- Servant.runClientM (cbcast peerRoutes message) env
     case result of
         Right NoContent -> do
-            Counter.inc (unicastCount stats)
-            Distribution.add (unicastSizeDist stats) (fromIntegral $ length message)
+            Distribution.add (unicastAttemptSuccessful stats) 1
+            Distribution.add (unicastSuccessSize stats) (fromIntegral $ length message)
         Left err -> do
-            Counter.inc (unicastFailCount stats)
+            Distribution.add (unicastAttemptSuccessful stats) 0
             printf "sendToPeer error (%d, %s): %s \n" failures (Servant.showBaseUrl $ Servant.baseUrl env) (showClientError err)
             backoff <- STM.registerDelay $ round (2^(min 5 failures) * 1e6 :: Double)
             STM.atomically $ do
@@ -355,9 +354,8 @@ main = Env.getArgs >>= \argv -> case argv of
         <$> EKG.createCounter "cbcast.deliverCount" store
         <*> EKG.createCounter "cbcast.receiveCount" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
-        <*> EKG.createDistribution "cbcast.unicastSizeDist" store
-        <*> EKG.createCounter "cbcast.unicastCount" store
-        <*> EKG.createCounter "cbcast.unicastFailCount" store
+        <*> EKG.createDistribution "cbcast.unicastAttemptSuccessful" store
+        <*> EKG.createDistribution "cbcast.unicastSuccessSize" store
 
 
 
