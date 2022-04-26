@@ -235,6 +235,7 @@ sendToPeer stats (env, queue) = do
     case result of
         Right NoContent -> do
             Counter.inc (unicastCount stats)
+            Distribution.add (unicastSizeDist stats) (fromIntegral $ length message)
         Left err -> do
             Counter.inc (unicastFailCount stats)
             printf "sendToPeer error (%d, %s): %s \n" failures (Servant.showBaseUrl $ Servant.baseUrl env) (showClientError err)
