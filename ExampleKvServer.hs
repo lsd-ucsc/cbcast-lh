@@ -35,6 +35,7 @@ import qualified Servant.Client as Servant
 import qualified Servant.Client.Generic as Servant
 
 import qualified CBCAST
+import qualified CBCAST.Core
 
 -- $setup
 -- >>> :{
@@ -154,6 +155,7 @@ instance (Generic r, Aeson.FromJSON r) => Aeson.FromJSON (CBCAST.Message r)
 data Stats = Stats
     { deliverCount :: Counter.Counter
     , receiveCount :: Counter.Counter
+    , receivedIsDeliverable :: Distribution.Distribution
     , broadcastCount :: Counter.Counter
     , unicastAttemptSuccessful :: Distribution.Distribution
     , unicastSuccessSize :: Distribution.Distribution
@@ -188,13 +190,24 @@ handlers stats peerQueues nodeState kvState = serve
     nodeHandlers :: Server (ToServantApi PeerRoutes)
     nodeHandlers
         =    (\messages -> liftIO $ do
-             err <- STM.atomically $ STM.stateTVar nodeState $ \p ->
-                either ((,p) . Just) (Nothing,)
-                $ Monad.foldM (flip CBCAST.receive) p messages
-             case err of
-                Just e -> printf "receive error: %s\n" e
-                Nothing -> Counter.add (receiveCount stats) . fromIntegral $ length messages
+             mapM_ receiveOne messages
              return NoContent)
+    receiveOne m = do
+        status <- STM.atomically $ do
+            -- observe deliverability; receive message into delay queue
+            deliverable <- STM.readTVar nodeState >>= \p ->
+                return $ CBCAST.Core.deliverable m (CBCAST.Core.pVC p)
+            receiveErr <- STM.stateTVar nodeState $ \p ->
+                either ((,p) . Just) (Nothing,) $ CBCAST.receive m p
+            return $ maybe (Right deliverable) Left receiveErr
+        case status of
+            Left e -> printf "receive error: %s\n" e
+            Right deliverable -> do
+                -- Count received messages and compute p(deliverable|received)
+                Counter.inc (receiveCount stats)
+                Distribution.add (receivedIsDeliverable stats) (if deliverable then 1 else 0)
+
+
 
 -- ** Deliver messages
 
@@ -359,6 +372,7 @@ main = Env.getArgs >>= \argv -> case argv of
     processMetrics store = Stats
         <$> EKG.createCounter "cbcast.deliverCount" store
         <*> EKG.createCounter "cbcast.receiveCount" store
+        <*> EKG.createDistribution "cbcast.receivedIsDeliverable" store
         <*> EKG.createCounter "cbcast.broadcastCount" store
         <*> EKG.createDistribution "cbcast.unicastAttemptSuccessful" store
         <*> EKG.createDistribution "cbcast.unicastSuccessSize" store
