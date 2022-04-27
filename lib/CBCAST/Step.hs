@@ -38,7 +38,7 @@ opSize (OpBroadcast n _) = n
 {-@ measure opSize @-}
 {-# WARNING opSize "Verification only" #-}
 
-{-@ type OPsized r N = {op:Op r | opSize op == N} @-}
+{-@ type OPsized r N = {sizedOp:Op r | opSize sizedOp == N} @-}
 {-@ type OPasP r P = OPsized r {processSize P} @-}
 
 
@@ -73,7 +73,7 @@ resultSize (ResultBroadcast n _) = n
 {-@ measure resultSize @-}
 {-# WARNING resultSize "Verification only" #-}
 
-{-@ type RETsized r N = {ret:Result r | resultSize ret == N} @-}
+{-@ type RETsized r N = {sizedRet:Result r | resultSize sizedRet == N} @-}
 {-@ type RETasOP r OP = RETsized r {opSize OP} @-}
 
 data Command

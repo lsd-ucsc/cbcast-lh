@@ -18,7 +18,7 @@ type Clock = Integer
 {-@
 type VC = [Clock] @-}
 type VC = [Clock]
-{-@ type VCsized N = {v:VC | vcSize v == N} @-}
+{-@ type VCsized N = {sizedV:VC | vcSize sizedV == N} @-}
 {-@ type VCasV V = VCsized {vcSize V} @-}
 
 --- QQQ: everywhere an *asV type is defined, we call len, but perhaps we should

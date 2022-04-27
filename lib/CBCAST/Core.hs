@@ -27,7 +27,7 @@ type PID = Fin
 data Message r = Message {mVC::VC, mSender::PIDasV {mVC}, mRaw::r} @-}
 data Message r = Message {mVC::VC, mSender::PID, mRaw::r}
     deriving Eq
-{-@ type Msized r N = {m:Message r | messageSize m == N} @-}
+{-@ type Msized r N = {sizedM:Message r | messageSize sizedM == N} @-}
 {-@ type MasM r M = Msized r {messageSize M} @-}
 {-@ type MasE r E = Msized r {eventSize E} @-}
 {-@ type MasV r V = Msized r {vcSize V} @-}
@@ -37,7 +37,7 @@ data Message r = Message {mVC::VC, mSender::PID, mRaw::r}
 -- local user application for processing) a message.
 data Event r = Broadcast (Message r) | Deliver PID (Message r)
     deriving Eq
-{-@ type Esized r N = {e:Event r | eventSize e == N} @-}
+{-@ type Esized r N = {sizedE:Event r | eventSize sizedE == N} @-}
 
 -- | History of events. Events are added to the left using cons (:). If events
 -- 1, 2, and 3 occur, history will be 3:2:1:[].
@@ -113,7 +113,7 @@ data Process r = Process
     , pHist :: {h:HasV r {pVC} | chaPredicate pVC h }
     }
 @-}
-{-@ type Psized r N = {p:Process r | processSize p == N} @-}
+{-@ type Psized r N = {sizedP:Process r | processSize sizedP == N} @-}
 {-@ type PasP r P = Psized r {processSize P} @-}
 {-@ type PasM r M = Psized r {messageSize M} @-}
 
@@ -151,18 +151,8 @@ deliverableHelper m_id k m_vc_k p_vc_k
 
 -- ** Delay queue operations
 
--- {-@ coerceDQ :: m:Message r -> DQasM r {m} -> [Msized r {messageSize m}] @-} -- BAD
--- {-@ coerceDQ :: m:Message r -> DQasM r {m} -> DQsized r {messageSize m} @-} -- OK
--- {-@ coerceDQ :: m:Message r -> DQasM r {m} -> DQasM r {m} @-} -- OK
-coerceDQ :: Message r -> DQ r -> DQ r
-coerceDQ _m dq = dq
--- TYPE_ALIAS_ISSUE
-
 {-@
-enqueue :: m:Message r -> [Msized r {messageSize m}] -> [Msized r {messageSize m}] @-}
----- TYPE_ALIAS_ISSUE PREFER_BELOW
----- {-@
----- enqueue :: m:Message r -> DQasM r {m} -> DQasM r {m} @-}
+enqueue :: m:Message r -> DQasM r {m} -> DQasM r {m} @-}
 enqueue :: Message r -> DQ r -> DQ r
 enqueue m [] = [m]
 enqueue m (x:xs)
