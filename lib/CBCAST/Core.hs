@@ -45,20 +45,22 @@ type ProcessHistory r = [Event r]
 {-@ type Hsized r N = [Esized r {N}] @-}
 {-@ type HasV r V = Hsized r {vcSize V} @-}
 
--- MEASURE_ISSUE
+-- | Note that 'messageSize' isn't a measure because we need LH to reason about
+-- the size of 'VC's compared with 'VC's /inside 'Message's/.
 messageSize :: Message r -> Int
 messageSize m = vcSize (mVC m)
 {-@ inline messageSize @-}
 {-# WARNING messageSize "Verification only" #-}
 
--- MEASURE_ISSUE
 eventMessage :: Event r -> Message r
 eventMessage (Broadcast m) = m
 eventMessage (Deliver _pid m) = m
 {-@ inline eventMessage @-}
 {-# WARNING eventMessage "Verification only" #-}
 
--- MEASURE_ISSUE
+-- | As with 'messageSize', 'eventSize' and 'eventMessage' aren't measures
+-- because we need LH to reason about 'VC's compared with 'VC's /inside
+-- 'Event's/ compared with 'VC's /inside 'Message's/.
 eventSize :: Event r -> Int
 eventSize e = messageSize (eventMessage e)
 {-@ inline eventSize @-}
@@ -117,7 +119,9 @@ data Process r = Process
 {-@ type PasP r P = Psized r {processSize P} @-}
 {-@ type PasM r M = Psized r {messageSize M} @-}
 
--- MEASURE_ISSUE
+-- | As with 'messageSize', 'processSize' isn't a measure because we need LH to
+-- reason about 'VC's compared with 'VC's /inside 'Process'es/ compared with
+-- 'VC's /inside 'Message's/ compared with 'VC's /inside 'Event's/.
 processSize :: Process r -> Int
 processSize p = vcSize (pVC p)
 {-@ inline processSize @-}
@@ -197,22 +201,6 @@ pEmpty n p_id = Process
 
 -- ** Clock history agreement
 
--- MEASURE_ISSUE DELETE_ME
-{-@
-histHeadE :: n:Nat -> {h:Hsized r {n} | h /= []} -> Esized r {n} @-}
-histHeadE :: Int -> ProcessHistory r -> Event r
-histHeadE _n (e:_es) = e
--- MEASURE_ISSUE DELETE_ME
-{-@
-histHeadM :: n:Nat -> {h:Hsized r {n} | h /= []} -> Msized r {n} @-}
-histHeadM :: Int -> ProcessHistory r -> Message r
-histHeadM _n (e:_es) = eventMessage e
--- MEASURE_ISSUE DELETE_ME
-{-@
-histHeadVC :: n:Nat -> {h:Hsized r {n} | h /= []} -> VCsized {n} @-}
-histHeadVC :: Int -> ProcessHistory r -> VC
-histHeadVC _n (e:_es) = mVC (eventMessage e)
-
 -- | The supremum of vector clocks on delivered messages in a process history.
 --
 -- This takes an explicit `n` because the base case builds an empty VC and
@@ -223,9 +211,6 @@ histVC :: n:Nat -> Hsized r {n} -> VCsized {n} @-}
 histVC :: Int -> ProcessHistory r -> VC
 histVC n [] = vcEmpty n
 histVC n (Broadcast{}:es) = histVC n es
--- MEASURE_ISSUE DELETE_CASES
--- histVC n (Deliver _pid Message{mVC}:es) = mVC -- `vcCombine` histVC n es
--- histVC n (Deliver _pid m:es) = mVC m -- `vcCombine` histVC n es
 histVC n (e@Deliver{}:es) = mVC (eventMessage e) `vcCombine` histVC n es
 {-@ reflect histVC @-}
 {-# WARNING histVC "Verification only" #-}

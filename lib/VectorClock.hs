@@ -21,9 +21,6 @@ type VC = [Clock]
 {-@ type VCsized N = {sizedV:VC | vcSize sizedV == N} @-}
 {-@ type VCasV V = VCsized {vcSize V} @-}
 
---- QQQ: everywhere an *asV type is defined, we call len, but perhaps we should
---- alias that here to vcSize -- search for `len` and `listLength` in CBCAST.hs
----
 --- QQQ: similarly, everywhere we deal with proccount we specify Nat on the LH
 --- side and Int on the haskell side; perhaps we should have a type alias here
 ---
@@ -34,7 +31,8 @@ type VC = [Clock]
 
 -- * Initialization
 
--- MEASURE_ISSUE
+-- | Note that 'vcSize' isn't a measure because 'VC' isn't a distinct type from
+-- lists.
 vcSize :: VC -> Int
 vcSize v = listLength v
 {-@ inline vcSize @-}
