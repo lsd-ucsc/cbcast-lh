@@ -12,7 +12,7 @@ import CBCAST.Core
 import CBCAST.Verification.ProcessOrder
 import CBCAST.Verification.PLCD
 
--- | An execution is a mapping from process identifier to process history. The
+-- | An execution is a mapping from process identifier to CBCAST process. The
 -- mapping is constrained to only those processes /in/ the execution by the
 -- size parameter, @N@.
 type Execution r = PID -> Process r
