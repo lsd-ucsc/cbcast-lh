@@ -76,7 +76,7 @@ vcLessImpliesHb
     ->   x : Xsized r {n}
     ->  m1 : Msized r {n}
     ->{ m2 : Msized r {n} | vcLess (mVC m1) (mVC m2) }
-    -> {_:Proof | happensBefore n x (Broadcast m1) (Broadcast m2) }
+    -> { happensBefore n x (Broadcast m1) (Broadcast m2) }
 @-}
 vcLessImpliesHb :: Int -> Execution r -> Message r -> Message r -> Proof
 vcLessImpliesHb _n _x _m₁ _m₂ = () *** Admit
@@ -87,21 +87,21 @@ hbImpliesVcLess
     ->   x : Xsized r {n}
     ->  m1 : Msized r {n}
     ->{ m2 : Msized r {n} | happensBefore n x (Broadcast m1) (Broadcast m2) }
-    -> {_:Proof | vcLess (mVC m1) (mVC m2) }
+    -> { vcLess (mVC m1) (mVC m2) }
 @-}
 hbImpliesVcLess :: Int -> Execution r -> Message r -> Message r -> Proof
 hbImpliesVcLess _n _x _m₁ _m₂ = () *** Admit
 
 {-@
-local2global
+plcdToCD
     :: n : Nat
     -> x : Xsized r {n}
     -> ( p_id:PIDsized {n} -> PLCD r {n} {x p_id} )
     -> CausalDelivery r {n} {x}
 @-}
-local2global :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
+plcdToCD :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
                                    -> (PID ->  Message r -> Message r -> Proof )
-local2global n x xPLCD p_id m₁ m₂ =
-    xPLCD p_id
-        (m₁ ? (p_id === pID (x p_id)))
-        (m₂ ? hbImpliesVcLess n x m₁ m₂)
+plcdToCD n x xPLCD p_id m₁ m₂ =
+    ()  ? (p_id === pID (x p_id))
+        ? hbImpliesVcLess n x m₁ m₂
+        ? xPLCD p_id m₁ m₂
