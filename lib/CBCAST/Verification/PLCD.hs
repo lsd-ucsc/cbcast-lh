@@ -31,7 +31,7 @@ type PLCD r N PROC
 {-@ ple pEmptyPLCD @-}
 {-@
 pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {n} {pEmpty n p_id} @-}
-pEmptyPLCD :: Eq r => Int -> Fin -> (Message r -> Message r -> Proof)
+pEmptyPLCD :: Eq r => Int -> PID -> (Message r -> Message r -> Proof)
 pEmptyPLCD n p_id m1 _m2
     =   True
     --- QQQ: Why doesn't this premise report as True without PLE?
