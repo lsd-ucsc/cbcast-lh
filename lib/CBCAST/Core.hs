@@ -183,7 +183,8 @@ dequeue now (x:xs)
 
 -- ** Initialization
 
--- | The empty, initial, p₀, for processes.
+-- | The empty, initial, process, p₀, with process identifier @p_id@ and
+-- compatible with vector clocks of size @n@.
 {-@
 pEmpty :: n:Nat -> PIDsized {n} -> Psized r {n} @-}
 pEmpty :: Int -> PID -> Process r
