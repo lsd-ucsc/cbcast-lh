@@ -14,13 +14,12 @@ import CBCAST.Verification.ProcessOrder (processOrder)
 
 -- | Process-Local Causal Delivery property
 {-@
-type PLCD r PROC
-    =  {m1 : Message r   | listElem (Deliver (pID PROC) m1) (pHist PROC) }
-    -> {m2 : MasM r {m1} | listElem (Deliver (pID PROC) m2) (pHist PROC)
+type PLCD r N PROC
+    =  {m1 : Msized r {N} | listElem (Deliver (pID PROC) m1) (pHist PROC) }
+    -> {m2 : Msized r {N} | listElem (Deliver (pID PROC) m2) (pHist PROC)
                 && vcLess (mVC m1) (mVC m2) }
     -> {_ : Proof | processOrder (pHist PROC) (Deliver (pID PROC) m1) (Deliver (pID PROC) m2) }
 @-}
--- TODO: parameterize by N
 
 
 
@@ -31,7 +30,7 @@ type PLCD r PROC
 -- forces LH to resolve all the symbols.
 {-@ ple pEmptyPLCD @-}
 {-@
-pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {pEmpty n p_id} @-}
+pEmptyPLCD :: n:Nat -> p_id:PIDsized {n} -> PLCD r {n} {pEmpty n p_id} @-}
 pEmptyPLCD :: Eq r => Int -> Fin -> (Message r -> Message r -> Proof)
 pEmptyPLCD n p_id m1 _m2
     =   True

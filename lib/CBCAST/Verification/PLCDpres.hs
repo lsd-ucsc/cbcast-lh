@@ -16,8 +16,8 @@ import CBCAST.Verification.PLCD
 {-@
 type PLCDpreservation r N OP
     =  p:Psized r {N}
-    -> PLCD r {p}
-    -> PLCD r {OP p}
+    -> PLCD r {N} {p}
+    -> PLCD r {N} {OP p}
 @-}
 
 

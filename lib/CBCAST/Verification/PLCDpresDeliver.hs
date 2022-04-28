@@ -60,7 +60,7 @@ deliverImpliesDeliverable p =
 deliverPLCDpres_lemNoCausalViolation
     ::   n:Nat
     -> { p:Psized r {n} | isJust (internalDeliver p) }
-    ->     PLCD r {p}
+    ->     PLCD r {n} {p}
     -> {p':Psized r {n} | p' == snd (fromJust (internalDeliver p)) }
     -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p')
                        && m1 == fst (fromJust (internalDeliver p)) }
@@ -69,7 +69,7 @@ deliverPLCDpres_lemNoCausalViolation
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemNoCausalViolation :: Eq r => Int -> Process r -> (Message r -> Message r -> Proof)
-                                                  -> Process r -> (Message r -> Message r -> Proof)
+                                                    -> Process r -> (Message r -> Message r -> Proof)
 deliverPLCDpres_lemNoCausalViolation n p _pPLCD p' m₁ m₂ =
     let
     e₁ = Deliver (pID p') m₁
@@ -119,7 +119,7 @@ deliverPLCDpres_lemNoCausalViolation n p _pPLCD p' m₁ m₂ =
 deliverPLCDpres_lemM1thenM2
     ::   n:Nat
     -> { p:Psized r {n} | isJust (internalDeliver p) }
-    ->     PLCD r {p}
+    ->     PLCD r {n} {p}
     -> {p':Psized r {n} | p' == snd (fromJust (internalDeliver p)) }
     -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p') }
     -> {m2:Msized r {n} | listElem (Deliver (pID p') m2) (pHist p')
@@ -128,7 +128,7 @@ deliverPLCDpres_lemM1thenM2
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemM1thenM2 :: Eq r => Int -> Process r -> (Message r -> Message r -> Proof)
-                                      -> Process r -> (Message r -> Message r -> Proof)
+                                           -> Process r -> (Message r -> Message r -> Proof)
 deliverPLCDpres_lemM1thenM2 _n p _pPLCD p' m₁ m₂ =
     let
     e₁ = Deliver (pID p') m₁
@@ -156,10 +156,10 @@ deliverPLCDpres_lemM1thenM2 _n p _pPLCD p' m₁ m₂ =
 deliverPLCDpres_lemNewM
     ::   n:Nat
     -> { p:Psized r {n} | isJust (internalDeliver p) }
-    ->     PLCD r {p}
+    ->     PLCD r {n} {p}
     -> {p':Psized r {n} | p' == snd (fromJust (internalDeliver p)) }
-    -> {m1:Message r    | listElem (Deliver (pID p') m1) (pHist p') }
-    -> {m2:MasM r {m1}  | listElem (Deliver (pID p') m2) (pHist p')
+    -> {m1:Msized r {n} | listElem (Deliver (pID p') m1) (pHist p') }
+    -> {m2:Msized r {n} | listElem (Deliver (pID p') m2) (pHist p')
                        && vcLess (mVC m1) (mVC m2) }
     -> { m:Msized r {n} | m == fst (fromJust (internalDeliver p))
                        && m /= m1
@@ -167,7 +167,7 @@ deliverPLCDpres_lemNewM
     -> { processOrder (pHist p') (Deliver (pID p') m1) (Deliver (pID p') m2) }
 @-}
 deliverPLCDpres_lemNewM :: Eq r => Int -> Process r -> (Message r -> Message r -> Proof)
-                                      -> Process r -> Message r -> Message r -> Message r -> Proof
+                                       -> Process r -> Message r -> Message r -> Message r -> Proof
 deliverPLCDpres_lemNewM _n p pPLCD p' m₁ m₂ mₙ =
     let
     e₁ = Deliver (pID p') m₁
