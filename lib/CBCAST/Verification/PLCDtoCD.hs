@@ -100,8 +100,41 @@ plcdToCD
     -> CausalDelivery r {n} {x}
 @-}
 plcdToCD :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
-                                   -> (PID ->  Message r -> Message r -> Proof )
+                               -> (PID ->  Message r -> Message r -> Proof )
 plcdToCD n x xPLCD p_id m₁ m₂ =
     ()  ? (p_id === pID (x p_id))
         ? hbImpliesVcLess n x m₁ m₂
         ? xPLCD p_id m₁ m₂
+
+-- | <https://ucsc-lsdlab.zulipchat.com/#narrow/stream/296459-casl/topic/cbcast.20paper.3A.20cbcast.3D.3Ecd.3F.3F/near/280539835>
+--
+-- @
+-- CausalDelivery : Execution → PID → Set
+-- CausalDelivery x pid
+--   = ∀ (m₁ m₂ : Message)
+--   → Deliver pid m₂ ∈ x pid
+--   → HappensBefore x (Broadcast m₁) (Broadcast m₂)
+--   → (Deliver pid m₁ ∈ x pid) × (ProcessOrder (x pid) (Deliver pid m₁) (Deliver pid m₂))
+-- @
+{-@
+type CausalDeliverySGuo r N X
+    = p_id : PIDsized {N}
+    ->  m1 : Msized r {N}
+    -> {m2 : Msized r {N} |
+            listElem (Deliver p_id m2) (pHist (X p_id))
+            && happensBefore N X (Broadcast m1) (Broadcast m2) }
+    -> {_  : Proof |
+            listElem (Deliver p_id m1) (pHist (X p_id))
+            && processOrder (pHist (X p_id)) (Deliver p_id m1) (Deliver p_id m2) }
+@-}
+
+{-@
+plcdToCDSG
+    :: n : Nat
+    -> x : Xsized r {n}
+    -> ( p_id:PIDsized {n} -> PLCD r {n} {x p_id} )
+    -> CausalDeliverySGuo r {n} {x}
+@-}
+plcdToCDSG :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
+                               -> (PID ->  Message r -> Message r -> Proof )
+plcdToCDSG n x xPLCD p_id m₁ m₂ = () *** Admit
