@@ -12,9 +12,8 @@ module CBCAST
 , broadcast
   -- * Types
 , CB.PID
-, CB.Process
-, CB.Message
-, content
+, CB.Process(), CB.pVC, CB.pID, CB.pDQ
+, CB.Message(), CB.mVC, CB.mSender, CB.mRaw
 ) where
 
 import GHC.Generics (Generic)
@@ -28,7 +27,7 @@ import qualified CBCAST.Step as CB
 
 -- $setup
 -- >>> import Control.Concurrent.STM
--- >>> import CBCAST.Core (Process, mRaw)
+-- >>> import CBCAST.Core (Process)
 -- >>> let m1       = CB.Message [0,1,0]   1 "hello!"
 -- >>> let m2       = CB.Message [0,2,0]   1 "world!"
 -- >>> let mLongVC  = CB.Message [0,1,0,0] 1 "hello!"
@@ -56,17 +55,6 @@ deriving instance Show r => Show (CB.Event r)
 deriving instance Generic r => Generic (CB.Process r)
 deriving instance Generic r => Generic (CB.Message r)
 deriving instance Generic r => Generic (CB.Event r)
-
--- | Extract the content of a message.
--- 
--- >>> content m1
--- "hello!"
--- >>> content m2
--- "world!"
---
-content :: CB.Message r -> r
-content = CB.mRaw
-{-# INLINE content #-}
 
 -- | @newProcess n pid :: Process r@ creates a new CBCAST process with
 -- identifier @pid@, for a cluster with @n@ participants, exchanging messages
@@ -138,7 +126,7 @@ receive m p
 -- >>> :{
 --     atomically $ do
 --         message <- stateTVar procVar deliver
---         maybe retry (\m -> modifyTVar appVar (content m :)) message
+--         maybe retry (\m -> modifyTVar appVar (CB.mRaw m :)) message
 --     :}
 --
 -- >>> readTVarIO appVar
@@ -172,7 +160,7 @@ deliver p = maybe (Nothing, p) (first Just) ret
 -- >>> :{
 --     do m <- atomically $ do
 --            message <- stateTVar procVar $ broadcast "hooray!"
---            modifyTVar appVar (content message :)
+--            modifyTVar appVar (CB.mRaw message :)
 --            return message
 --        sendToCluster m
 --     :}

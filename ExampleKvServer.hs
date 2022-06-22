@@ -82,7 +82,7 @@ data KvRoutes mode = KvRoutes
 -- | Apply a message to application state.
 applyMessage :: STM.TVar KvState -> Broadcast -> STM.STM ()
 applyMessage kvState m =
-    STM.modifyTVar' kvState . kvApply $ CBCAST.content m
+    STM.modifyTVar' kvState . kvApply $ CBCAST.mRaw m
 
 
 
