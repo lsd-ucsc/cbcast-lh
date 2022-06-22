@@ -17,7 +17,7 @@ To follow the proof, we suggest:
 * The definition of PLCD (process-local causal delivery) is in
   `lib/CBCAST/Verification/PLCD.hs`: The definition `PLCD` states that, given a
   process `p`, for all messages `m₁` and `m₂` delivered at `p` and with sent-VC
-  of `m₁` less than sent-VC of `m₂`, `p` delivers first `m₁` and second `m₂`.
+  of `m₁` less-than sent-VC of `m₂`, `p` delivers `m₁` before `m₂`.
 
 * The definition of PLCD-preservation is in
   `lib/CBCAST/Verification/PLCDpres.hs`: The definition `PLCDpreservation`
