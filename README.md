@@ -8,11 +8,21 @@ Verification of causal delivery with
 [Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell).
 
 To follow the proof, we suggest:
+
 * The top level theorem and proof are in
-  `lib/MessagePassingAlgorithm/CBCAST/Step/Verification.hs`.
-* The definition(s) of PLCD and preservation are in
-  `lib/MessagePassingAlgorithm/CBCAST/Verification/PLCD.hs` and
-  `lib/MessagePassingAlgorithm/VectorClockAdapter/Verification/ProcessLocalCausalDelivery.hs`.
+  `lib/CBCAST/Verification/PLCDpresStep.hs`: The theorem `trcPLCDpres` states
+  that, for all PLCD-observing processes, applying an arbitrary list of
+  operations obtains a PLCD-observing process.
+
+* The definition of PLCD (process-local causal delivery) is in
+  `lib/CBCAST/Verification/PLCD.hs`: The definition `PLCD` states that, given a
+  process `p`, for all messages `m₁` and `m₂` delivered at `p` and with sent-VC
+  of `m₁` less than sent-VC of `m₂`, `p` delivers first `m₁` and second `m₂`.
+
+* The definition of PLCD-preservation is in
+  `lib/CBCAST/Verification/PLCDpres.hs`: The definition `PLCDpreservation`
+  states that, given an operation, for all PLCD-observing processes, applying
+  the operation obtains a PLCD-observing process.
 
 ## Building
 
