@@ -1,29 +1,7 @@
-{-# OPTIONS_GHC "-Wno-missing-signatures" #-}
-{-# OPTIONS_GHC "-Wno-orphans" #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
-import Data.Tuple
-import Data.IORef
+import Control.Concurrent.STM
 
-import MessagePassingAlgorithm
-import MessagePassingAlgorithm.VectorClockAdapter
-import MessagePassingAlgorithm.CBCAST
-
-broadcast = internalBroadcast
-receive = internalReceive
-deliver = internalDeliver
-
-deriving instance (Show mm, Show r) => Show (Message mm r)
-deriving instance (Show mm, Show r) => Show (Event mm r)
-deriving instance Show VCMM
-deriving instance Show r => Show (P r)
-
-modifyIORefMaybe :: IORef a -> (a -> Maybe (a, b)) -> IO (Maybe b)
-modifyIORefMaybe ref f =
-    atomicModifyIORef ref $
-    \a -> case f a of Nothing      -> (a, Nothing)
-                      Just (a', b) -> (a', Just b)
-
+import CBCAST
 
 -- | Example figures in the paper (the corrected Alice/Bob/Carol executions).
 main :: IO ()
@@ -37,76 +15,83 @@ leftExample :: IO ()
 leftExample = do
     -- Three causal broadcast processes which send String messages.
     let n = 3
-    alice <- newIORef (pEmpty n 0 :: P String)
-    bob   <- newIORef (pEmpty n 1 :: P String)
-    carol <- newIORef (pEmpty n 2 :: P String)
+    alice <- newTVarIO (either error id $ newProcess n 0 :: Process String)
+    bob   <- newTVarIO (either error id $ newProcess n 1 :: Process String)
+    carol <- newTVarIO (either error id $ newProcess n 2 :: Process String)
 
-    -- Alice sends 'lost' and their VC increments to [1,0,0].
-    mLost <- atomicModifyIORef alice $ swap . broadcast "I lost my wallet..."
+    -- Alice sends 'lost' and their VC increments.
+    mLost <- atomically . stateTVar alice $ broadcast "I lost my wallet..."
+    [1,0,0] <- atomically $ pVC <$> readTVar alice
 
-    -- Alice sends 'found' and their VC increments to [2,0,0].
-    mFound <- atomicModifyIORef alice $ swap . broadcast "Found it!"
+    -- Alice sends 'found' and their VC increments.
+    mFound <- atomically . stateTVar alice $ broadcast "Found it!"
+    [2,0,0] <- atomically $ pVC <$> readTVar alice
 
     -- Carol receives 'found' and delays it because it depends on 'lost'.
-    modifyIORef carol $ receive mFound
-    Nothing <- modifyIORefMaybe carol $ fmap swap . deliver
+    atomically . modifyTVar carol $ either error id . receive mFound
+    Nothing <- atomically $ stateTVar carol deliver
 
-    -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
-    modifyIORef carol $ receive mLost
-    Just Message{mRaw="I lost my wallet..."} <- modifyIORefMaybe carol $ fmap swap . deliver
+    -- Carol receives 'lost' and delivers it, updating their VC.
+    atomically . modifyTVar carol $ either error id . receive mLost
+    Just "I lost my wallet..." <- atomically $ fmap mRaw <$> stateTVar carol deliver
+    [1,0,0] <- atomically $ pVC <$> readTVar carol
 
-    -- Carol delivers 'found', updating their VC to [2,0,0]
-    Just Message{mRaw="Found it!"} <- modifyIORefMaybe carol $ fmap swap . deliver
+    -- Carol delivers 'found', updating their VC.
+    Just "Found it!" <- atomically $ fmap mRaw <$> stateTVar carol deliver
+    [2,0,0] <- atomically $ pVC <$> readTVar carol
 
-    print =<< readIORef alice
-    print =<< readIORef bob
-    print =<< readIORef carol
+    print =<< readTVarIO alice
+    print =<< readTVarIO bob
+    print =<< readTVarIO carol
 
 
 rightExample :: IO ()
 rightExample = do
     -- Three causal broadcast processes which send String messages.
     let n = 3
-    alice <- newIORef (pEmpty n 0 :: P String)
-    bob   <- newIORef (pEmpty n 1 :: P String)
-    carol <- newIORef (pEmpty n 2 :: P String)
+    alice <- newTVarIO (either error id $ newProcess n 0 :: Process String)
+    bob   <- newTVarIO (either error id $ newProcess n 1 :: Process String)
+    carol <- newTVarIO (either error id $ newProcess n 2 :: Process String)
 
-    -- Alice sends 'lost' and their VC increments to [1,0,0].
-    mLost <- atomicModifyIORef alice $ swap . broadcast "I lost my wallet..."
+    -- Alice sends 'lost' and their VC increments.
+    mLost <- atomically . stateTVar alice $ broadcast "I lost my wallet..."
+    [1,0,0] <- atomically $ pVC <$> readTVar alice
 
-    -- Alice sends 'found' and their VC increments to [2,0,0].
-    mFound <- atomicModifyIORef alice $ swap . broadcast "Found it!"
+    -- Alice sends 'found' and their VC increments.
+    mFound <- atomically . stateTVar alice $ broadcast "Found it!"
+    [2,0,0] <- atomically $ pVC <$> readTVar alice
 
     -- Bob receives both 'lost' and 'found' and delivers them in causal order,
-    -- updating their VC to [2,0,0].
-    modifyIORef bob $ receive mFound
-    modifyIORef bob $ receive mLost
-    modifyIORef bob $ \p ->
-        let Just (Message{mRaw="I lost my wallet..."}, p') = deliver p in p'
-    modifyIORef bob $ \p ->
-        let Just (Message{mRaw="Found it!"}, p') = deliver p in p'
+    -- updating their VC.
+    atomically . modifyTVar bob $ either error id . receive mFound
+    atomically . modifyTVar bob $ either error id . receive mLost
+    Just "I lost my wallet..." <- atomically $ fmap mRaw <$> stateTVar bob deliver
+    [1,0,0] <- atomically $ pVC <$> readTVar bob
+    Just "Found it!" <- atomically $ fmap mRaw <$> stateTVar bob deliver
+    [2,0,0] <- atomically $ pVC <$> readTVar bob
 
-    -- Carol receives 'lost' and delivers it, updating their VC to [1,0,0].
-    modifyIORef carol $ receive mLost
-    modifyIORef carol $ \p ->
-        let Just (Message{mRaw="I lost my wallet..."}, p') = deliver p in p'
+    -- Carol receives 'lost' and delivers it, updating their VC.
+    atomically . modifyTVar carol $ either error id . receive mLost
+    Just "I lost my wallet..." <- atomically $ fmap mRaw <$> stateTVar carol deliver
+    [1,0,0] <- atomically $ pVC <$> readTVar carol
 
-    -- Bob sends 'glad' and their VC increments to [2,1,0].
-    mGlad <- atomicModifyIORef bob $ swap . broadcast "Glad to hear it!"
+    -- Bob sends 'glad' and their VC increments to.
+    mGlad <- atomically . stateTVar bob $ broadcast "Glad to hear it!"
+    [2,1,0] <- atomically $ pVC <$> readTVar bob
 
     -- Carol receives 'glad' and delays it because it depends on 'found'.
-    modifyIORef carol $ receive mGlad
-    Nothing <- deliver <$> readIORef carol
+    atomically . modifyTVar carol $ either error id . receive mGlad
+    Nothing <- atomically $ stateTVar carol deliver
 
-    -- Carol receives 'found' and delivers it, updating their VC to [2,0,0].
-    modifyIORef carol $ receive mFound
-    modifyIORef carol $ \p ->
-        let Just (Message{mRaw="Found it!"}, p') = deliver p in p'
+    -- Carol receives 'found' and delivers it, updating their VC.
+    atomically . modifyTVar carol $ either error id . receive mFound
+    Just "Found it!" <- atomically $ fmap mRaw <$> stateTVar carol deliver
+    [2,0,0] <- atomically $ pVC <$> readTVar carol
 
-    -- Carol delivers 'glad', updating their VC to [2,1,0].
-    modifyIORef carol $ \p ->
-        let Just (Message{mRaw="Glad to hear it!"}, p') = deliver p in p'
+    -- Carol delivers 'glad', updating their VC.
+    Just "Glad to hear it!" <- atomically $ fmap mRaw <$> stateTVar carol deliver
+    [2,1,0] <- atomically $ pVC <$> readTVar carol
 
-    print =<< readIORef alice
-    print =<< readIORef bob
-    print =<< readIORef carol
+    print =<< readTVarIO alice
+    print =<< readTVarIO bob
+    print =<< readTVarIO carol

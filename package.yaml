@@ -53,3 +53,4 @@ tests:
         main: Listing.hs
         dependencies:
             - cbcast-lh
+            - stm
