@@ -122,3 +122,49 @@ broadcastPackets  n  src (dst:dsts)  msg
 (x:xs) +++ ys = x : (xs +++ ys)
 {-@ infixr 5 +++ @-}
 {-@ reflect +++ @-}
+
+
+
+
+-- | Simpler than `xStep`: Calls step on every process in the execution,
+-- returning all the results. Inflight messages are whatever hasn't been
+-- delivered yet.
+{-@
+globalStep :: n:Nat -> Xsized r {n} -> OPsized r {n} -> [Xsized r {n}] @-}
+globalStep :: Int -> Execution r -> Op r -> [Execution r]
+globalStep n x op = globalStepHelper n x op (finDesc n)
+
+{-@
+globalStepHelper :: n:Nat -> Xsized r {n} -> OPsized r {n} -> [PIDsized {n}] -> [Xsized r {n}] @-}
+globalStepHelper :: Int -> Execution r -> Op r -> [PID] -> [Execution r]
+globalStepHelper _n _x _op     []     = []
+globalStepHelper  n  x  op (p_id:pids) =
+    -- apply step to x for current p_id
+    let x' = case op of
+            OpReceive _n m
+                | messageInExecution n x m ->
+                    let ResultReceive _n p = step op (x p_id)
+                    in setProcess2 n p x
+                | otherwise -> x -- only apply step if the message is from this execution
+            OpDeliver{} ->
+                case step op (x p_id) of
+                    ResultDeliver _n (Just (_m, p)) -> setProcess2 n p x
+                    ResultDeliver _n Nothing -> x -- no update took place
+            OpBroadcast{} ->
+                let ResultBroadcast _n (_m, p) = step op (x p_id)
+                in setProcess2 n p x
+    -- apply step to x for rest of pids
+    in x' : globalStepHelper n x op pids
+
+{-@
+messageInExecution :: n:Nat -> Xsized r {n} -> Msized r {n} -> Bool @-}
+messageInExecution :: Int -> Execution r -> Message r -> Bool
+messageInExecution n x m = messageInExecutionHelper n x m (finDesc n)
+
+{-@
+messageInExecutionHelper :: n:Nat -> Xsized r {n} -> Msized r {n} -> [PIDsized {n}] -> Bool @-}
+messageInExecutionHelper :: Int -> Execution r -> Message r -> [PID] -> Bool
+messageInExecutionHelper n x m [] = False
+messageInExecutionHelper n x m (p_id:pids) =
+    undefined -- look up m in (x p_id)
+    || messageInExecutionHelper n x m pids
