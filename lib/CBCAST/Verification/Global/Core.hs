@@ -5,7 +5,7 @@
 -- VC-HB iso, and Causal Delivery.
 module CBCAST.Verification.Global.Core {-# WARNING "Verification only" #-} where
 
-import Language.Haskell.Liquid.ProofCombinators -- (Proof, (===), (***), QED(..), (?))
+import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..), (?))
 import Language.Haskell.Liquid.ProofCombinatorsExtra (proofConst)
 
 import Redefined
