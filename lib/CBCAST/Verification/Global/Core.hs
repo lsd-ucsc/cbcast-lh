@@ -1,8 +1,9 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 {-# OPTIONS_GHC "-Wno-warnings-deprecations" #-} -- Hide the "verification only" and "internal use" warnings
 
--- | Global definitions and properties relating to causal delivery.
-module CBCAST.Verification.CD {-# WARNING "Verification only" #-} where
+-- | Global definitions and properties relating to causal delivery: Execution,
+-- VC-HB iso, and Causal Delivery.
+module CBCAST.Verification.Global.Core {-# WARNING "Verification only" #-} where
 
 import Language.Haskell.Liquid.ProofCombinators -- (Proof, (===), (***), QED(..), (?))
 import Language.Haskell.Liquid.ProofCombinatorsExtra (proofConst)
@@ -181,4 +182,4 @@ plcdToCDA
 @-}
 plcdToCDA :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
                                 -> (PID ->  Message r -> Message r -> Proof )
-plcdToCDA n x xPLCD p_id m₁ m₂ = () *** Admit -- TODO
+plcdToCDA _n _x _xPLCD _p_id _m₁ _m₂ = () *** Admit -- TODO

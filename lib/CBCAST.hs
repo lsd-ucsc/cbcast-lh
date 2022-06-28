@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
+{-# OPTIONS_GHC "-Wno-orphans" #-} -- Clients need Show and Generic instances
 {-# LANGUAGE StandaloneDeriving #-} -- Show instances of internal CBCAST types
 {-# LANGUAGE DeriveGeneric #-} -- Generic instances of internal CBCAST types
 

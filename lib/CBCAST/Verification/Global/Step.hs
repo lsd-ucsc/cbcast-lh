@@ -3,28 +3,32 @@
 {-# LANGUAGE GADTs #-}
 
 -- | Permissive network-semantics for executions running CBCAST.
-module CBCAST.Verification.XStep {-# WARNING "Verification only" #-} where
+module CBCAST.Verification.Global.Step {-# WARNING "Verification only" #-} where
 
 import Prelude hiding (foldr, uncurry)
 
 -- import Redefined
 import CBCAST.Core
 import CBCAST.Step
+import CBCAST.Verification.PLCDpresStep (stepShim)
+import CBCAST.Verification.Global.Core
 -- import CBCAST.Transitions
--- import CBCAST.Verification.PLCDpresStep (stepShim)
 
 
 
 
 -- * Step-relation for executions
 
+-- | Minimum-viable network-semantics. It selects an operation and applies it
+-- to a process in an execution. There are no constraints, so a random or
+-- pathological message can pop into the universe and be received by a process.
 {-@
 xStep :: n:Nat -> OPsized r {n} -> PIDsized {n} -> Xsized r {n} -> Xsized r {n} @-}
 xStep :: Int -> Op r -> PID -> Execution r -> Execution r
 xStep n op pid x₀ = -- setProcess2 n (stepShim op (x pid)) x
     let p₀ = x₀ pid
         p₁ = stepShim op p₀
-        x₁ = setProcess2 n p₁ x₀
+        x₁ = xSetProc n p₁ x₀
     in x₁
 {-@ reflect xStep @-}
 
