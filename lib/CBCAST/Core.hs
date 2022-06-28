@@ -197,6 +197,22 @@ pEmpty n p_id = Process
     }
 {-@ reflect pEmpty @-}
 
+-- | Proof that the empty process has its given PID.
+{-@
+pEmptyGivenPID :: n:Nat -> p_id:PIDsized {n} -> { p_id == pID (pEmpty n p_id) } @-}
+pEmptyGivenPID :: Int -> PID -> Proof
+pEmptyGivenPID _n _p_id = ()
+{-@ ple pEmptyGivenPID @-} -- Proof by the body of pEmpty
+{-# WARNING pEmptyGivenPID "Verification only" #-}
+
+-- | Proof that the empty process has an empty history.
+{-@
+pEmptyHistEmpty :: n:Nat -> p_id:PIDsized {n} -> { [] == pHist (pEmpty n p_id) } @-}
+pEmptyHistEmpty :: Int -> PID -> Proof
+pEmptyHistEmpty n p_id = () `proofConst` pEmpty n p_id
+{-@ ple pEmptyHistEmpty @-} -- Proof by the body of pEmpty
+{-# WARNING pEmptyHistEmpty "Verification only" #-}
+
 
 
 
