@@ -24,4 +24,5 @@ type CDpreservation r N OP
 xStepCDpres :: n:Nat -> op:OPsized r {n} -> p_id:PIDsized {n} -> CDpreservation r {n} {xStep n op p_id} @-}
 xStepCDpres :: Int -> Op r -> PID -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                  -> (PID -> Message r -> Message r -> Proof)
-xStepCDpres _n _op _op_p_id _x _xCD _p_id _m₁ _m₂ = () *** Admit -- TODO
+xStepCDpres _n _op _op_p_id _x _xCD =
+  \ _p_id _m₁ _m₂ -> () *** Admit -- TODO
