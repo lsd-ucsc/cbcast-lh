@@ -2,7 +2,7 @@
   description = "CBCAST LH";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-22.05;
 
     flake-utils.url = github:numtide/flake-utils;
 
@@ -32,8 +32,15 @@
       mkOutputs = system: {
 
         overlays = {
+          patchEkg = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
+            with final.haskell.lib; {
+              ekg = doJailbreak superH.ekg;
+              ekg-json = (selfH.callCabal2nix "ekg-json"
+                (final.fetchFromGitHub { owner = "vshabanov"; repo = "ekg-json"; rev = "aeson-2.0"; hash = "sha256-VT8Ur585TCn03P2TVi6t92v2Z6tl8vKijICjse6ocv8="; })
+                { });
+            });
           addCBCASTLH = final: prev: haskellPackagesOverlay ghc final prev (self: super:
-            with prev.haskell.lib; {
+            with final.haskell.lib; {
               cbcast-lh =
                 let
                   src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "build-env" "*.cabal" "deploy/" "dist/" ] ./.;
@@ -48,6 +55,7 @@
 
         overlay = composeOverlays [
           liquidhaskell.overlay.${system}
+          self.overlays.${system}.patchEkg
           self.overlays.${system}.addCBCASTLH
         ];
 
