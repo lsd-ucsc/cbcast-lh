@@ -105,6 +105,25 @@ type CausalDelivery r N X
     -> {_  : Proof | processOrder (pHist (X p_id)) (Deliver p_id m1) (Deliver p_id m2)}
 @-}
 
+
+-- | If an execution is CD, then all processes in the execution are PLCD.
+{-@
+cdToPLCD
+    :: n : Nat
+    -> x : Xsized r {n}
+    -> CausalDelivery r {n} {x}
+    -> ( p_id:PIDsized {n} -> PLCD r {n} {x p_id} )
+@-}
+cdToPLCD :: Int -> Execution r -> (PID ->  Message r -> Message r -> Proof )
+                               -> (PID -> (Message r -> Message r -> Proof))
+cdToPLCD n x xCD =
+  \ p_id m₁ m₂ ->
+    -- Use reflectHB to convert PLCD premise `m₁ <vc m₂` to `m₁ →hb m₂`.
+    -- Use xCD to convert that to `m₁ →p m₂`
+    ()  ? reflectHB n x m₁ m₂
+        ? (p_id === pID (x p_id)) -- p_id's history in x for xCD premise.
+        ? xCD p_id m₁ m₂
+
 -- | If all processes in an execution are PLCD, then the execution is CD.
 {-@
 plcdToCD
@@ -115,9 +134,12 @@ plcdToCD
 @-}
 plcdToCD :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
                                -> (PID ->  Message r -> Message r -> Proof )
-plcdToCD n x xPLCD p_id m₁ m₂ =
-    ()  ? (p_id === pID (x p_id))
-        ? preserveHB n x m₁ m₂
+plcdToCD n x xPLCD =
+  \ p_id m₁ m₂ ->
+    -- Use preserveHB to convert CD premise `m₁ →hb m₂` into `m₁ <vc m₂`.
+    -- Use xPLCD to convert that to `m₁ →p m₂`.
+    ()  ? preserveHB n x m₁ m₂
+        ? (p_id === pID (x p_id)) -- p_id's history in x for xPLCD premise.
         ? xPLCD p_id m₁ m₂
 
 -- | The empty execution vacuously observes causal delivery.
