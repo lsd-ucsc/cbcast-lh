@@ -10,3 +10,5 @@ result
 result-doc
 build-env
 build-env-*-link
+.stack-work/
+stack.yaml.lock
