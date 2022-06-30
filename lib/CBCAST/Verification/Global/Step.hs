@@ -3,7 +3,7 @@
 {-# LANGUAGE GADTs #-}
 
 -- | Permissive network-semantics for executions running CBCAST.
-module CBCAST.Verification.Global.XStep {-# WARNING "Verification only" #-} where
+module CBCAST.Verification.Global.Step {-# WARNING "Verification only" #-} where
 
 import Prelude hiding (foldr, uncurry)
 
