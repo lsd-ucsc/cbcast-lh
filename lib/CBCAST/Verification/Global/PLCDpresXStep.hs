@@ -15,7 +15,7 @@ import CBCAST.Verification.PLCD
 import CBCAST.Verification.PLCDpresStep
 import CBCAST.Verification.PIDpresStep
 import CBCAST.Verification.Global.Core
-import CBCAST.Verification.Global.Step
+import CBCAST.Verification.Global.XStep
 
 {-@
 xStepPLCDpres

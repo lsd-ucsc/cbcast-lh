@@ -12,7 +12,7 @@ import CBCAST.Step
 import CBCAST.Verification.ProcessOrder
 import CBCAST.Verification.PLCDpresStep
 import CBCAST.Verification.Global.Core
-import CBCAST.Verification.Global.Step
+import CBCAST.Verification.Global.XStep
 import CBCAST.Verification.Global.PLCDpresXStep
 
 -- | An operation OP preserves any execution's observation of CD.
