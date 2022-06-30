@@ -51,6 +51,17 @@ xSetProc :: Int -> Process r -> Execution r -> Execution r
 xSetProc n p = xSetPidProc n (pID p) p
 {-@ reflect xSetProc @-}
 
+-- | Proof about the value of a lookup after updating an execution.
+{-@ ple xSettedProc @-}
+{-@
+xSettedProc
+    :: n:Nat -> p:Psized r {n} -> x:Xsized r {n} -> p_id:PIDsized {n}
+    -> { if pID p == p_id
+        then xSetProc n p x p_id == p
+        else xSetProc n p x p_id == x p_id } @-}
+xSettedProc :: Int -> Process r -> Execution r -> PID -> Proof
+xSettedProc _n _p _x _p_id = ()
+
 
 
 

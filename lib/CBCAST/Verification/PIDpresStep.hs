@@ -103,4 +103,4 @@ broadcastPIDpres n r p =
                                                 pID p
     ? broadcastPrepareInjectPIDpres n r p   === pID p'
     ? deliverPIDpres n p'                   === pID p''
-    ? broadcastBody                         *** Admit
+    ? broadcastBody                         *** QED
