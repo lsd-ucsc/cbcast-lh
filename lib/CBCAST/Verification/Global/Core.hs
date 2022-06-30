@@ -34,7 +34,7 @@ xEmpty n p_id = pEmpty n p_id
     `proofConst` pEmptyGivenPID n p_id
 {-@ reflect xEmpty @-}
 
--- | Update an execution/mapping with a new PID/Process pair.
+-- | Update an execution (mapping) with a new PID,Process pair.
 {-@
 xSetPidProc :: n:Nat -> p_id:PIDsized {n} -> {p:Psized r {n} | p_id == pID p} -> Xsized r {n} -> Xsized r {n} @-}
 xSetPidProc :: Int -> PID -> Process r -> Execution r -> Execution r
@@ -44,7 +44,7 @@ xSetPidProc _n k v mapping target
     | otherwise = mapping target
 {-@ reflect xSetPidProc @-}
 
--- | Update an execution/mapping with a new Process (using its PID).
+-- | Update an execution (mapping) with a new Process (using its PID).
 {-@
 xSetProc :: n:Nat -> Psized r {n} -> Xsized r {n} -> Xsized r {n} @-}
 xSetProc :: Int -> Process r -> Execution r -> Execution r
@@ -176,11 +176,13 @@ xEmptyCD n p_id m₁ _m₂ =
 -- tradition definition of CD above.
 -- <https://ucsc-lsdlab.zulipchat.com/#narrow/stream/296459-casl/topic/cbcast.20paper.3A.20cbcast.3D.3Ecd.3F.3F/near/280539835>
 --
+-- @
 -- a --+----+-->
 --   m₁|  m₂|
 --     *    |
 --          v
 -- b -------+-->
+-- @
 --
 -- This execution does not meet the premises of CausalDelivery, and so it is
 -- vacuously satisfied. CausalDeliveryAlternate doesn't permit this execution.
