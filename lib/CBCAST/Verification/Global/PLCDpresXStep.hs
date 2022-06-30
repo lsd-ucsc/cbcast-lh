@@ -26,7 +26,7 @@ xStepPLCDpres :: Eq r
     => Int -> Op r -> PID -> Execution r
     -> (PID -> Message r -> Message r -> Proof)
     -> (PID -> Message r -> Message r -> Proof)
-xStepPLCDpres n op op_p_id x xPLCD p_id m₁ m₂
+xStepPLCDpres n op op_p_id x xPLCD {-x'PLCD λ-} p_id m₁ m₂
   | op_p_id == p_id =
     let
     -- global to local, local step
