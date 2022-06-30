@@ -13,6 +13,7 @@ import CBCAST.Core
 import CBCAST.Transitions
 import CBCAST.Step
 import CBCAST.Verification.ProcessOrder
+import CBCAST.Verification.Shims
 import CBCAST.Verification.PLCDpres
 import CBCAST.Verification.PLCDpresDeliver
 import CBCAST.Verification.PLCDpresBroadcast
@@ -21,16 +22,6 @@ import CBCAST.Verification.PLCDpresBroadcast
 
 
 -- * PLCD preservation of Step
-
--- | The step function but only keeps the process.
-{-@ stepShim :: op:Op r -> PasOP r {op} -> PasOP r {op} @-}
-stepShim :: Op r -> Process r -> Process r
-stepShim op p₀ = case step op p₀ of
-    ResultReceive _ p             -> p
-    ResultBroadcast _ (_, p)      -> p
-    ResultDeliver _ (Just (_, p)) -> p
-    ResultDeliver _ Nothing       -> p₀
-{-@ inline stepShim @-}
 
 {-@
 stepPLCDpres :: op:Op r -> PLCDpreservation r {opSize op} {stepShim op} @-}

@@ -10,21 +10,15 @@ import Redefined
 import VectorClock
 import CBCAST.Core
 import CBCAST.Transitions
+import CBCAST.Step
 import Redefined.Verification
 import CBCAST.Verification.ProcessOrder
+import CBCAST.Verification.Shims
 import CBCAST.Verification.PLCDpres
 import CBCAST.Verification.PLCDpresDeliver
 
 
 -- * PLCD preservation of Broadcast
-
--- | The first two steps of broadcast (prepare and inject message) without the
--- third step (deliver).
-{-@ broadcastPrepareInjectShim :: r -> p:Process r -> PasP r {p} @-}
-broadcastPrepareInjectShim :: r -> Process r -> Process r
-broadcastPrepareInjectShim raw p =
-    broadcastHelper_inject (broadcastHelper_prepare raw p) p
-{-@ inline broadcastPrepareInjectShim @-}
 
 -- | The broadcast helpers, to /prepare/ and /inject/ the message into the
 -- process, preserve PLCD.
@@ -61,13 +55,6 @@ broadcastPrepareInjectPLCDpres raw _n p pPLCD m₁ m₂ =
     ? extendProcessOrder (pHist p) e₁ e₂ e₃ === processOrder (e₃ : pHist p) e₁ e₂
     ? pHistLemma                            === processOrder (pHist p') e₁ e₂
     *** QED
-
--- | The internalBroadcast function, but throw away the message.
-{-@ broadcastShim :: r -> p:Process r -> PasP r {p} @-}
-broadcastShim :: r -> Process r -> Process r
-broadcastShim raw p =
-    let (_, p') = internalBroadcast raw p in p'
-{-@ inline broadcastShim @-}
 
 -- | The broadcast transition preserves PLCD.
 {-@

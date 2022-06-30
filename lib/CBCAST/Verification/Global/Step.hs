@@ -10,7 +10,7 @@ import Prelude hiding (foldr, uncurry)
 -- import Redefined
 import CBCAST.Core
 import CBCAST.Step
-import CBCAST.Verification.PLCDpresStep (stepShim)
+import CBCAST.Verification.Shims
 import CBCAST.Verification.Global.Core
 -- import CBCAST.Transitions
 

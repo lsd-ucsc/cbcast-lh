@@ -10,6 +10,7 @@ import VectorClock
 import CBCAST.Core
 import CBCAST.Step
 import CBCAST.Verification.ProcessOrder
+import CBCAST.Verification.Shims
 import CBCAST.Verification.PLCD
 import CBCAST.Verification.PLCDpresStep
 import CBCAST.Verification.PIDpresStep

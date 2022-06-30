@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 {-# OPTIONS_GHC "-Wno-warnings-deprecations" #-} -- Hide the "verification only" and "internal use" warnings
 
+-- | Define and prove that PIDs aren't modified by transitions/step. This is
+-- rather sloppy.
 module CBCAST.Verification.PIDpresStep {-# WARNING "Verification only" #-} where
 
 import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..), (?))
@@ -11,9 +13,7 @@ import VectorClock
 import CBCAST.Core
 import CBCAST.Step
 import CBCAST.Transitions
-import CBCAST.Verification.PLCDpresBroadcast (broadcastShim, broadcastPrepareInjectShim)
-import CBCAST.Verification.PLCDpresDeliver (deliverShim)
-import CBCAST.Verification.PLCDpresStep (stepShim)
+import CBCAST.Verification.Shims
 
 {-@
 stepPIDpres
