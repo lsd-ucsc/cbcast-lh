@@ -25,8 +25,8 @@ import CBCAST.Verification.Global.Core
 {-@
 xStep :: n:Nat -> OPsized r {n} -> PIDsized {n} -> Xsized r {n} -> Xsized r {n} @-}
 xStep :: Int -> Op r -> PID -> Execution r -> Execution r
-xStep n op pid x₀ = -- setProcess2 n (stepShim op (x pid)) x
-    let p₀ = x₀ pid
+xStep n op p_id x₀ = -- xSetProc n (stepShim op (x₀ p_id)) x₀
+    let p₀ = x₀ p_id
         p₁ = stepShim op p₀
         x₁ = xSetProc n p₁ x₀
     in x₁
