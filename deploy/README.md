@@ -11,10 +11,11 @@
   --force-reboot` or open the VirtualBox UI's media manager and delete the
   disks to clear it up.
 * Deploy like this
+
   ```sh-session
-nixops create -d vm net-vm.nix
-nixops deploy --force-reboot
-```
+  nixops create -d vm net-vm.nix
+  nixops deploy --force-reboot
+  ```
 
 ## AWS
 
@@ -33,24 +34,24 @@ Make sure you have no conflicting files or profiles (such as `~/.ec2-keys` or
 
 * Deploy like this
   ```sh-session
-nixops create -d aws net-aws.nix
-nixops deploy -d aws
-```
-* Default disk size of the nixos ami is small and breaks the (first deploy has to upgrade nixos to the one we're pinned on, as well as upload haskell libraries)
+  nixops create -d aws net-aws.nix
+  nixops deploy -d aws
+  ```
+* Sometimes the default disk size of the nixos ami is small and breaks on the first deploy (sometimes first deploy has to upgrade nixos to the one we're pinned on, as well as upload haskell libraries).
   ```sh-session
-[root@ip-172-31-2-66:~]# df -h .
-Filesystem                Size  Used Avail Use% Mounted on
-/dev/disk/by-label/nixos  3.0G  1.4G  1.5G  49% /
-```
+  [root@ip-172-31-2-66:~]# df -h .
+  Filesystem                Size  Used Avail Use% Mounted on
+  /dev/disk/by-label/nixos  3.0G  1.4G  1.5G  49% /
+  ```
   * Made it bigger in nix code
     ```sh-session
-[root@ip-172-31-10-72:~]# df -h .
-Filesystem                Size  Used Avail Use% Mounted on
-/dev/disk/by-label/nixos  7.9G  1.4G  6.1G  19% /
-```
+    [root@ip-172-31-10-72:~]# df -h .
+    Filesystem                Size  Used Avail Use% Mounted on
+    /dev/disk/by-label/nixos  7.9G  1.4G  6.1G  19% /
+    ```
   * After initial deployment
     ```sh-session
-[root@ip-172-31-10-72:~]# df -h .
-Filesystem                Size  Used Avail Use% Mounted on
-/dev/disk/by-label/nixos  7.9G  6.3G  1.2G  85% /
-```
+    [root@ip-172-31-10-72:~]# df -h .
+    Filesystem                Size  Used Avail Use% Mounted on
+    /dev/disk/by-label/nixos  7.9G  6.3G  1.2G  85% /
+    ```
