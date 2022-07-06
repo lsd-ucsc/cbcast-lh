@@ -1,6 +1,6 @@
 # Verified Causal Broadcast with Liquid Haskell
 
-Implementation of the CBCAST protocol from
+Implementation of causal broadcast inspired by the CBCAST protocol from
 _Lightweight Causal and Atomic Group Multicast_
 [[info](https://dl.acm.org/doi/abs/10.1145/128738.128742),
  [pdf](https://infoscience.epfl.ch/record/50197/files/BSS91.pdf)].
@@ -27,7 +27,7 @@ To follow the proof, we suggest:
 ## Building
 
 Compiling the project will run the Liquid Haskell verification as a GHC plugin.
-It normally takes about 75 minutes (on a 2015 MacBookPro).
+It normally takes about 15 minutes (on a 2015 MacBookPro).
 To skip the verification and just build the code, you can turn off the Liquid Haskell plugin in `package.yaml`.
 
 ### Stack
@@ -36,5 +36,5 @@ To skip the verification and just build the code, you can turn off the Liquid Ha
 
 ### NixOS/Nix
 
-* Use `nix-shell` to enter a development environment.
-* Use `nix-build` to build the project.
+* Use `nix-shell` to enter a development environment or use `nix-build` to build the project.
+* Flake commands work too.
