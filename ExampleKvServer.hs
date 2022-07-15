@@ -137,9 +137,8 @@ instance Aeson.FromJSON KvCommand
 -- >>> Just m == m'
 -- True
 --
--- >>> import Data.ByteString.Lazy.Char8 as BS
--- >>> BS.putStrLn $ Aeson.encode m'
--- {"mVC":[1,0,0],"mSender":0,"mRaw":{"tag":"KvPut","contents":["some-key",null]}}
+-- >>> putStrLn . tail . init . filter (/= '\\') . show $ Aeson.encode m'
+-- {"mRaw":{"contents":["some-key",null],"tag":"KvPut"},"mVC":[1,0,0],"mSender":0}
 --
 instance (Generic r, Aeson.ToJSON   r) => Aeson.ToJSON   (CBCAST.Message r)
 instance (Generic r, Aeson.FromJSON r) => Aeson.FromJSON (CBCAST.Message r)
