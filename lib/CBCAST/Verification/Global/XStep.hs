@@ -37,17 +37,24 @@ xStep n op p_id x₀ = -- xSetProc n (stepShim op (x₀ p_id)) x₀
 
 -- * TRC for stepping executions
 
-foldr :: (a -> b -> b) -> b -> [a] -> b
-foldr f acc (x:xs) = f x (foldr f acc xs)
-foldr _ acc [] = acc
-{-@ reflect foldr @-}
+-- foldr :: (a -> b -> b) -> b -> [a] -> b
+-- foldr f acc (x:xs) = f x (foldr f acc xs)
+-- foldr _ acc [] = acc
+-- {-@ reflect foldr @-}
 
-uncurry :: (a -> b -> c) -> (a, b) -> c
-uncurry f (a, b) = f a b
-{-@ reflect uncurry @-}
+-- uncurry :: (a -> b -> c) -> (a, b) -> c
+-- uncurry f (a, b) = f a b
+-- {-@ reflect uncurry @-}
+
+-- {-@
+-- foldr_xStep :: n:Nat -> Xsized r {n} -> [(OPsized r {n}, PIDsized {n})] -> Xsized r {n} @-}
+-- foldr_xStep :: Int -> Execution r -> [(Op r, PID)] -> Execution r
+-- foldr_xStep n x = foldr (uncurry (xStep n)) x
+-- {-@ reflect foldr_xStep @-}
 
 {-@
-foldr_xStep :: n:Nat -> Xsized r {n} -> [(OPsized r {n}, PIDsized {n})] -> Xsized r {n} @-}
-foldr_xStep :: Int -> Execution r -> [(Op r, PID)] -> Execution r
-foldr_xStep n x = foldr (uncurry (xStep n)) x
+foldr_xStep :: n:Nat -> [(OPsized r {n}, PIDsized {n})] -> Xsized r {n} -> Xsized r {n} @-}
+foldr_xStep :: Int -> [(Op r, PID)] -> Execution r -> Execution r
+foldr_xStep _ [] x = x
+foldr_xStep n ((op,pid):rest) x = xStep n op pid (foldr_xStep n rest x)
 {-@ reflect foldr_xStep @-}

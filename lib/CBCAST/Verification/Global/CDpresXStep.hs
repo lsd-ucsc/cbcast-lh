@@ -11,6 +11,7 @@ import CBCAST.Core
 import CBCAST.Step
 import CBCAST.Verification.ProcessOrder
 import CBCAST.Verification.PLCDpresStep
+--import CBCAST.Verification.Shims -- is this necessary?
 import CBCAST.Verification.Global.Core
 import CBCAST.Verification.Global.XStep
 import CBCAST.Verification.Global.PLCDpresXStep
@@ -35,3 +36,23 @@ xStepCDpres n op op_p_id x xCD = -- \ p_id m₁ m₂ ->
     x'CD = plcdToCD n x' x'PLCD
     in
     x'CD
+
+{-@ ple xStepTrcCDpres @-}
+{-@
+xStepTrcCDpres
+  ::   n : Nat
+  -> ops : [(OPsized r {n}, PIDsized {n})]
+  -> CDpreservation r {n} {foldr_xStep n ops}
+@-}
+xStepTrcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
+                                                              -> (PID -> Message r -> Message r -> Proof)
+xStepTrcCDpres n [] x xCD =
+  xCD
+  ? (foldr_xStep n [] x === x) -- x is unchanged
+xStepTrcCDpres n ((op,pid):rest) x xCD =
+  let
+    prev = foldr_xStep n rest x
+    prevCD = xStepTrcCDpres n rest x xCD
+  in    
+    xStepCDpres n op pid prev prevCD
+    ? (foldr_xStep n ((op,pid):rest) x === xStep n op pid (foldr_xStep n rest x))
