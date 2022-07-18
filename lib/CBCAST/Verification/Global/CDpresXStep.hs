@@ -8,10 +8,11 @@ import Language.Haskell.Liquid.ProofCombinators
 import Redefined
 import VectorClock
 import CBCAST.Core
+import CBCAST.Transitions
 import CBCAST.Step
 import CBCAST.Verification.ProcessOrder
 import CBCAST.Verification.PLCDpresStep
---import CBCAST.Verification.Shims -- is this necessary?
+import CBCAST.Verification.Shims
 import CBCAST.Verification.Global.Core
 import CBCAST.Verification.Global.XStep
 import CBCAST.Verification.Global.PLCDpresXStep
@@ -46,13 +47,13 @@ xStepTrcCDpres
 @-}
 xStepTrcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                               -> (PID -> Message r -> Message r -> Proof)
-xStepTrcCDpres n [] x xCD =
-  xCD
-  ? (foldr_xStep n [] x === x) -- x is unchanged
-xStepTrcCDpres n ((op,pid):rest) x xCD =
+xStepTrcCDpres n [] x xCD pid =
+  xCD pid
+  ? (foldr_xStep n [] x pid === x pid) -- x is unchanged
+xStepTrcCDpres n ((op,op_pid):rest) x xCD pid =
   let
     prev = foldr_xStep n rest x
     prevCD = xStepTrcCDpres n rest x xCD
   in    
-    xStepCDpres n op pid prev prevCD
-    ? (foldr_xStep n ((op,pid):rest) x === xStep n op pid (foldr_xStep n rest x))
+    xStepCDpres n op pid prev prevCD pid
+    ? (foldr_xStep n ((op,op_pid):rest) x pid === (xStep n op op_pid (foldr_xStep n rest x)) pid)
