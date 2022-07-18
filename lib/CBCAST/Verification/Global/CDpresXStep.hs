@@ -47,13 +47,13 @@ xStepTrcCDpres
 @-}
 xStepTrcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                               -> (PID -> Message r -> Message r -> Proof)
-xStepTrcCDpres n [] x xCD pid =
-  xCD pid
+xStepTrcCDpres n [] x xCD pid m1 m2 =
+  xCD pid m1 m2
   ? (foldr_xStep n [] x pid === x pid) -- x is unchanged
-xStepTrcCDpres n ((op,op_pid):rest) x xCD pid =
+xStepTrcCDpres n ((op,op_pid):rest) x xCD pid m1 m2 =
   let
     prev = foldr_xStep n rest x
     prevCD = xStepTrcCDpres n rest x xCD
   in    
-    xStepCDpres n op pid prev prevCD pid
+    xStepCDpres n op pid prev prevCD pid m1 m2
     ? (foldr_xStep n ((op,op_pid):rest) x pid === (xStep n op op_pid (foldr_xStep n rest x)) pid)
