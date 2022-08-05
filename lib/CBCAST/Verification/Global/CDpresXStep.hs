@@ -3,6 +3,7 @@
 
 module CBCAST.Verification.Global.CDpresXStep {-# WARNING "Verification only" #-} where
 
+import Prelude hiding (foldr, uncurry)
 import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined
@@ -38,22 +39,28 @@ xStepCDpres n op op_p_id x xCD = -- \ p_id m₁ m₂ ->
     in
     x'CD
 
-{-@ ple xStepTrcCDpres @-}
+-- {-@ ple trcCDpres @-}
 {-@
-xStepTrcCDpres
+trcCDpres
   ::   n : Nat
   -> ops : [(OPsized r {n}, PIDsized {n})]
-  -> CDpreservation r {n} {foldr_xStep n ops}
+  -> CDpreservation r {n} {foldr_xStep_flip n ops}
 @-}
-xStepTrcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
-                                                              -> (PID -> Message r -> Message r -> Proof)
-xStepTrcCDpres n [] x xCD pid m1 m2 =
-  xCD pid m1 m2
-  ? (foldr_xStep n [] x pid === x pid) -- x is unchanged
-xStepTrcCDpres n ((op,op_pid):rest) x xCD pid m1 m2 =
-  let
-    prev = foldr_xStep n rest x
-    prevCD = xStepTrcCDpres n rest x xCD
-  in    
-    xStepCDpres n op pid prev prevCD pid m1 m2
-    ? (foldr_xStep n ((op,op_pid):rest) x pid === (xStep n op op_pid (foldr_xStep n rest x)) pid)
+trcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
+                                                         -> (PID -> Message r -> Message r -> Proof)
+trcCDpres n [] x xCD {-λ-} p_id m₁ m₂ =
+        foldr_xStep_flip n [] x        p_id
+    === foldr_xStep n x []             p_id
+    === foldr (uncurry (xStep n)) x [] p_id
+    ==! x                              p_id -- QQQ why is PLE necessary for this step?
+--      ? xCD p_id m₁ m₂
+    *** Admit
+trcCDpres n ((op, op_p_id):rest) x xCD {-λ-} p_id m₁ m₂ =
+    () *** Admit
+--  let
+--      prev = foldr_xStep_flip n rest x
+--      prevCD = trcCDpres n rest x xCD
+--  in
+--      xStepCDpres n op op_p_id prev prevCD
+--      p_id m₁ m₂
+--      *** Admit

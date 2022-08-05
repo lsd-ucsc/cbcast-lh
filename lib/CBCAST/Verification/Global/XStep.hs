@@ -51,3 +51,9 @@ foldr_xStep :: n:Nat -> Xsized r {n} -> [(OPsized r {n}, PIDsized {n})] -> Xsize
 foldr_xStep :: Int -> Execution r -> [(Op r, PID)] -> Execution r
 foldr_xStep n x = foldr (uncurry (xStep n)) x
 {-@ reflect foldr_xStep @-}
+
+{-@
+foldr_xStep_flip :: n:Nat -> [(OPsized r {n}, PIDsized {n})] -> Xsized r {n} -> Xsized r {n} @-}
+foldr_xStep_flip :: Int -> [(Op r, PID)] -> Execution r -> Execution r
+foldr_xStep_flip n ops x = foldr_xStep n x ops
+{-@ reflect foldr_xStep_flip @-}
