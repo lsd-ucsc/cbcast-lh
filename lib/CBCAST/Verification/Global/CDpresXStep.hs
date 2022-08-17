@@ -39,22 +39,31 @@ xStepCDpres n op op_p_id x xCD = -- \ p_id m₁ m₂ ->
     in
     x'CD
 
--- {-@ ple trcCDpres @-}
+{-@
+trcCDpresBaseCaseLemma
+    :: f:(Nat -> op -> p_id -> ex -> ex)
+    -> n:Nat
+    -> x:ex
+    -> { flip' (foldr (uncurry (f n))) [] x == x}
+@-}
+trcCDpresBaseCaseLemma :: (Int -> op -> p_id -> ex -> ex) -> Int -> ex -> Proof
+trcCDpresBaseCaseLemma f n x =
+        flip' (foldr (uncurry (f n))) [] x -- restate part of concl
+    ===        foldr (uncurry (f n))  x [] -- by body of flip'
+    ===                               x    -- by body of foldr
+    *** QED
+
 {-@
 trcCDpres
-  ::   n : Nat
-  -> ops : [(OPsized r {n}, PIDsized {n})]
-  -> CDpreservation r {n} {foldr_xStep_flip n ops}
+    ::   n : Nat
+    -> ops : [(OPsized r {n}, PIDsized {n})]
+    -> CDpreservation r {n} {flip' (foldr (uncurry (xStep n))) ops}
 @-}
 trcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                          -> (PID -> Message r -> Message r -> Proof)
 trcCDpres n [] x xCD {-λ-} p_id m₁ m₂ =
-        foldr_xStep_flip n [] x        p_id
-    === foldr_xStep n x []             p_id
-    === foldr (uncurry (xStep n)) x [] p_id
-    ==! x                              p_id -- QQQ why is PLE necessary for this step?
---      ? xCD p_id m₁ m₂
-    *** Admit
+        trcCDpresBaseCaseLemma xStep n x
+    &&& xCD p_id m₁ m₂
 trcCDpres n ((op, op_p_id):rest) x xCD {-λ-} p_id m₁ m₂ =
     () *** Admit
 --  let

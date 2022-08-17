@@ -46,6 +46,10 @@ uncurry :: (a -> b -> c) -> (a, b) -> c
 uncurry f (a, b) = f a b
 {-@ reflect uncurry @-}
 
+flip' :: (a -> b -> c) -> b -> a -> c
+flip' f b a = f a b
+{-@ reflect flip' @-}
+
 {-@
 foldr_xStep :: n:Nat -> Xsized r {n} -> [(OPsized r {n}, PIDsized {n})] -> Xsized r {n} @-}
 foldr_xStep :: Int -> Execution r -> [(Op r, PID)] -> Execution r
