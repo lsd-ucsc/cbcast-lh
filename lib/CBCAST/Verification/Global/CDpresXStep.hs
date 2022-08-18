@@ -60,6 +60,7 @@ trcCDpres
     ::   n : Nat
     -> ops : [(OPsized r {n}, PIDsized {n})]
     -> CDpreservation r {n} {flip' (foldr (uncurry (xStep n))) ops}
+    / [len ops]
 @-}
 trcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                          -> (PID -> Message r -> Message r -> Proof)
@@ -67,11 +68,12 @@ trcCDpres n [] x xCD {-λ-} p_id m₁ m₂ =
         trcCDpresBaseCaseLemma xStep n x
     &&& xCD p_id m₁ m₂
 trcCDpres n ((op, op_p_id):rest) x xCD {-λ-} p_id m₁ m₂ =
-    () *** Admit
---  let
---      prev = foldr_xStep_flip n rest x
---      prevCD = trcCDpres n rest x xCD
---  in
---      xStepCDpres n op op_p_id prev prevCD
---      p_id m₁ m₂
---      *** Admit
+    let
+        prev = flip' (foldr (uncurry (xStep n))) rest x
+        prevCD = trcCDpres n rest x xCD
+        last = flip' (foldr (uncurry (xStep n))) ((op, op_p_id):rest) x
+            ==! xStep n op op_p_id prev
+        lastCD = xStepCDpres n op op_p_id prev prevCD
+    in
+        lastCD p_id m₁ m₂
+        ? last
