@@ -42,12 +42,12 @@ xStepCDpres n op op_p_id x xCD = -- \ p_id m₁ m₂ ->
 
 {-@
 trcCDpresBaseCaseLemma
-    :: f:(Nat -> op -> p_id -> ex -> ex)
-    -> n:Nat
-    -> x:ex
+    :: f : (Nat -> op -> pid -> ex -> ex)
+    -> n : Nat
+    -> x : ex
     -> { flip' (foldr (uncurry (f n))) [] x == x}
 @-}
-trcCDpresBaseCaseLemma :: (Int -> op -> p_id -> ex -> ex) -> Int -> ex -> Proof
+trcCDpresBaseCaseLemma :: (Int -> op -> pid -> ex -> ex) -> Int -> ex -> Proof
 trcCDpresBaseCaseLemma f n x =
         flip' (foldr (uncurry (f n))) [] x -- restate part of concl
     ===        foldr (uncurry (f n))  x [] -- by body of flip'
