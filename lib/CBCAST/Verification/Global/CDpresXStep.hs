@@ -18,14 +18,15 @@ import CBCAST.Verification.Global.Core
 import CBCAST.Verification.Global.XStep
 import CBCAST.Verification.Global.PLCDpresXStep
 
--- | An operation OP preserves any execution's observation of CD.
+-- | An function preserves any execution's observation of CD.
 {-@
-type CDpreservation r N OP
+type CDpreservation r N F
     =  x:Xsized r {N}
     -> CausalDelivery r {N} {x}
-    -> CausalDelivery r {N} {OP x}
+    -> CausalDelivery r {N} {F x}
 @-}
 
+-- | Causal delivery is preserved by 'xStep'.
 {-@
 xStepCDpres :: n:Nat -> op:OPsized r {n} -> op_p_id:PIDsized {n} -> CDpreservation r {n} {xStep n op op_p_id} @-}
 xStepCDpres :: Eq r => Int -> Op r -> PID -> Execution r -> (PID -> Message r -> Message r -> Proof)
@@ -53,6 +54,7 @@ trcCDpresBaseCaseLemma f n x =
     ===                               x    -- by body of foldr
     *** QED
 
+-- | Causal delivery is preserved by multiple applications of 'xStep'.
 {-@
 trcCDpres
     ::   n : Nat
