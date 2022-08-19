@@ -40,20 +40,6 @@ xStepCDpres n op op_p_id x xCD = -- \ p_id m₁ m₂ ->
     in
     x'CD
 
-{-@
-trcCDpresBaseCaseLemma
-    :: f : (Nat -> op -> pid -> ex -> ex)
-    -> n : Nat
-    -> x : ex
-    -> { flip' (foldr (uncurry (f n))) [] x == x}
-@-}
-trcCDpresBaseCaseLemma :: (Int -> op -> pid -> ex -> ex) -> Int -> ex -> Proof
-trcCDpresBaseCaseLemma f n x =
-        flip' (foldr (uncurry (f n))) [] x -- restate part of concl
-    ===        foldr (uncurry (f n))  x [] -- by body of flip'
-    ===                               x    -- by body of foldr
-    *** QED
-
 -- | Causal delivery is preserved by multiple applications of 'xStep'.
 {-@
 trcCDpres
@@ -64,16 +50,41 @@ trcCDpres
 @-}
 trcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                          -> (PID -> Message r -> Message r -> Proof)
-trcCDpres n [] x xCD {-λ-} p_id m₁ m₂ =
-        trcCDpresBaseCaseLemma xStep n x
-    &&& xCD p_id m₁ m₂
-trcCDpres n ((op, op_p_id):rest) x xCD {-λ-} p_id m₁ m₂ =
+trcCDpres n ((op, op_p_id):rest) xFirst xFirstCD {-λ-} p_id m₁ m₂ =
     let
-        prev = flip' (foldr (uncurry (xStep n))) rest x
-        prevCD = trcCDpres n rest x xCD
-        last = flip' (foldr (uncurry (xStep n))) ((op, op_p_id):rest) x
-            ==! xStep n op op_p_id prev
-        lastCD = xStepCDpres n op op_p_id prev prevCD
+        xPenult = flip' (foldr (uncurry (xStep n)))                rest  xFirst
+        xLast   = flip' (foldr (uncurry (xStep n))) ((op, op_p_id):rest) xFirst -- restate part of conclusion
+        xPenultCD = trcCDpres n rest xFirst xFirstCD -- inductive assumption
+        xLastCD   = xStepCDpres n op op_p_id xPenult xPenultCD
     in
-        lastCD p_id m₁ m₂
-        ? last
+        trcCDpresInductiveCaseLemma (xStep n) (op, op_p_id) rest xFirst xPenult xLast
+    &&& xLastCD p_id m₁ m₂
+trcCDpres n [] xFirst xFirstCD {-λ-} p_id m₁ m₂ =
+        trcCDpresBaseCaseLemma (xStep n) xFirst
+    &&& xFirstCD p_id m₁ m₂
+
+{-@
+trcCDpresInductiveCaseLemma
+    ::        f : (a1 -> a2 -> b -> b)
+    ->        v :  (a1, a2)
+    ->       vs : [(a1, a2)]
+    ->    first :  b
+    -> { penult :  b  | penult == foldr (uncurry f) first         vs  }
+    -> {   last :  b  |   last == foldr (uncurry f) first (cons v vs) }
+    -> { f (fst v) (snd v) penult == last }
+@-}
+trcCDpresInductiveCaseLemma :: (a1 -> a2 -> b -> b) -> (a1, a2) -> [(a1, a2)] -> b -> b -> b -> Proof
+trcCDpresInductiveCaseLemma f v vs first penult last_ =
+        foldrPenultimate (uncurry f) v vs first penult last_
+    &&& uncurryApply f v
+
+{-@
+trcCDpresBaseCaseLemma
+    ::     f : (a1 -> a2 -> b -> b)
+    -> first : b
+    -> { first == flip' (foldr (uncurry f)) [] first }
+@-}
+trcCDpresBaseCaseLemma :: (a1 -> a2 -> b -> b) -> b -> Proof
+trcCDpresBaseCaseLemma f first =
+        foldrEmpty (uncurry f) first
+    &&& flip'Apply (foldr (uncurry f)) [] first
