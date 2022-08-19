@@ -76,7 +76,7 @@ trcCDpresInductiveCaseLemma
 trcCDpresInductiveCaseLemma :: (a1 -> a2 -> b -> b) -> (a1, a2) -> [(a1, a2)] -> b -> b -> b -> Proof
 trcCDpresInductiveCaseLemma f v vs first penult last_ =
         foldrPenultimate (uncurry f) v vs first penult last_
-    &&& uncurryApply f v
+    &&& uncurryApply f v -- QQQ: INLINE THIS?
 
 {-@
 trcCDpresBaseCaseLemma
@@ -86,5 +86,5 @@ trcCDpresBaseCaseLemma
 @-}
 trcCDpresBaseCaseLemma :: (a1 -> a2 -> b -> b) -> b -> Proof
 trcCDpresBaseCaseLemma f first =
-        foldrEmpty (uncurry f) first
-    &&& flip'Apply (foldr (uncurry f)) [] first
+        foldrEmpty (uncurry f) first -- QQQ: INLINE THIS?
+    &&& flip'Apply (foldr (uncurry f)) [] first -- QQQ: INLINE THIS?
