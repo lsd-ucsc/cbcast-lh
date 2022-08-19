@@ -217,4 +217,4 @@ plcdToCDA
 @-}
 plcdToCDA :: Int -> Execution r -> (PID -> (Message r -> Message r -> Proof))
                                 -> (PID ->  Message r -> Message r -> Proof )
-plcdToCDA _n _x _xPLCD _p_id _m₁ _m₂ = () *** Admit -- TODO
+plcdToCDA _n _x _xPLCD _p_id _m₁ _m₂ = () *** Admit -- TODO: Might be valuable to have a proof about this alternate CD definition
