@@ -40,6 +40,7 @@ leftExample = do
     Just "Found it!" <- atomically $ fmap mRaw <$> stateTVar carol deliver
     [2,0,0] <- atomically $ pVC <$> readTVar carol
 
+    putStrLn "Final state"
     print =<< readTVarIO alice
     print =<< readTVarIO bob
     print =<< readTVarIO carol
@@ -92,6 +93,7 @@ rightExample = do
     Just "Glad to hear it!" <- atomically $ fmap mRaw <$> stateTVar carol deliver
     [2,1,0] <- atomically $ pVC <$> readTVar carol
 
+    putStrLn "Final state"
     print =<< readTVarIO alice
     print =<< readTVarIO bob
     print =<< readTVarIO carol

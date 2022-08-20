@@ -6,6 +6,12 @@ CONFIG_FILE = dist/setup-config
 CABAL_FILE = cbcast-lh.cabal
 SETUP_CMD = runhaskell -hide-package=base Setup.hs
 
+HS_FILES_CMD = find . -name '*hs'
+# command to detect LH escapehatches
+ESCAPES_CMD = grep --color=always '==!\|Admit\|undefined\|--check-var\|--skip-module' $$($(HS_FILES_CMD))
+# command to detect programmer tasks
+MESSES_CMD = grep --color=always 'TODO\|FIXME\|XXX\|QQQ\|NOTE\|MIGRATION' $$($(HS_FILES_CMD))
+
 .PHONY: test build clean repl
 
 test: build
@@ -19,7 +25,7 @@ $(CONFIG_FILE): $(CABAL_FILE)
 	$(SETUP_CMD) configure --enable-tests
 
 check: clean
-	if grep '==!\|Admit\|undefined\|--check-var\|--skip-module' -r lib/; then \
+	if $(ESCAPES_CMD); then \
 		echo Found banned identifiers; false; \
 	fi
 	make build
@@ -43,3 +49,9 @@ entr-build:
 	git ls-files | entr -c bash -c 'make build'
 entr-test:
 	git ls-files | entr -c bash -c 'make test'
+
+escapes:
+	$(ESCAPES_CMD)
+
+messes:
+	$(MESSES_CMD)

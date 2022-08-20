@@ -1,5 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-} -- Show instances of internal CBCAST types
-{-# LANGUAGE DeriveGeneric #-} -- Generic instances of internal CBCAST types
+{-# OPTIONS_GHC "-Wno-unused-imports" #-} -- LH needs bodies of reflected definitions
 
 -- | External CBCAST client functions which do not require Liquid Haskell for
 -- correctness.
@@ -16,7 +15,6 @@ module CBCAST
 , CB.Message(), CB.mVC, CB.mSender, CB.mRaw
 ) where
 
-import GHC.Generics (Generic)
 import Text.Printf (printf)
 import Control.Arrow (first)
 
@@ -24,6 +22,8 @@ import qualified Redefined
 import qualified CBCAST.Transitions
 import qualified CBCAST.Core as CB
 import qualified CBCAST.Step as CB
+
+import CBCAST.Generic -- FIXME
 
 -- $setup
 -- >>> import Control.Concurrent.STM
@@ -47,14 +47,6 @@ expectedNat = printf "`%s` must be a `Nat`"
 
 expectedFin :: String -> Int -> String
 expectedFin = printf "`%s` must be a `Fin %d`"
-
-deriving instance Show r => Show (CB.Process r)
-deriving instance Show r => Show (CB.Message r)
-deriving instance Show r => Show (CB.Event r)
-
-deriving instance Generic r => Generic (CB.Process r)
-deriving instance Generic r => Generic (CB.Message r)
-deriving instance Generic r => Generic (CB.Event r)
 
 -- | @newProcess n pid :: Process r@ creates a new CBCAST process with
 -- identifier @pid@, for a cluster with @n@ participants, exchanging messages

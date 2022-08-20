@@ -12,8 +12,10 @@ import VectorClock
 import VectorClock.Verification
 import CBCAST.Core
 import CBCAST.Transitions
+import CBCAST.Step
 import CBCAST.Verification.Core
 import CBCAST.Verification.ProcessOrder
+import CBCAST.Verification.Shims
 import CBCAST.Verification.PLCD
 import CBCAST.Verification.PLCDpres
 
@@ -21,15 +23,6 @@ import CBCAST.Verification.PLCDpres
 
 
 -- * PLCD preservation of Deliver
-
--- | The internalDeliver function, but throw away the message.
-{-@ deliverShim :: p:Process r -> PasP r {p} @-}
-deliverShim :: Process r -> Process r
-deliverShim p =
-    case internalDeliver p of
-        Nothing -> p
-        Just (_, p') -> p'
-{-@ inline deliverShim @-}
 
 -- | A message which is delivered by a process is a deliverable message at that
 -- process.
