@@ -15,12 +15,6 @@ To follow the proof that causal delivery is preserved, we suggest:
   applying an arbitrary list of **operations to processes** in the execution
   obtains a CD-observing execution.
 
-  * The definition of an execution is in
-    [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs):
-    The type `Xsized r N` states that for some number of processes `N`, an
-    execution is a function (or mapping) from a process identifier on `[0,N)`
-    to a process with that identifier.
-
   * The definition of CD (causal delivery) is in
     [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs):
     The definition `CausalDelivery r N X` states that for some number of
@@ -33,6 +27,11 @@ To follow the proof that causal delivery is preserved, we suggest:
     The definition `CDpreservation r N F` states that for some number of
     processes `N` and function `F`, for all CD-observing executions `x`, the
     execution `F x` is CD-observing.
+
+  * An execution (`Xsized r N`) is a function (or mapping), for some number of
+    processes `N`, from a process identifier on `[0,N)` to a process with that
+    identifier in
+    [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs).
 
   * Happens before (`→`) is an uninterpreted predicate on two events in an
     execution. We provide the axiom `preserveHB` which says `e → e' ⇒ VC(e) <
