@@ -1,12 +1,12 @@
 # Verified Causal Broadcast with Liquid Haskell
 
 Implementation of causal broadcast inspired by the CBCAST protocol from
-_Lightweight Causal and Atomic Group Multicast_
+**Lightweight Causal and Atomic Group Multicast**
 [[doi:10.1145/128738.128742](https://doi.org/10.1145/128738.128742),
  [pdf](https://infoscience.epfl.ch/record/50197/files/BSS91.pdf)].
 Verification of causal delivery with
 [Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell),
-described in our paper _Verified Causal Broadcast with Liquid Haskell_
+described in our paper **Verified Causal Broadcast with Liquid Haskell**
 [[arXiv:2206.14767](https://arxiv.org/abs/2206.14767),
  [pdf](https://arxiv.org/pdf/2206.14767.pdf)].
 
