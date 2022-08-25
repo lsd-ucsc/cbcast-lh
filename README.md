@@ -2,10 +2,12 @@
 
 Implementation of causal broadcast inspired by the CBCAST protocol from
 _Lightweight Causal and Atomic Group Multicast_
-[[info](https://dl.acm.org/doi/abs/10.1145/128738.128742),
+[[doi:10.1145/128738.128742](https://doi.org/10.1145/128738.128742),
  [pdf](https://infoscience.epfl.ch/record/50197/files/BSS91.pdf)].
 Verification of causal delivery with
-[Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell).
+[Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell),
+described in our paper _Verified Causal Broadcast with Liquid Haskell_
+[arXiv:2206.14767](https://arxiv.org/abs/2206.14767).
 
 To follow the proof that applying operations to processes in an execution
 preserves *causal delivery* (CD), we suggest:
