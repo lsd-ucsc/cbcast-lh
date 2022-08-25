@@ -7,7 +7,8 @@ _Lightweight Causal and Atomic Group Multicast_
 Verification of causal delivery with
 [Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell),
 described in our paper _Verified Causal Broadcast with Liquid Haskell_
-[arXiv:2206.14767](https://arxiv.org/abs/2206.14767).
+[[arXiv:2206.14767](https://arxiv.org/abs/2206.14767),
+ [pdf](https://arxiv.org/pdf/2206.14767.pdf)].
 
 To follow the proof that applying operations to processes in an execution
 preserves *causal delivery* (CD), we suggest:
