@@ -16,7 +16,7 @@ To follow the proof that causal delivery is preserved, we suggest:
   obtains a CD-observing execution.
 
   * The definition of an execution is in
-    [CBCAST/Verification/Global/Core.hs](CBCAST/Verification/Global/Core.hs):
+    [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs):
     The type `Xsized r N` states that for some number of processes `N`, an
     execution is a function (or mapping) from a process identifier on `[0,N)`
     to a process with that identifier.
