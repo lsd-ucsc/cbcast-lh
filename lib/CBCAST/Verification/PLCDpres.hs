@@ -12,12 +12,12 @@ import CBCAST.Transitions
 import CBCAST.Verification.ProcessOrder
 import CBCAST.Verification.PLCD
 
--- | An operation OP preserves any process' observation of PLCD.
+-- | A function preserves any process' observation of PLCD.
 {-@
-type PLCDpreservation r N OP
+type PLCDpreservation r N F
     =  p:Psized r {N}
     -> PLCD r {N} {p}
-    -> PLCD r {N} {OP p}
+    -> PLCD r {N} {F p}
 @-}
 
 

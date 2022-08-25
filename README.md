@@ -7,22 +7,59 @@ _Lightweight Causal and Atomic Group Multicast_
 Verification of causal delivery with
 [Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell).
 
-To follow the proof, we suggest:
+To follow the proof that causal delivery is preserved, we suggest:
 
 * The top level theorem and proof are in
-  `lib/CBCAST/Verification/PLCDpresStep.hs`: The theorem `trcPLCDpres` states
-  that, for all PLCD-observing processes, applying an arbitrary list of
-  operations obtains a PLCD-observing process.
+  [CBCAST/Verification/Global/CDpresXStep.hs](lib/CBCAST/Verification/Global/CDpresXStep.hs):
+  The theorem `trcCDpres` states that for all CD-observing executions,
+  applying an arbitrary list of **operations to processes** in the execution
+  obtains a CD-observing execution.
 
-* The definition of PLCD (process-local causal delivery) is in
-  `lib/CBCAST/Verification/PLCD.hs`: The definition `PLCD` states that, given a
-  process `p`, for all messages `m₁` and `m₂` delivered at `p` and with sent-VC
-  of `m₁` less-than sent-VC of `m₂`, `p` delivers `m₁` before `m₂`.
+  * The definition of an execution is in
+    [CBCAST/Verification/Global/Core.hs](CBCAST/Verification/Global/Core.hs):
+    The type `Xsized r N` states that for some number of processes `N`, an
+    execution is a function (or mapping) from a process identifier on `[0,N)`
+    to a process with that identifier.
 
-* The definition of PLCD-preservation is in
-  `lib/CBCAST/Verification/PLCDpres.hs`: The definition `PLCDpreservation`
-  states that, given an operation, for all PLCD-observing processes, applying
-  the operation obtains a PLCD-observing process.
+  * The definition of CD (causal delivery) is in
+    [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs):
+    The definition `CausalDelivery r N X` states that for some number of
+    processes `N` and some execution `X`, for all process identifiers `p_id` in
+    `X`, and messages `m₁` and `m₂` delivered at `X p_id` with `m₁`
+    happens-before `m₂`, `X p_id` delivers `m₁` before `m₂`.
+
+  * The definition of CD-preservation is in
+    [CBCAST/Verification/Global/CDpresXStep.hs](lib/CBCAST/Verification/Global/CDpresXStep.hs):
+    The definition `CDpreservation r N F` states that for some number of
+    processes `N` and function `F`, for all CD-observing executions `x`, the
+    execution `F x` is CD-observing.
+
+  * Happens before (`→`) is an uninterpreted predicate on two events in an
+    execution. We provide the axiom `preserveHB` which says `e → e' ⇒ VC(e) <
+    VC(e')` and `reflectHB` which says `VC(e) < VC(e') ⇒ e → e'` in
+    [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs).
+
+This work relies on our previous work showing that applying **operations to
+processes** preserves PLCD.
+
+* The top level theorem and proof are in
+  [CBCAST/Verification/PLCDpresStep.hs](lib/CBCAST/Verification/PLCDpresStep.hs):
+  The theorem `trcPLCDpres` states that for all PLCD-observing processes,
+  applying an arbitrary list of operations to the process obtains a
+  PLCD-observing process.
+
+  * The definition of PLCD (process-local causal delivery) is in
+    [CBCAST/Verification/PLCD.hs](lib/CBCAST/Verification/PLCD.hs): The
+    definition `PLCD r N PROC` states that for some number of processes `N` and
+    some process `PROC`, for all messages `m₁` and `m₂` delivered at `PROC`
+    with sent-VC of `m₁` less-than sent-VC of `m₂`, `PROC` delivers `m₁` before
+    `m₂`.
+
+  * The definition of PLCD-preservation is in
+    [CBCAST/Verification/PLCDpres.hs](lib/CBCAST/Verification/PLCDpres.hs): The
+    definition `PLCDpreservation r N F` states that for some number of
+    processes `N` and some function `F`, for all PLCD-observing processes `p`,
+    the process `F p` is PLCD-observing.
 
 ## Building
 

@@ -18,7 +18,7 @@ import CBCAST.Verification.Global.Core
 import CBCAST.Verification.Global.XStep
 import CBCAST.Verification.Global.PLCDpresXStep
 
--- | An function preserves any execution's observation of CD.
+-- | A function preserves any execution's observation of CD.
 {-@
 type CDpreservation r N F
     =  x:Xsized r {N}
