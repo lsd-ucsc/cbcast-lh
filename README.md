@@ -7,15 +7,16 @@ _Lightweight Causal and Atomic Group Multicast_
 Verification of causal delivery with
 [Liquid Haskell](https://github.com/ucsd-progsys/liquidhaskell).
 
-To follow the proof that causal delivery is preserved, we suggest:
+To follow the proof that applying operations to processes in an execution
+preserves *causal delivery* (CD), we suggest:
 
 * The top level theorem and proof are in
   [CBCAST/Verification/Global/CDpresXStep.hs](lib/CBCAST/Verification/Global/CDpresXStep.hs):
   The theorem `trcCDpres` states that for all CD-observing executions,
-  applying an arbitrary list of **operations to processes** in the execution
+  applying an arbitrary list of operations to processes in the execution
   obtains a CD-observing execution.
 
-  * The definition of CD (causal delivery) is in
+  * The definition of CD is in
     [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs):
     The definition `CausalDelivery r N X` states that for some number of
     processes `N` and some execution `X`, for all process identifiers `p_id` in
@@ -38,8 +39,8 @@ To follow the proof that causal delivery is preserved, we suggest:
     VC(e')` and `reflectHB` which says `VC(e) < VC(e') ⇒ e → e'` in
     [CBCAST/Verification/Global/Core.hs](lib/CBCAST/Verification/Global/Core.hs).
 
-This work relies on our previous work showing that applying **operations to
-processes** preserves PLCD.
+This relies on our work showing that applying operations to a **single**
+process preserves *process-local causal delivery* (PLCD).
 
 * The top level theorem and proof are in
   [CBCAST/Verification/PLCDpresStep.hs](lib/CBCAST/Verification/PLCDpresStep.hs):
@@ -47,7 +48,7 @@ processes** preserves PLCD.
   applying an arbitrary list of operations to the process obtains a
   PLCD-observing process.
 
-  * The definition of PLCD (process-local causal delivery) is in
+  * The definition of PLCD is in
     [CBCAST/Verification/PLCD.hs](lib/CBCAST/Verification/PLCD.hs): The
     definition `PLCD r N PROC` states that for some number of processes `N` and
     some process `PROC`, for all messages `m₁` and `m₂` delivered at `PROC`
