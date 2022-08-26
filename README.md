@@ -70,7 +70,7 @@ translating between process-local and global-execution properties, and yessow
 theorems are concerned with process local properties. Arrows indicate inclusion
 via lemmas.
 
-![](scripts/diag/output-flattened.png))
+![Proof diagram](scripts/diag/output/output-flattened.png)
 
 ## Building
 
