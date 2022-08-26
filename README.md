@@ -9,6 +9,12 @@ Verification of causal delivery with
 described in our paper **Verified Causal Broadcast with Liquid Haskell**
 [[arXiv:2206.14767](https://arxiv.org/abs/2206.14767),
  [pdf](https://arxiv.org/pdf/2206.14767.pdf)].
+ 
+## Use the library
+
+The implementation is suitable for inclusion in real world projects, except for the known caveats of the algorithm, namely that the set of processes (view) cannot change during runtime. There is a [client library module, `CBCAST`](lib/CBCAST.hs) for clients that don't use Liquid Haskell, and an [example key value server](ExampleKvServer.hs). Both have extensive docstring comments. If your project uses Liquid Haskell, you could probably import the internal modules [`CBCAST.{Core,Transitions}`](https://github.com/lsd-ucsc/cbcast-lh/tree/main/lib/CBCAST). Finally, the [`deploy` directory readme](deploy#nixops-deployment) has NixOps scripts for deployment on AWS.
+
+## Read the proof
 
 To follow the proof that applying operations to processes in an execution
 preserves *causal delivery* (CD), we suggest:
@@ -64,17 +70,17 @@ process preserves *process-local causal delivery* (PLCD).
     processes `N` and some function `F`, for all PLCD-observing processes `p`,
     the process `F p` is PLCD-observing.
 
-## Proof diagram
+### Proof diagram
 
 Here's a diagram of the important components of the proof. Purple theorems are
 concerned with global properties of an execution, blue theorems assist with
 translating between process-local and global-execution properties, and yellow
-theorems are concerned with process local properties. Arrows indicate inclusion
+theorems are concerned with process local properties. Dashed arrows indicate inclusion
 via lemmas.
 
 ![Proof diagram](scripts/diag/output/output-flattened.png)
 
-## Building
+## Build the project
 
 Compiling the project will run the Liquid Haskell verification as a GHC plugin.
 It normally takes about 4 minutes (on a 2015 MacBookPro).
