@@ -64,6 +64,14 @@ process preserves *process-local causal delivery* (PLCD).
     processes `N` and some function `F`, for all PLCD-observing processes `p`,
     the process `F p` is PLCD-observing.
 
+Here's a diagram of the important components of the proof. Purple theorems are
+concerned with global properties of an execution, blue theorems assist with
+translating between process-local and global-execution properties, and yessow
+theorems are concerned with process local properties. Arrows indicate inclusion
+via lemmas.
+
+![](scripts/diag/output-flattened.png))
+
 ## Building
 
 Compiling the project will run the Liquid Haskell verification as a GHC plugin.
