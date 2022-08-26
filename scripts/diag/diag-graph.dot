@@ -1,0 +1,62 @@
+digraph G {
+    compount=true;
+    graph [fontname = "sans-serif"];
+    node [fontname = "sans-serif"];
+    edge [fontname = "sans-serif"];
+
+    //subgraph cluster_0 {
+    //    label = "Global reasoning";
+        trcCDpres [label="",shape=none,image="trcCDpres.png"];
+        xStepCDpres [label="",shape=none,image="xStepCDpres.png"];
+        xStepPLCDpres [label="",shape=none,image="xStepPLCDpres.png"];
+    //}
+    //subgraph cluster_1 {
+    //    label = "Local reasoning";
+        stepPLCDpres [label="",shape=none,image="stepPLCDpres.png"];
+    //}
+    cdToPLCD [label="",shape=none,image="cdToPLCD.png"];
+    plcdToCD [label="",shape=none,image="plcdToCD.png"];
+    reflectHB [label="",shape=none,image="reflectHB.png"];
+    preserveHB [label="",shape=none,image="preserveHB.png"];
+
+    receivePLCDpres [label="",shape=none,image="receivePLCDpres.png"];
+    deliverPLCDpres [label="",shape=none,image="deliverPLCDpres.png"];
+    broadcastPLCDpres [label="",shape=none,image="broadcastPLCDpres.png"];
+
+    lemNoCausalViolation [label="",shape=none,image="lemNoCausalViolation.png"];
+    lemM1thenM2 [label="",shape=none,image="lemM1thenM2.png"];
+    lemNewM [label="",shape=none,image="lemNewM.png"];
+    deliverableImpliesNotVCLessEqual [label="",shape=none,image="deliverableImpliesNotVCLessEqual.png"];
+
+    trcCDpres -> xStepCDpres [style=dashed];
+    xStepCDpres:w -> cdToPLCD -> reflectHB [style=dashed];
+    xStepCDpres:e -> plcdToCD -> preserveHB [style=dashed];
+    xStepCDpres -> xStepPLCDpres[style=dashed];
+    xStepPLCDpres -> stepPLCDpres:n [style=dashed];
+
+    // xStepPLCDpres -> trcPLCDpres [style=invisible,arrowhead=none, weight=0];
+    // trcPLCDpres [shape=none];
+    // trcPLCDpres -> stepPLCDpres [style=dashed, weight=0];
+
+    stepPLCDpres:w -> receivePLCDpres [style=dashed];
+    stepPLCDpres:s -> deliverPLCDpres [style=dashed,weight=10];
+    stepPLCDpres:e -> broadcastPLCDpres [style=dashed];
+
+    broadcastPLCDpres -> deliverPLCDpres [style=dashed];
+    broadcastPLCDpres -> oth4[style=dashed];
+
+    deliverPLCDpres:ws -> lemNoCausalViolation [style=dashed];
+    deliverPLCDpres:s -> lemM1thenM2 [style=dashed];
+    deliverPLCDpres:es -> lemNewM [style=dashed];
+
+    lemNoCausalViolation -> deliverableImpliesNotVCLessEqual [style=dashed];
+
+    deliverableImpliesNotVCLessEqual -> oth1 [style=dashed];
+    lemM1thenM2 -> oth2 [style=dashed];
+    lemNewM -> oth3 [style=dashed];
+
+    oth1 [shape=none, label="Other lemmas"];
+    oth2 [shape=none, label="Other lemmas"];
+    oth3 [shape=none, label="Other lemmas"];
+    oth4 [shape=none, label="Other lemmas"];
+}
