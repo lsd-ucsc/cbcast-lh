@@ -75,7 +75,7 @@ via lemmas.
 ## Building
 
 Compiling the project will run the Liquid Haskell verification as a GHC plugin.
-It normally takes about 15 minutes (on a 2015 MacBookPro).
+It normally takes about 4 minutes (on a 2015 MacBookPro).
 To skip the verification and just build the code, you can turn off the Liquid Haskell plugin in `package.yaml`.
 
 ### Stack
