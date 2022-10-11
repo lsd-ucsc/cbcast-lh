@@ -1,0 +1,27 @@
+digraph G {
+    node [shape=box];
+
+    bm1_hb_bm2 [label=<B(m<sub>1</sub>) →<sub>hb</sub> B(m<sub>2</sub>)>];
+    dm1_po_dm2 [label=<D<sub>p</sub>(m<sub>1</sub>) →<sub>p</sub> D<sub>p</sub>(m<sub>2</sub>)>];
+    vm1_lt_vm2 [label=<VC(m<sub>1</sub>) &lt;<sub>vc</sub> VC(m<sub>2</sub>)>];
+
+    bm1_hb_bm2 -> vm1_lt_vm2 [color=maroon,label=preserveHB];
+    vm1_lt_vm2 -> bm1_hb_bm2 [color=orange,label=reflectHB];
+
+    //plcd [shape=none,label="Process-local\ncausal delivery"];
+    //vm1_lt_vm2 -> plcd:n [penwidth=2,arrowhead=none];
+    //plcd:s -> dm1_po_dm2 [penwidth=2];
+    vm1_lt_vm2 -> dm1_po_dm2 [arrowtail=dot,dir=both,color=maroon,penwidth=2,label="Process-local\ncausal delivery"];
+
+    //cd [shape=none,label="Causal delivery"];
+    //bm1_hb_bm2 -> cd:n [penwidth=2,arrowhead=none];
+    //cd:s -> dm1_po_dm2 [penwidth=2];
+    bm1_hb_bm2 -> dm1_po_dm2 [arrowtail=dot,dir=both,color=orange,penwidth=2,label="Causal delivery"];
+
+    // cd -> plcd [label=cdToPLCD];
+    // plcd -> cd [label=plcdToCD];
+
+    vm1_lt_vm2 -> legend [style=invisible,arrowhead=none];
+    dm1_po_dm2 -> legend [style=invisible,arrowhead=none];
+    legend [shape=none,label="CD to PLCD\l∙ You have the orange arrow.\l∙ You want to construct the maroon arrow.\l∙ Start at the maroon circle, follow reflectHB, and\l  then follow the orange arrow you already have.\l\lPLCD to CD\l∙ You have the maroon arrow.\l∙ You want to construct the orange arrow.\l∙ Start at the orange circle, follow preserveHB, and\l  then follow the maroon arrow you already have.\l"];
+}
