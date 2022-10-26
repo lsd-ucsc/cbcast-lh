@@ -137,9 +137,8 @@ instance Aeson.FromJSON KvCommand
 -- >>> Just m == m'
 -- True
 --
--- !!FIXME Test is flaky because key order is not consistent in output.
--- !!>>> putStrLn . tail . init . filter (/= '\\') . show $ Aeson.encode m'
--- !!{"mRaw":{"contents":["some-key",null],"tag":"KvPut"},"mVC":[1,0,0],"mSender":0}
+-- >>> putStrLn . tail . init . filter (/= '\\') . show $ Aeson.encode m'
+-- {"mRaw":{"contents":["some-key",null],"tag":"KvPut"},"mSender":0,"mVC":[1,0,0]}
 --
 instance (Generic r, Aeson.ToJSON   r) => Aeson.ToJSON   (CBCAST.Message r)
 instance (Generic r, Aeson.FromJSON r) => Aeson.FromJSON (CBCAST.Message r)
