@@ -1,0 +1,103 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.7.
+--
+-- see: https://github.com/sol/hpack
+
+name:           cbcast-lh
+version:        0.0.0
+build-type:     Simple
+
+library
+  exposed-modules:
+      CBCAST
+      CBCAST.Core
+      CBCAST.Generic
+      CBCAST.Step
+      CBCAST.Transitions
+      CBCAST.Verification.Core
+      CBCAST.Verification.Global.CDpresXStep
+      CBCAST.Verification.Global.Core
+      CBCAST.Verification.Global.PLCDpresXStep
+      CBCAST.Verification.Global.XStep
+      CBCAST.Verification.PIDpresStep
+      CBCAST.Verification.PLCD
+      CBCAST.Verification.PLCDpres
+      CBCAST.Verification.PLCDpresBroadcast
+      CBCAST.Verification.PLCDpresDeliver
+      CBCAST.Verification.PLCDpresStep
+      CBCAST.Verification.ProcessOrder
+      CBCAST.Verification.Shims
+      Language.Haskell.Liquid.ProofCombinatorsExtra
+      Language.Haskell.Liquid.Properties
+      Redefined
+      Redefined.Verification
+      VectorClock
+      VectorClock.Verification
+  other-modules:
+      Paths_cbcast_lh
+  hs-source-dirs:
+      lib
+  ghc-options: -Wall -fno-warn-incomplete-patterns -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--short-names -fplugin-opt=LiquidHaskell:--exact-data-cons -fplugin-opt=LiquidHaskell:--reflection -fplugin-opt=LiquidHaskell:--no-adt -fplugin-opt=LiquidHaskell:--ple-local
+  build-depends:
+      liquid-base
+    , liquid-containers
+    , liquid-prelude
+    , liquidhaskell
+  default-language: Haskell2010
+
+executable example
+  main-is: ExampleKvServer.hs
+  other-modules:
+      Paths_cbcast_lh
+  ghc-options: -Wall -threaded -rtsopts "-with-rtsopts=-N -T"
+  build-depends:
+      aeson
+    , async
+    , cbcast-lh
+    , ekg
+    , ekg-core
+    , http-client
+    , liquid-base
+    , liquid-containers
+    , liquid-prelude
+    , liquidhaskell
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-server
+    , stm
+    , wai-extra
+    , wai-middleware-metrics
+    , warp
+  default-language: Haskell2010
+
+test-suite doctest
+  type: exitcode-stdio-1.0
+  main-is: Doctest.hs
+  other-modules:
+      Paths_cbcast_lh
+  ghc-options: -Wall
+  build-depends:
+      QuickCheck
+    , doctest
+    , liquid-base
+    , liquid-containers
+    , liquid-prelude
+    , liquidhaskell
+  default-language: Haskell2010
+
+test-suite listing
+  type: exitcode-stdio-1.0
+  main-is: Listing.hs
+  other-modules:
+      Paths_cbcast_lh
+  ghc-options: -Wall
+  build-depends:
+      cbcast-lh
+    , liquid-base
+    , liquid-containers
+    , liquid-prelude
+    , liquidhaskell
+    , stm
+  default-language: Haskell2010

@@ -1,4 +1,3 @@
-*.cabal
 *.svg
 *.swp
 .liquid/
