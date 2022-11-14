@@ -21,12 +21,12 @@ boolNot True  = False
 boolNot False = True
 {-@ reflect boolNot @-}
 
-boolForAll :: (a -> Bool) -> [a] -> Bool
-boolForAll p xs = listAnd (listMap p xs)
+boolForAll :: [a] -> (a -> Bool) ->Bool
+boolForAll xs p = listAnd (listMap p xs)
 {-@ reflect boolForAll @-}
 
-boolThereExists :: (a -> Bool) -> [a] -> Bool
-boolThereExists p xs = listOr (listMap p xs)
+boolThereExists :: [a] -> (a -> Bool) -> Bool
+boolThereExists xs p = listOr (listMap p xs)
 {-@ reflect boolThereExists @-}
 
 
