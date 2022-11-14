@@ -21,6 +21,14 @@ boolNot True  = False
 boolNot False = True
 {-@ reflect boolNot @-}
 
+boolForAll :: (a -> Bool) -> [a] -> Bool
+boolForAll p xs = listAnd (listMap p xs)
+{-@ reflect boolForAll @-}
+
+boolThereExists :: (a -> Bool) -> [a] -> Bool
+boolThereExists p xs = listOr (listMap p xs)
+{-@ reflect boolThereExists @-}
+
 
 
 -- * Ord
@@ -136,6 +144,11 @@ listAnd :: [Bool] -> Bool
 listAnd [] = True
 listAnd (x:xs) = x && listAnd xs
 {-@ reflect listAnd @-}
+
+listOr :: [Bool] -> Bool
+listOr [] = False
+listOr (x:xs) = x || listOr xs
+{-@ reflect listOr @-}
 
 {-@ listZipWith :: _ ->  xs:_
                      -> {ys:_ | len xs == len ys}
