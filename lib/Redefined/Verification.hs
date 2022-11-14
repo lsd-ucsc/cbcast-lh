@@ -102,6 +102,38 @@ extendElemTail4Head e h xs w -- by cases of listTailForHead
         {-simplify IfThenElse-}         === listElem e (listTailForHead h xs)
                                         *** QED
 
+-- * proofs about foldr and helpers
+
+{-@
+listFoldrEmpty
+    ::     f : (a -> b -> b)
+    -> first : b
+    -> { first == listFoldr f first [] }
+@-}
+listFoldrEmpty :: (a -> b -> b) -> b -> Proof
+listFoldrEmpty _f _first = () {-@ ple listFoldrEmpty @-}
+
+{-@
+listFoldrPenultimate
+    ::        f : (a -> b -> b)
+    ->        v :  a
+    ->       vs : [a]
+    ->    first :  b
+    -> { penult :  b  | penult == listFoldr f first         vs  }
+    -> {   last :  b  |   last == listFoldr f first (cons v vs) }
+    -> { f v penult == last }
+@-}
+listFoldrPenultimate :: (a -> b -> b) -> a -> [a] -> b -> b -> b -> Proof
+listFoldrPenultimate _f _v _vs _first _penult _last = () {-@ ple listFoldrPenultimate @-}
+
+{-@ funFlip'Apply :: f:(a -> b -> c) -> b:b -> a:a -> { funFlip' f b a == f a b } @-}
+funFlip'Apply :: (a -> b -> c) -> b -> a -> Proof
+funFlip'Apply _ _ _ = () {-@ ple funFlip'Apply @-}
+
+{-@ funUncurry'Apply :: f:(a -> b -> c) -> v:(a, b) -> { funUncurry' f v == f (fst v) (snd v) } @-}
+funUncurry'Apply :: (a -> b -> c) -> (a, b) -> Proof
+funUncurry'Apply _ (_,_) = () {-@ ple funUncurry'Apply @-}
+
 -- * proofs about lists of unique elements
 
 {-@

@@ -3,8 +3,6 @@
 
 module CBCAST.Verification.PLCDpresStep {-# WARNING "Verification only" #-} where
 
-import Prelude hiding (foldr)
-
 import Language.Haskell.Liquid.ProofCombinators (Proof, (===), (***), QED(..), (?))
 
 import Redefined
@@ -67,16 +65,12 @@ foldr_step acc (x:xs) = stepShim x (foldr_step acc xs)
 foldr_step acc [] = acc
 {-@ reflect foldr_step @-}
 
-flip :: (a -> b -> c) -> b -> a -> c
-flip f b a = f a b
-{-@ inline flip @-}
-
 -- | The transitive reflexive closure of step(Shim) preserves PLCD.
 {-@
 trcPLCDpres
     ::   n : Nat
     -> ops : [OPsized r {n}]
-    -> PLCDpreservation r {n} {flip foldr_step ops}
+    -> PLCDpreservation r {n} {funFlip foldr_step ops}
 @-}
 trcPLCDpres :: Eq r => Int -> [Op r] -> Process r -> (Message r -> Message r -> Proof)
                                                   -> (Message r -> Message r -> Proof)

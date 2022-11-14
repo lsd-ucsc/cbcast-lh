@@ -148,6 +148,33 @@ listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
 
 
 
+-- * foldr and helpers
+
+listFoldr :: (a -> b -> b) -> b -> [a] -> b
+listFoldr f acc (x:xs) = f x (listFoldr f acc xs)
+listFoldr _ acc [] = acc
+{-@ reflect listFoldr @-}
+
+funUncurry :: (a -> b -> c) -> (a, b) -> c
+funUncurry f (a, b) = f a b
+{-@ inline funUncurry @-}
+
+funUncurry' :: (a -> b -> c) -> (a, b) -> c
+funUncurry' f (a, b) = f a b
+{-@ reflect funUncurry' @-}
+
+funFlip :: (a -> b -> c) -> b -> a -> c
+funFlip f b a = f a b
+{-@ inline funFlip @-}
+
+funFlip' :: (a -> b -> c) -> b -> a -> c
+funFlip' f b a = f a b
+{-@ reflect funFlip' @-}
+
+
+
+
+
 -- * Unique lists
 
 {-@ type UniqueList a = [a]<{\j k -> j /= k}> @-}

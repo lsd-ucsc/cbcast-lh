@@ -3,10 +3,10 @@
 
 module CBCAST.Verification.Global.CDpresXStep {-# WARNING "Verification only" #-} where
 
-import Prelude hiding (foldr, uncurry)
 import Language.Haskell.Liquid.ProofCombinators
 
 import Redefined
+import Redefined.Verification
 import VectorClock
 import CBCAST.Core
 import CBCAST.Transitions
@@ -45,15 +45,15 @@ xStepCDpres n op op_p_id x xCD = -- \ p_id m₁ m₂ ->
 trcCDpres
     ::   n : Nat
     -> ops : [(OPsized r {n}, PIDsized {n})]
-    -> CDpreservation r {n} {flip' (foldr (uncurry (xStep n))) ops}
+    -> CDpreservation r {n} {funFlip' (listFoldr (funUncurry' (xStep n))) ops}
     / [len ops]
 @-}
 trcCDpres :: Eq r => Int -> [(Op r, PID)] -> Execution r -> (PID -> Message r -> Message r -> Proof)
                                                          -> (PID -> Message r -> Message r -> Proof)
 trcCDpres n ((op, op_p_id):rest) xFirst xFirstCD {-λ-} p_id m₁ m₂ =
     let
-        xPenult = flip' (foldr (uncurry (xStep n)))                rest  xFirst
-        xLast   = flip' (foldr (uncurry (xStep n))) ((op, op_p_id):rest) xFirst -- restate part of conclusion
+        xPenult = funFlip' (listFoldr (funUncurry' (xStep n)))                rest  xFirst
+        xLast   = funFlip' (listFoldr (funUncurry' (xStep n))) ((op, op_p_id):rest) xFirst -- restate part of conclusion
         xPenultCD = trcCDpres n rest xFirst xFirstCD -- inductive assumption
         xLastCD   = xStepCDpres n op op_p_id xPenult xPenultCD
     in
@@ -69,22 +69,22 @@ trcCDpresInductiveCaseLemma
     ->        v :  (a1, a2)
     ->       vs : [(a1, a2)]
     ->    first :  b
-    -> { penult :  b  | penult == foldr (uncurry f) first         vs  }
-    -> {   last :  b  |   last == foldr (uncurry f) first (cons v vs) }
+    -> { penult :  b  | penult == listFoldr (funUncurry' f) first         vs  }
+    -> {   last :  b  |   last == listFoldr (funUncurry' f) first (cons v vs) }
     -> { f (fst v) (snd v) penult == last }
 @-}
 trcCDpresInductiveCaseLemma :: (a1 -> a2 -> b -> b) -> (a1, a2) -> [(a1, a2)] -> b -> b -> b -> Proof
 trcCDpresInductiveCaseLemma f v vs first penult last_ =
-        foldrPenultimate (uncurry f) v vs first penult last_
-    &&& uncurryApply f v -- QQQ: INLINE THIS?
+        listFoldrPenultimate (funUncurry' f) v vs first penult last_
+    &&& funUncurry'Apply f v -- QQQ: INLINE THIS?
 
 {-@
 trcCDpresBaseCaseLemma
     ::     f : (a1 -> a2 -> b -> b)
     -> first : b
-    -> { first == flip' (foldr (uncurry f)) [] first }
+    -> { first == funFlip' (listFoldr (funUncurry' f)) [] first }
 @-}
 trcCDpresBaseCaseLemma :: (a1 -> a2 -> b -> b) -> b -> Proof
 trcCDpresBaseCaseLemma f first =
-        foldrEmpty (uncurry f) first -- QQQ: INLINE THIS?
-    &&& flip'Apply (foldr (uncurry f)) [] first -- QQQ: INLINE THIS?
+        listFoldrEmpty (funUncurry' f) first -- QQQ: INLINE THIS?
+    &&& funFlip'Apply (listFoldr (funUncurry' f)) [] first -- QQQ: INLINE THIS?
