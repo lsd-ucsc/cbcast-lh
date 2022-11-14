@@ -14,6 +14,15 @@ identity x = x
 
 
 
+-- * Bools
+
+boolNot :: Bool -> Bool
+boolNot True  = False
+boolNot False = True
+{-@ reflect boolNot @-}
+
+
+
 -- * Ord
 
 -- | Implementation of 'max' lifted to specifications.
@@ -179,6 +188,10 @@ funFlip f b a = f a b
 funFlip' :: (a -> b -> c) -> b -> a -> c
 funFlip' f b a = f a b
 {-@ reflect funFlip' @-}
+
+funCompose :: (b -> c) -> (a -> b) -> a -> c
+funCompose g f x = g (f x)
+{-@ reflect funCompose @-}
 
 
 
