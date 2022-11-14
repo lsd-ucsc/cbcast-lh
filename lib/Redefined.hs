@@ -145,6 +145,11 @@ listZipWith3 _ [] [] [] = []
 listZipWith3 f (x:xs) (y:ys) (z:zs) = f x y z : listZipWith3 f xs ys zs
 {-@ reflect listZipWith3 @-}
 
+listMap :: (a -> b) -> [a] -> [b]
+listMap _f []     = []
+listMap  f (x:xs) = f x : listMap f xs
+{-@ reflect listMap @-}
+
 
 
 
@@ -155,18 +160,22 @@ listFoldr f acc (x:xs) = f x (listFoldr f acc xs)
 listFoldr _ acc [] = acc
 {-@ reflect listFoldr @-}
 
+-- | An inlined definition can be discharged by LH more easy.
 funUncurry :: (a -> b -> c) -> (a, b) -> c
 funUncurry f (a, b) = f a b
 {-@ inline funUncurry @-}
 
+-- | A reflected definition can be partially applied in specs.
 funUncurry' :: (a -> b -> c) -> (a, b) -> c
 funUncurry' f (a, b) = f a b
 {-@ reflect funUncurry' @-}
 
+-- | An inlined definition can be discharged by LH more easy.
 funFlip :: (a -> b -> c) -> b -> a -> c
 funFlip f b a = f a b
 {-@ inline funFlip @-}
 
+-- | A reflected definition can be partially applied in specs.
 funFlip' :: (a -> b -> c) -> b -> a -> c
 funFlip' f b a = f a b
 {-@ reflect funFlip' @-}
