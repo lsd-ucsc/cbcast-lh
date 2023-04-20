@@ -1,15 +1,15 @@
-# (3) latest resolver for ghc 8.10.7 on Fri Jun 24 10:55:11 PDT 2022
-resolver: lts-18.28
+# (3) latest resolver for ghc 8.6.5 as of Thu Apr 20 04:02:52 PM PDT 2023
+resolver: lts-14.27
 packages:
   - .
 extra-deps:
-  # (1) latest LH commit (cabalfile indicates ghc 8.10.7) on Fri Jun 24 10:54:14 PDT 2022
+  # (1) LH with typeclasses, specified by Yiyun and James; cabalfile indicates ghc 8.6.5
   - git: https://github.com/ucsd-progsys/liquidhaskell
-    commit: 316c964b5b4f62c9dd96c6b037134fcf3c47f3e4
+    commit: 3090c1ea67e04dc3a12171c4a670cd32804e7b6c
     subdirs: [ '.', liquid-ghc-prim, liquid-base, liquid-prelude, liquid-bytestring, liquid-containers, liquid-parallel, liquid-platform, liquid-vector ]
   # (2) LFP commit submodule'd the LH commit above
   - git: https://github.com/ucsd-progsys/liquid-fixpoint
-    commit: 7e18f70ede589c5f7f2e0b5a3bf38250938aee28
+    commit: 7b4ec98173563720fb54de7a57ecd7fba83468b7
   # (4) dependencies identified by stack; commits latest on Fri Jun 24 10:54:14 PDT 2022
   - rest-rewrite-0.4.0@sha256:be93d899f7dece33f2a7613eb3dabd24d139f9cb2fc09f9efedfdce4ba6eb276,3923
   - wai-middleware-metrics-0.2.4@sha256:d6b6916acd41aaef4ca59a839d40a3a377f9df784ae49fd4c64926ae916b6ba2,2890
